@@ -152,6 +152,10 @@ private:
 	VkCommandPool commandPool;
 	std::vector<VkCommandBuffer> commandBuffers; // destroyed with command pool
 
+	// Vertex buffers
+	VkBuffer vertexBuffer;
+	VkDeviceMemory vertexBufferMemory;
+
 	// Sync objects
 	std::vector<VkSemaphore> imageAvailableSemaphores;
 	std::vector<VkSemaphore> renderFinishedSemaphores;
@@ -205,6 +209,7 @@ private:
 		createFramebuffers();
 		createCommandPool();
 		allocateCommandBuffers();
+		createVertexBuffer();
 		createSyncObjects();
 	}
 
@@ -475,6 +480,21 @@ private:
 		}
 
 		return requiredExtensions.empty();
+	}
+
+	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+		// Device memory properties
+		VkPhysicalDeviceMemoryProperties memProperties;
+		vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+
+		for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+			if ((typeFilter & (1 << i)) &&
+				(memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+				return i;
+			}
+		}
+
+		throw std::runtime_error("failed to find suitable memory type");
 	}
 
 
@@ -1095,6 +1115,11 @@ private:
 		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
+		// vertex buffers
+		VkBuffer vertexBuffers[] = { vertexBuffer };
+		VkDeviceSize offsets[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
 		// viewport and scissor stage
 		VkViewport viewport{};
 		viewport.x = 0.0f;
@@ -1111,7 +1136,7 @@ private:
 		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
 		// draw geometry
-		vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+		vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
 
 		// end recording
 		vkCmdEndRenderPass(commandBuffer);
@@ -1119,6 +1144,51 @@ private:
 		if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to record command buffer");
 		}
+	}
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// VERTEX BUFFER CREATION
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	void createVertexBuffer() {
+		// CREATE VERTEX BUFFER
+		VkBufferCreateInfo bufferInfo{};
+		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		bufferInfo.size = sizeof(vertices[0]) * vertices.size();
+		bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+		bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+		if (vkCreateBuffer(device, &bufferInfo, nullptr, &vertexBuffer) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create vertex buffer");
+		}
+
+		// ALLOCATION PROCESS
+
+		// Get memory requirements
+		VkMemoryRequirements memRequirements;
+		vkGetBufferMemoryRequirements(device, vertexBuffer, &memRequirements);
+
+		// Allocation info
+		VkMemoryAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		allocInfo.allocationSize = memRequirements.size;
+		allocInfo.memoryTypeIndex = findMemoryType(
+			memRequirements.memoryTypeBits,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+		// Allocate buffer
+		if (vkAllocateMemory(device, &allocInfo, nullptr, &vertexBufferMemory) != VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate vertex buffer memory");
+		}
+		// Associate buffer with memory
+		vkBindBufferMemory(device, vertexBuffer, vertexBufferMemory, 0);
+
+		// COPY DATA TO THE BUFFER
+		
+		void* data;
+		vkMapMemory(device, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
+		memcpy(data, vertices.data(), (size_t)bufferInfo.size);
+		vkUnmapMemory(device, vertexBufferMemory);
 	}
 
 
@@ -1254,6 +1324,10 @@ private:
 
 		// Swap chain objects
 		cleanupSwapChainObjects();
+
+		// Vertex buffer
+		vkDestroyBuffer(device, vertexBuffer, nullptr);
+		vkFreeMemory(device, vertexBufferMemory, nullptr);
 
 		// Sync objects
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
