@@ -142,6 +142,7 @@
     <None Include="shaders\shader.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="UnidormBufferObject.hpp" />
     <ClInclude Include="Vertex.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
