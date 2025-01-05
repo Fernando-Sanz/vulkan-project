@@ -174,6 +174,7 @@ private:
 	VkImage textureImage;
 	VkDeviceMemory textureImageMemory;
 	VkImageView textureImageView;
+	VkSampler textureSampler;
 
 	// Geometry buffers
 	VkBuffer vertexBuffer;
@@ -245,6 +246,7 @@ private:
 		createCommandPool();
 		createTextureImage();
 		createTextureImageView();
+		createTextureSampler();
 		createVertexBuffer();
 		createIndexBuffer();
 		createUniformBuffers();
@@ -471,10 +473,16 @@ private:
 			swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
 		}
 
+		// general features support
+		VkPhysicalDeviceFeatures supportedFeatures;
+		vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
+
 		// the device has all queue families needed,
-		// supports all extensions required
-		// and has a suitable swapchain or not:
-		return indices.isComplete() && extensionsSupported && swapChainAdequate;
+		// supports all extensions required,
+		// has a suitable swapchain or not,
+		// supports anisotropic filtering
+		return indices.isComplete() && extensionsSupported && swapChainAdequate &&
+			supportedFeatures.samplerAnisotropy;
 	}
 
 	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {
@@ -573,6 +581,7 @@ private:
 		
 		// SPECIFY DEVICE FEATURES
 		VkPhysicalDeviceFeatures deviceFeatures{};
+		deviceFeatures.samplerAnisotropy = VK_TRUE;
 
 		
 		// LOGICAL DEVICE CREATE INFO
@@ -1455,6 +1464,48 @@ private:
 
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// TEXTURE SAMPLER CREATION
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	void createTextureSampler() {
+
+		// CREATE INFO
+		VkSamplerCreateInfo samplerInfo{};
+		samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+		samplerInfo.magFilter = VK_FILTER_LINEAR;
+		samplerInfo.minFilter = VK_FILTER_LINEAR;
+
+		samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+
+		// anisotropic filtering
+		// TODO: make properties a class member and replace all the calls to vkGetPhisicalDeviceProperties()
+		VkPhysicalDeviceProperties properties{};
+		vkGetPhysicalDeviceProperties(physicalDevice, &properties);
+		samplerInfo.anisotropyEnable = VK_TRUE;
+		samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+
+		samplerInfo.unnormalizedCoordinates = VK_FALSE;
+
+		// for shadow mapping and similar
+		samplerInfo.compareEnable = VK_FALSE;
+		samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+
+		samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		samplerInfo.mipLodBias = 0.0f;
+		samplerInfo.minLod = 0.0f;
+		samplerInfo.maxLod = 0.0f;
+
+		// CREATE SAMPLER
+		if (vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create texture sampler!");
+		}
+	}
+
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// VERTEX BUFFER CREATION
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
@@ -1819,6 +1870,7 @@ private:
 		cleanupSwapChainObjects();
 
 		// Texture
+		vkDestroySampler(device, textureSampler, nullptr);
 		vkDestroyImageView(device, textureImageView, nullptr);
 		vkDestroyImage(device, textureImage, nullptr);
 		vkFreeMemory(device, textureImageMemory, nullptr);
