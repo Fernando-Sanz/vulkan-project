@@ -1307,6 +1307,9 @@ private:
 			throw std::runtime_error("failed to load texture image");
 		}
 
+		std::cout << "Loaded texture ";
+		std::cout << texWidth << "x" << texHeight << std::endl;
+
 		// COPY IMAGE TO STAGING BUFFER
 		VkBuffer stagingBuffer;
 		VkDeviceMemory stagingBufferMemory;
