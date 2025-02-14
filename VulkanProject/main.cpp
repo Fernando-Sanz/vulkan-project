@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <cstdlib>
 #include <vector>
+#include <unordered_map>
 #include <optional>
 #include <set>
 //#include <cstdint> // uint32_t
@@ -1634,7 +1635,11 @@ private:
 			throw std::runtime_error(warn + err);
 		}
 
+
 		// POPULLATE THE VERTICES
+
+		std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+
 		for (const auto& shape : shapes) {
 			for (const auto& index : shape.mesh.indices) {
 				Vertex vertex{};
@@ -1656,9 +1661,13 @@ private:
 				// base color
 				vertex.color = { 1.0f, 1.0f, 1.0f };
 
-				// Store the vertex and index
-				vertices.push_back(vertex);
-				indices.push_back(indices.size());
+				// check if the vertex already exists and store the index
+				if (uniqueVertices.count(vertex) == 0) {
+					uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+					vertices.push_back(vertex);
+				}
+
+				indices.push_back(uniqueVertices[vertex]);
 			}
 		}
 
