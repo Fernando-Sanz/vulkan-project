@@ -137,6 +137,7 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PhysicalDevice.cpp" />
+    <ClCompile Include="utils.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\shader.frag" />
@@ -145,6 +146,7 @@
   <ItemGroup>
     <ClInclude Include="PhysicalDevice.hpp" />
     <ClInclude Include="UnidormBufferObject.hpp" />
+    <ClInclude Include="utils.hpp" />
     <ClInclude Include="Vertex.hpp" />
     <ClInclude Include="VulkanApplication.hpp" />
   </ItemGroup>
