@@ -23,15 +23,10 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-//#define STB_IMAGE_IMPLEMENTATION
-//#include <stb_image.h>
-//
-//#define TINYOBJLOADER_IMPLEMENTATION
-//#include <tiny_obj_loader.h>
-
+#include <stb_image.h>
+#include <tiny_obj_loader.h>
 
 #include "PhysicalDevice.hpp"
-#include "utils.hpp"
 
 #include "Vertex.hpp"
 #include "UnidormBufferObject.hpp"
@@ -1300,8 +1295,7 @@ private:
 	void createTextureImage() {
 		// LOAD IMAGE
 		int texWidth, texHeight, texChannels;
-		//stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-		unsigned char* pixels = loadImage(TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels);
+		stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 		VkDeviceSize imageSize = texWidth * texHeight * 4/*bytes per channel*/;
 		mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
 
@@ -1326,8 +1320,7 @@ private:
 		vkUnmapMemory(device, stagingBufferMemory);
 
 		// cleanup old pixel array
-		//stbi_image_free(pixels);
-		freeImage(pixels);
+		stbi_image_free(pixels);
 
 		// CREATE IMAGE
 		createImage(texWidth, texHeight, mipLevels, VK_SAMPLE_COUNT_1_BIT,
@@ -1631,8 +1624,6 @@ private:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	void loadModel() {
-		loadAModel(MODEL_PATH, vertices, indices);
-		/**
 		// Elements loaded from obj file
 		tinyobj::attrib_t attrib;
 		std::vector<tinyobj::shape_t> shapes;
@@ -1681,7 +1672,6 @@ private:
 		}
 
 		std::cout << "Model loaded: " << vertices.size() << " vertices" << std::endl;
-		//*/
 	}
 
 	// TODO: allocate more than one resource from a single call

@@ -146,7 +146,6 @@
   <ItemGroup>
     <ClInclude Include="PhysicalDevice.hpp" />
     <ClInclude Include="UnidormBufferObject.hpp" />
-    <ClInclude Include="utils.hpp" />
     <ClInclude Include="Vertex.hpp" />
     <ClInclude Include="VulkanApplication.hpp" />
   </ItemGroup>
