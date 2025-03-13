@@ -29,35 +29,39 @@ const std::vector<const char*> deviceExtensions = {
 };
 
 
-class PhysicalDevice {
+class Device {
 public:
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // CONSTRUCTOR
 
-    PhysicalDevice() {
+    Device() {
     }
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // GETTERS AND SETTERS
 
-    VkPhysicalDevice getDevice() { return device; }
+    VkPhysicalDevice getPhysicalDevice() { return physicalDevice; }
     VkSampleCountFlagBits getMsaaSamples() { return msaaSamples; }
+
+    VkDevice get() { return logicalDevice; }
+    VkQueue getGraphicsQueue() { return graphicsQueue; }
+    VkQueue getPresentQueue() { return presentQueue; }
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // METHODS
+    // PHYSICAL DEVICE METHODS
     
-    // Select a device depending on the requirements of 'isDeviceSuitable()'
+    // Select a device depending on the requirements of 'isDeviceSuitable()' and creates a logical device
     // TODO: Check if it could receive the surface that will be used for rendering
     void pickDevice();
 
     // This function returns a QueueFamilyIndices struct with the supported queue families
-    QueueFamilyIndices findQueueFamilies() { return findQueueFamilies(device); }
+    QueueFamilyIndices findQueueFamilies() { return findQueueFamilies(physicalDevice); }
 
     // Check for CAPABILITIES, FORMATS and PRESENT MODES
-    SwapChainSupportDetails querySwapChainSupport() { return querySwapChainSupport(device); }
+    SwapChainSupportDetails querySwapChainSupport() { return querySwapChainSupport(physicalDevice); }
 
     // Search for a memory type that has the properties specified
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
@@ -68,19 +72,27 @@ public:
     // Find supported format depending on desired tiling and features
     VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 
+    // Get format properties of the device
+    void getPhysicalDeviceFormatProperties(VkFormat imageFormat, VkFormatProperties* formatProperties);
+
 
 private:
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // CLASS MEMBERS
 
-    VkPhysicalDevice device = VK_NULL_HANDLE;	// destroyed with instance
+    // Physical device objects
+    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;	// destroyed with instance
     VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT; // multisampling
+
+    // Logical device objects
+    VkDevice logicalDevice;
+    VkQueue graphicsQueue;
+    VkQueue presentQueue;
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // METHODS
-
+    // PHYSICAL DEVICE METHODS
 
     // Determine if a device is suitable based on queue families, required extensions,
     // and support for swap chain and certain features
@@ -99,4 +111,9 @@ private:
     // Get the maximun sample count supported by the GPU depending on color buffer AND depth buffer
     VkSampleCountFlagBits getMaxUsableSampleCount();
 
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // LOGICAL DEVICE METHODS
+
+    void createLogicalDevice();
 };

@@ -5,7 +5,10 @@
 #include "VulkanApplication.hpp"
 
 
-void PhysicalDevice::pickDevice() {
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// PHYSICAL DEVICE METHODS
+
+void Device::pickDevice() {
 	VulkanApplication& instance = VulkanApplication::getInstance();
 
 	//-----------------------------------------
@@ -24,18 +27,22 @@ void PhysicalDevice::pickDevice() {
 	// Find suitable graphics card
 	for (const auto& device : devices) {
 		if (isDeviceSuitable(device)) {
-			this->device = device;
+			physicalDevice = device;
 			msaaSamples = getMaxUsableSampleCount();
 			break;
 		}
 	}
 
-	if (this->device == VK_NULL_HANDLE) {
+	if (physicalDevice == VK_NULL_HANDLE) {
 		throw std::runtime_error("failed to find a suitable GPU");
 	}
+
+	//-----------------------------------------
+	// Create logical device
+	createLogicalDevice();
 }
 
-bool PhysicalDevice::isDeviceSuitable(VkPhysicalDevice device) {
+bool Device::isDeviceSuitable(VkPhysicalDevice device) {
 	// IMPORTANT NOTE:
 	// Here could be a customized selection process that considers different
 	// aspects of the available GPUs (texture max size, separate GPU, etc)
@@ -64,7 +71,7 @@ bool PhysicalDevice::isDeviceSuitable(VkPhysicalDevice device) {
 		supportedFeatures.samplerAnisotropy;	// supports anisotropy
 }
 
-QueueFamilyIndices PhysicalDevice::findQueueFamilies(VkPhysicalDevice device) {
+QueueFamilyIndices Device::findQueueFamilies(VkPhysicalDevice device) {
 	// Logic to find queue family indices
 	VulkanApplication& instance = VulkanApplication::getInstance();
 	QueueFamilyIndices indices;
@@ -102,7 +109,7 @@ QueueFamilyIndices PhysicalDevice::findQueueFamilies(VkPhysicalDevice device) {
 	return indices;
 }
 
-bool PhysicalDevice::checkDeviceExtensionSupport(VkPhysicalDevice device) {
+bool Device::checkDeviceExtensionSupport(VkPhysicalDevice device) {
 	//-----------------------------------------
 	// Get device extensions
 	uint32_t extensionCount;
@@ -120,7 +127,7 @@ bool PhysicalDevice::checkDeviceExtensionSupport(VkPhysicalDevice device) {
 	return requiredExtensions.empty();
 }
 
-SwapChainSupportDetails PhysicalDevice::querySwapChainSupport(VkPhysicalDevice device) {
+SwapChainSupportDetails Device::querySwapChainSupport(VkPhysicalDevice device) {
 	VulkanApplication& vulkanApp = VulkanApplication::getInstance();
 
 	//-----------------------------------------
@@ -149,11 +156,11 @@ SwapChainSupportDetails PhysicalDevice::querySwapChainSupport(VkPhysicalDevice d
 	return details;
 }
 
-uint32_t PhysicalDevice::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+uint32_t Device::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
 
 	// Device memory properties
 	VkPhysicalDeviceMemoryProperties memProperties;
-	vkGetPhysicalDeviceMemoryProperties(device, &memProperties);
+	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
 
 	// Check the types and properties
 	for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
@@ -166,13 +173,13 @@ uint32_t PhysicalDevice::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFla
 	throw std::runtime_error("failed to find suitable memory type");
 }
 
-VkPhysicalDeviceProperties PhysicalDevice::getPhysicalDeviceProperties() {
+VkPhysicalDeviceProperties Device::getPhysicalDeviceProperties() {
 	VkPhysicalDeviceProperties properties;
-	vkGetPhysicalDeviceProperties(device, &properties);
+	vkGetPhysicalDeviceProperties(physicalDevice, &properties);
 	return properties;
 }
 
-VkSampleCountFlagBits PhysicalDevice::getMaxUsableSampleCount() {
+VkSampleCountFlagBits Device::getMaxUsableSampleCount() {
 	VkPhysicalDeviceProperties physicalDeviceProperties = getPhysicalDeviceProperties();
 
 	VkSampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts & physicalDeviceProperties.limits.framebufferDepthSampleCounts;
@@ -186,12 +193,12 @@ VkSampleCountFlagBits PhysicalDevice::getMaxUsableSampleCount() {
 	return VK_SAMPLE_COUNT_1_BIT;
 }
 
-VkFormat PhysicalDevice::findSupportedFormat(
+VkFormat Device::findSupportedFormat(
 	const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
 
 	for (VkFormat format : candidates) {
 		VkFormatProperties props;
-		vkGetPhysicalDeviceFormatProperties(device, format, &props);
+		vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
 
 		if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features) {
 			return format;
@@ -202,4 +209,68 @@ VkFormat PhysicalDevice::findSupportedFormat(
 	}
 
 	throw std::runtime_error("failed to find supported format");
+}
+
+void Device::getPhysicalDeviceFormatProperties(VkFormat imageFormat, VkFormatProperties* formatProperties) {
+	vkGetPhysicalDeviceFormatProperties(physicalDevice, imageFormat, formatProperties);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// LOGICAL DEVICE METHODS
+
+void Device::createLogicalDevice() {
+
+	//-----------------------------------------
+	// QUEUE CREATE INFOS
+
+	// unique queue families
+	QueueFamilyIndices indices = findQueueFamilies();
+	std::set<uint32_t> queueFamilies = {
+		indices.graphicsFamily.value(),
+		indices.presentFamily.value() };
+
+	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+	float queuePriority = 1.0f;
+	for (uint32_t queueFamily : queueFamilies) {
+		VkDeviceQueueCreateInfo queueCreateInfo{};
+		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		queueCreateInfo.queueFamilyIndex = queueFamily;
+		queueCreateInfo.queueCount = 1;
+		queueCreateInfo.pQueuePriorities = &queuePriority;
+		queueCreateInfos.push_back(queueCreateInfo);
+	}
+
+	//-----------------------------------------
+	// SPECIFY DEVICE FEATURES
+	VkPhysicalDeviceFeatures deviceFeatures{};
+	deviceFeatures.samplerAnisotropy = VK_TRUE;
+
+	//-----------------------------------------
+	// DEVICE CREATE INFO
+	VkDeviceCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+
+	createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+	createInfo.pQueueCreateInfos = queueCreateInfos.data();
+
+	createInfo.pEnabledFeatures = &deviceFeatures;
+
+	createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
+	createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+
+	// IMPORTANT NOTE:
+	// In previous vulkan implementations, the logical device create info
+	// used to have layer indicators for validation layers (device specific).
+	// Now that isn't longer the case, but there are people who recommend to
+	// indicate it for compatibility with older implementations.
+	// Here it is ignores but it is something to have in count.
+
+	if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &logicalDevice) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create logical device");
+	}
+
+	//-----------------------------------------
+	// GET THE QUEUES
+	vkGetDeviceQueue(logicalDevice, indices.graphicsFamily.value(), 0, &graphicsQueue);
+	vkGetDeviceQueue(logicalDevice, indices.presentFamily.value(), 0, &presentQueue);
 }
