@@ -135,6 +135,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="CommandManager.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Device.cpp" />
     <ClCompile Include="utils.cpp" />
@@ -144,6 +145,7 @@
     <None Include="shaders\shader.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CommandManager.hpp" />
     <ClInclude Include="Device.hpp" />
     <ClInclude Include="UnidormBufferObject.hpp" />
     <ClInclude Include="Vertex.hpp" />
