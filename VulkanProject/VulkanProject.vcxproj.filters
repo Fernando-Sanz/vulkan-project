@@ -21,7 +21,7 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PhysicalDevice.cpp">
+    <ClCompile Include="Device.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="utils.cpp">
@@ -43,7 +43,7 @@
     <ClInclude Include="UnidormBufferObject.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="PhysicalDevice.hpp">
+    <ClInclude Include="Device.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="VulkanApplication.hpp">

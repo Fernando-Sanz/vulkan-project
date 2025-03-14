@@ -25,7 +25,7 @@
 #include <stb_image.h>
 #include <tiny_obj_loader.h>
 
-#include "PhysicalDevice.hpp"
+#include "Device.hpp"
 
 #include "Vertex.hpp"
 #include "UnidormBufferObject.hpp"
