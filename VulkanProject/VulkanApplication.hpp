@@ -1959,8 +1959,8 @@ private:
 		vkDestroyPipelineLayout(device.get(), pipelineLayout, nullptr);
 		vkDestroyRenderPass(device.get(), renderPass, nullptr);
 
-		// Logical device
-		vkDestroyDevice(device.get(), nullptr);
+		// Device
+		device.cleanup();
 
 		// Instance objects
 		if (enableValidationLayers)

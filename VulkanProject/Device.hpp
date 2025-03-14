@@ -75,6 +75,9 @@ public:
     // Get format properties of the device
     void getPhysicalDeviceFormatProperties(VkFormat imageFormat, VkFormatProperties* formatProperties);
 
+    // Destroy Vulkan and other objects
+    void cleanup();
+
 
 private:
 

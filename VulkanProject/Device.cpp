@@ -215,6 +215,10 @@ void Device::getPhysicalDeviceFormatProperties(VkFormat imageFormat, VkFormatPro
 	vkGetPhysicalDeviceFormatProperties(physicalDevice, imageFormat, formatProperties);
 }
 
+void Device::cleanup() {
+	vkDestroyDevice(logicalDevice, nullptr);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // LOGICAL DEVICE METHODS
 
