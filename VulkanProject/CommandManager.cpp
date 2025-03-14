@@ -1,7 +1,7 @@
 #include "CommandManager.hpp"
 
 
-void CommandManager::createCommandPool(Device device, int bufferCount) {
+void CommandManager::createCommandPoolAndBuffers(Device device, int bufferCount) {
 	this->device = device;
 
 	//-----------------------------------------

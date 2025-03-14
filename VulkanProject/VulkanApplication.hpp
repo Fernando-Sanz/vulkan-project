@@ -261,7 +261,7 @@ private:
 		createDescriptorSetLayout();
 		createGraphicsPipeline();
 
-		commandManager.createCommandPool(device, MAX_FRAMES_IN_FLIGHT);
+		commandManager.createCommandPoolAndBuffers(device, MAX_FRAMES_IN_FLIGHT);
 
 		createColorResources();
 		createDepthResources();

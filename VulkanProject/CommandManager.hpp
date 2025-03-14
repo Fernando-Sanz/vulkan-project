@@ -12,18 +12,23 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// GETTERS AND SETTERS
 
+	// Get command buffer at specified position
 	VkCommandBuffer getCommandBuffer(int index) { return commandBuffers[index]; }
 
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// METHODS
 
-	void createCommandPool(Device device, int bufferCount);
+	// Create command pool and allocate command buffers
+	void createCommandPoolAndBuffers(Device device, int bufferCount);
 
+	// Begin a command buffer
 	VkCommandBuffer beginSingleTimeCommands();
 
+	// End a command buffer
 	void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 
+	// Destroy Vulkan and other objects
 	void cleanup();
 
 private:
