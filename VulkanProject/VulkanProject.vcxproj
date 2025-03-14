@@ -136,6 +136,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CommandManager.cpp" />
+    <ClCompile Include="GraphicsPipeline.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Device.cpp" />
     <ClCompile Include="utils.cpp" />
@@ -147,6 +148,7 @@
   <ItemGroup>
     <ClInclude Include="CommandManager.hpp" />
     <ClInclude Include="Device.hpp" />
+    <ClInclude Include="GraphicsPipeline.hpp" />
     <ClInclude Include="UnidormBufferObject.hpp" />
     <ClInclude Include="Vertex.hpp" />
     <ClInclude Include="VulkanApplication.hpp" />
