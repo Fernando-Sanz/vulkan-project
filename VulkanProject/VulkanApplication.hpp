@@ -607,43 +607,6 @@ private:
 
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// DESCRIPTION SET LAYOUT CREATION
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	void createDescriptorSetLayout(VkDescriptorSetLayout* descriptorSetLayout) {
-		// BINDINGS
-
-		// ubo binding
-		VkDescriptorSetLayoutBinding uboLayoutBinding{};
-		uboLayoutBinding.binding = 0;
-		uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		uboLayoutBinding.descriptorCount = 1;
-		uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-		uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-		// sampler binding
-		VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-		samplerLayoutBinding.binding = 1;
-		samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		samplerLayoutBinding.descriptorCount = 1;
-		samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-		samplerLayoutBinding.pImmutableSamplers = nullptr;
-
-		// CREATE INFO
-		std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
-		VkDescriptorSetLayoutCreateInfo layoutInfo{};
-		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-		layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-		layoutInfo.pBindings = bindings.data();
-
-		// CREATION
-		if (vkCreateDescriptorSetLayout(device.get(), &layoutInfo, nullptr, descriptorSetLayout) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create descriptor set layout");
-		}
-	}
-
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// FRAMEBUFFERS CREATION
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -661,7 +624,7 @@ private:
 
 			VkFramebufferCreateInfo framebufferInfo{};
 			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-			framebufferInfo.renderPass = renderPass;
+			framebufferInfo.renderPass = graphicsPipeline.getRenderPass();
 			framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
 			framebufferInfo.pAttachments = attachments.data();
 			framebufferInfo.width = swapChainExtent.width;
@@ -743,7 +706,7 @@ private:
 		// render pass info
 		VkRenderPassBeginInfo renderPassInfo{};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassInfo.renderPass = renderPass;
+		renderPassInfo.renderPass = graphicsPipeline.getRenderPass();
 		renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
 
 		renderPassInfo.renderArea.offset = { 0, 0 };
@@ -759,7 +722,7 @@ private:
 
 		// drawing commands
 		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline.get());
 
 		// vertex buffers
 		VkBuffer vertexBuffers[] = { vertexBuffer };
@@ -785,7 +748,7 @@ private:
 		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-			pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+			graphicsPipeline.getLayout(), 0, 1, &descriptorSets[currentFrame], 0, nullptr);
 
 		// draw geometry
 		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
@@ -1345,7 +1308,7 @@ private:
 	}
 
 	void allocateDescriptorSets() {
-		std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
+		std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, graphicsPipeline.getDescriptorSetLayout());
 
 		// DESCRIPTOR SETS ALLOCATION
 		VkDescriptorSetAllocateInfo allocInfo{};

@@ -39,8 +39,7 @@ void GraphicsPipeline::create(Device device, VkFormat imageFormat, VkFormat dept
 	this->device = device;
 
 	createRenderPass(imageFormat, depthFormat);
-	// TODO: create DescriptorManager
-	descriptorManager.createDescriptorSetLayout(&descriptorSetLayout);
+	createDescriptorSetLayout();
 	createGraphicsPipeline(vertShaderLocation, fragShaderLocation);
 }
 
@@ -135,6 +134,43 @@ void GraphicsPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthForm
 
 	if (vkCreateRenderPass(device.get(), &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create render pass");
+	}
+}
+
+void GraphicsPipeline::createDescriptorSetLayout() {
+
+	//----------------------------------------------------
+	// BINDINGS
+
+	//---------------------
+	// ubo binding
+	VkDescriptorSetLayoutBinding uboLayoutBinding{};
+	uboLayoutBinding.binding = 0;
+	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uboLayoutBinding.descriptorCount = 1;
+	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
+
+	//---------------------
+	// sampler binding
+	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+	samplerLayoutBinding.binding = 1;
+	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	samplerLayoutBinding.descriptorCount = 1;
+	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	samplerLayoutBinding.pImmutableSamplers = nullptr;
+
+	//----------------------------------------------------
+	// CREATE DESCRIPTOR SET
+	std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
+	VkDescriptorSetLayoutCreateInfo layoutInfo{};
+	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+	layoutInfo.pBindings = bindings.data();
+
+	// CREATION
+	if (vkCreateDescriptorSetLayout(device.get(), &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create descriptor set layout");
 	}
 }
 
@@ -320,7 +356,7 @@ void GraphicsPipeline::createGraphicsPipeline(std::string vertShaderLocation, st
 	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
 	pipelineInfo.basePipelineIndex = -1; // Optional
 
-	if (vkCreateGraphicsPipelines(device.get(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline)
+	if (vkCreateGraphicsPipelines(device.get(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline)
 		!= VK_SUCCESS) {
 		throw std::runtime_error("failed to create graphics pipeline");
 	}
@@ -353,7 +389,7 @@ VkShaderModule GraphicsPipeline::createShaderModule(const std::vector<char>& cod
 
 void GraphicsPipeline::cleapup() {
 	vkDestroyDescriptorSetLayout(device.get(), descriptorSetLayout, nullptr);
-	vkDestroyPipeline(device.get(), graphicsPipeline, nullptr);
+	vkDestroyPipeline(device.get(), pipeline, nullptr);
 	vkDestroyPipelineLayout(device.get(), pipelineLayout, nullptr);
 	vkDestroyRenderPass(device.get(), renderPass, nullptr);
 }
