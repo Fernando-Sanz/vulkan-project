@@ -77,6 +77,22 @@ void CommandManager::allocateCommandBuffers(int bufferCount) {
 	}
 }
 
+void CommandManager::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+
+	// Begin command
+	VkCommandBuffer commandBuffer = beginSingleTimeCommands();
+
+	// Copy command
+	VkBufferCopy copyRegion{};
+	copyRegion.srcOffset = 0; // Optional
+	copyRegion.dstOffset = 0; // Optional
+	copyRegion.size = size;
+	vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+	// Submit
+	endSingleTimeCommands(commandBuffer);
+}
+
 void CommandManager::cleanup() {
 	vkDestroyCommandPool(device.get(), pool, nullptr);
 }

@@ -28,6 +28,9 @@ public:
 	// End a command buffer
 	void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 
+	// Copy the content of a buffer to other
+	void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+
 	// Destroy Vulkan and other objects
 	void cleanup();
 

@@ -776,7 +776,7 @@ private:
 		VkBuffer stagingBuffer;
 		VkDeviceMemory stagingBufferMemory;
 
-		createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		device.createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			stagingBuffer, stagingBufferMemory);
 
@@ -1151,7 +1151,7 @@ private:
 		// STAGING BUFFER
 		VkBuffer stagingBuffer;
 		VkDeviceMemory stagingBufferMemory;
-		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		device.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			stagingBuffer, stagingBufferMemory);
 
@@ -1163,11 +1163,11 @@ private:
 
 		//--------------------------------------------
 		// VERTEX BUFFER
-		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+		device.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT |
 			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			vertexBuffer, vertexBufferMemory);
 
-		copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+		commandManager.copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
 
 		// Clean up
 		vkDestroyBuffer(device.get(), stagingBuffer, nullptr);
@@ -1182,7 +1182,7 @@ private:
 		// STAGING BUFFER
 		VkBuffer stagingBuffer;
 		VkDeviceMemory stagingBufferMemory;
-		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		device.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			stagingBuffer, stagingBufferMemory);
 
@@ -1194,61 +1194,15 @@ private:
 
 		//--------------------------------------------
 		// VERTEX BUFFER
-		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+		device.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT |
 			VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			indexBuffer, indexBufferMemory);
 
-		copyBuffer(stagingBuffer, indexBuffer, bufferSize);
+		commandManager.copyBuffer(stagingBuffer, indexBuffer, bufferSize);
 
 		// Clean up
 		vkDestroyBuffer(device.get(), stagingBuffer, nullptr);
 		vkFreeMemory(device.get(), stagingBufferMemory, nullptr);
-	}
-
-	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
-		VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
-
-		// CREATE BUFFER
-		VkBufferCreateInfo bufferInfo{};
-		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		bufferInfo.size = size;
-		bufferInfo.usage = usage;
-		bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-		if (vkCreateBuffer(device.get(), &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create buffer");
-		}
-
-		// ALLOCATE BUFFER MEMORY
-		VkMemoryRequirements memRequirements;
-		vkGetBufferMemoryRequirements(device.get(), buffer, &memRequirements);
-
-		VkMemoryAllocateInfo allocInfo{};
-		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		allocInfo.allocationSize = memRequirements.size;
-		allocInfo.memoryTypeIndex = device.findMemoryType(memRequirements.memoryTypeBits, properties);
-
-		if (vkAllocateMemory(device.get(), &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
-			throw std::runtime_error("failed to allocate buffer memory");
-		}
-
-		// ASSOCIATE BUFFER WITH MEMORY
-		vkBindBufferMemory(device.get(), buffer, bufferMemory, 0);
-	}
-
-	void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
-		// Allocate temporary command buffer
-		VkCommandBuffer commandBuffer = commandManager.beginSingleTimeCommands();
-
-		// Copy command
-		VkBufferCopy copyRegion{};
-		copyRegion.srcOffset = 0; // Optional
-		copyRegion.dstOffset = 0; // Optional
-		copyRegion.size = size;
-		vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
-
-		// Submit and end command
-		commandManager.endSingleTimeCommands(commandBuffer);
 	}
 
 

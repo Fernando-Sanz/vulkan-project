@@ -75,6 +75,14 @@ public:
     // Get format properties of the device
     void getPhysicalDeviceFormatProperties(VkFormat imageFormat, VkFormatProperties* formatProperties);
 
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // LOGICAL DEVICE METHODS
+    
+    // Create a buffer with the memory type that matches with the specified properties
+    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
+        VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+
     // Destroy Vulkan and other objects
     void cleanup();
 
