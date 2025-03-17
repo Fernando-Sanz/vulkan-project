@@ -1,7 +1,7 @@
 #include "CommandManager.hpp"
 
 
-void CommandManager::createCommandPoolAndBuffers(Device device, int bufferCount) {
+void CommandManager::createPoolAndBuffers(Device device, int bufferCount) {
 	this->device = device;
 
 	//-----------------------------------------
@@ -11,7 +11,7 @@ void CommandManager::createCommandPoolAndBuffers(Device device, int bufferCount)
 	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	poolInfo.queueFamilyIndex = device.findQueueFamilies().graphicsFamily.value();
 
-	if (vkCreateCommandPool(device.get(), &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
+	if (vkCreateCommandPool(device.get(), &poolInfo, nullptr, &pool) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create command pool");
 	}
 
@@ -26,7 +26,7 @@ VkCommandBuffer CommandManager::beginSingleTimeCommands() {
 	VkCommandBufferAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandPool = commandPool;
+	allocInfo.commandPool = pool;
 	allocInfo.commandBufferCount = 1;
 
 	VkCommandBuffer commandBuffer;
@@ -60,23 +60,23 @@ void CommandManager::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
 
 	//-----------------------------------------
 	// Free command buffer
-	vkFreeCommandBuffers(device.get(), commandPool, 1, &commandBuffer);
+	vkFreeCommandBuffers(device.get(), pool, 1, &commandBuffer);
 }
 
 void CommandManager::allocateCommandBuffers(int bufferCount) {
-	commandBuffers.resize(bufferCount);
+	buffers.resize(bufferCount);
 
 	VkCommandBufferAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.commandPool = commandPool;
+	allocInfo.commandPool = pool;
 	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandBufferCount = (uint32_t)commandBuffers.size();
+	allocInfo.commandBufferCount = (uint32_t)buffers.size();
 
-	if (vkAllocateCommandBuffers(device.get(), &allocInfo, commandBuffers.data()) != VK_SUCCESS) {
+	if (vkAllocateCommandBuffers(device.get(), &allocInfo, buffers.data()) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate command buffers");
 	}
 }
 
 void CommandManager::cleanup() {
-	vkDestroyCommandPool(device.get(), commandPool, nullptr);
+	vkDestroyCommandPool(device.get(), pool, nullptr);
 }

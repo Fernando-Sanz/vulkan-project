@@ -239,7 +239,7 @@ private:
 
 		graphicsPipeline.create(device, swapChainImageFormat, findDepthFormat(), VERT_SHADER_PATH, FRAG_SHADER_PATH);
 
-		commandManager.createCommandPoolAndBuffers(device, MAX_FRAMES_IN_FLIGHT);
+		commandManager.createPoolAndBuffers(device, MAX_FRAMES_IN_FLIGHT);
 
 		createColorResources();
 		createDepthResources();
@@ -1442,7 +1442,7 @@ private:
 
 		//---------------------------------------
 		// RECORD A COMMAND BUFFER
-		VkCommandBuffer commandBuffer = commandManager.getCommandBuffer(currentFrame);
+		VkCommandBuffer commandBuffer = commandManager.getBuffer(currentFrame);
 		vkResetCommandBuffer(commandBuffer, 0);
 		recordCommandBuffer(commandBuffer, imageIndex);
 

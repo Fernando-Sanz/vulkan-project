@@ -13,14 +13,14 @@ public:
 	// GETTERS AND SETTERS
 
 	// Get command buffer at specified position
-	VkCommandBuffer getCommandBuffer(int index) { return commandBuffers[index]; }
+	VkCommandBuffer getBuffer(int index) { return buffers[index]; }
 
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// METHODS
 
 	// Create command pool and allocate command buffers
-	void createCommandPoolAndBuffers(Device device, int bufferCount);
+	void createPoolAndBuffers(Device device, int bufferCount);
 
 	// Begin a command buffer
 	VkCommandBuffer beginSingleTimeCommands();
@@ -38,8 +38,8 @@ private:
 
 	Device device;
 
-	VkCommandPool commandPool;
-	std::vector<VkCommandBuffer> commandBuffers; // destroyed with command pool
+	VkCommandPool pool;
+	std::vector<VkCommandBuffer> buffers; // destroyed with command pool
 
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
