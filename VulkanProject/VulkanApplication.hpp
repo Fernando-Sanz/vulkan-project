@@ -1361,6 +1361,7 @@ private:
 			throw std::runtime_error("failed to acquire swap chain image");
 		}
 
+		// TODO: change this way and use push constants
 		uniformManager.upateBuffer(currentFrame, swapChainExtent.width, swapChainExtent.height);
 
 		vkResetFences(device.get(), 1, &inFlightFences[currentFrame]);

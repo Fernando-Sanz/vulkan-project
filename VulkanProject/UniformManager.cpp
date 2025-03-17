@@ -29,7 +29,6 @@ void UniformManager::createBuffers(Device device, int count) {
 	}
 }
 
-// TODO: change this way and use push constants
 void UniformManager::upateBuffer(uint32_t index, uint32_t screenWidth, uint32_t screenHeight) {
 	// Time management
 	static auto startTime = std::chrono::high_resolution_clock::now();
