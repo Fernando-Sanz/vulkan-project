@@ -15,12 +15,6 @@
 #include <limits> // std::numeric_limits
 #include <algorithm> // Necessary for std::clamp
 #include <fstream>
-#include <chrono>
-
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE // range 0.0 to 1.0 not -1.0 to 1.0
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 
 #include <stb_image.h>
 #include <tiny_obj_loader.h>
@@ -28,7 +22,7 @@
 #include "Device.hpp"
 
 #include "Vertex.hpp"
-#include "UnidormBufferObject.hpp"
+#include "UniformManager.hpp"
 #include "CommandManager.hpp"
 #include "GraphicsPipeline.hpp"
 
@@ -163,10 +157,8 @@ private:
 	VkBuffer indexBuffer;
 	VkDeviceMemory indexBufferMemory;
 
-	// Uniform buffers
-	std::vector<VkBuffer> uniformBuffers;
-	std::vector<VkDeviceMemory> uniformBuffersMemory;
-	std::vector<void*> uniformBuffersMapped;
+	// Uniform
+	UniformManager uniformManager;
 
 	// Descriptor pool and sets
 	VkDescriptorPool descriptorPool;
@@ -248,12 +240,12 @@ private:
 		createTextureImage();
 		createTextureImageView();
 		createTextureSampler();
-
+		
 		loadModel();
 		createVertexBuffer();
 		createIndexBuffer();
 
-		createUniformBuffers();
+		uniformManager.createBuffers(device, MAX_FRAMES_IN_FLIGHT);
 		createDescriptorPool();
 		allocateDescriptorSets();
 
@@ -1261,27 +1253,6 @@ private:
 
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// UNIFORM BUFFERS CREATION
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	void createUniformBuffers() {
-		VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-
-		uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-		uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
-		uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
-
-		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-			createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-				uniformBuffers[i], uniformBuffersMemory[i]);
-
-			vkMapMemory(device.get(), uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
-		}
-	}
-
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// DESCRIPTOR POOL AND DESCRIPTOR SETS CREATION
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1326,7 +1297,7 @@ private:
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 			// UNIFORM BUFFER INFO
 			VkDescriptorBufferInfo bufferInfo{};
-			bufferInfo.buffer = uniformBuffers[i];
+			bufferInfo.buffer = uniformManager.getBuffer(i);
 			bufferInfo.offset = 0;
 			bufferInfo.range = sizeof(UniformBufferObject);
 
@@ -1436,7 +1407,7 @@ private:
 			throw std::runtime_error("failed to acquire swap chain image");
 		}
 
-		upateUniformBuffer(currentFrame);
+		uniformManager.upateBuffer(currentFrame, swapChainExtent.width, swapChainExtent.height);
 
 		vkResetFences(device.get(), 1, &inFlightFences[currentFrame]);
 
@@ -1493,33 +1464,6 @@ private:
 		currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 	}
 
-	// TODO: change this way and use push constants
-	void upateUniformBuffer(uint32_t currentImage) {
-		// Time management
-		static auto startTime = std::chrono::high_resolution_clock::now();
-
-		auto currentTime = std::chrono::high_resolution_clock::now();
-		float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-
-		// UNIFORM BUFFER
-		UniformBufferObject ubo{};
-
-		// model
-		ubo.model = glm::rotate(
-			glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-
-		// view
-		ubo.view = glm::lookAt(
-			glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-
-		// proj
-		ubo.proj = glm::perspective(
-			glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
-		ubo.proj[1][1] *= -1; // non-OpenGL GLM usage adjustment
-
-		// Copy data
-		memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
-	}
 
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1544,11 +1488,8 @@ private:
 		vkDestroyImage(device.get(), textureImage, nullptr);
 		vkFreeMemory(device.get(), textureImageMemory, nullptr);
 
-		// Uniform buffers
-		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-			vkDestroyBuffer(device.get(), uniformBuffers[i], nullptr);
-			vkFreeMemory(device.get(), uniformBuffersMemory[i], nullptr);
-		}
+		// Uniform
+		uniformManager.cleanup();
 
 		// Descriptor pool and set layout
 		vkDestroyDescriptorPool(device.get(), descriptorPool, nullptr);

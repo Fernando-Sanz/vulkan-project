@@ -139,6 +139,7 @@
     <ClCompile Include="GraphicsPipeline.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Device.cpp" />
+    <ClCompile Include="UniformManager.cpp" />
     <ClCompile Include="utils.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -149,7 +150,7 @@
     <ClInclude Include="CommandManager.hpp" />
     <ClInclude Include="Device.hpp" />
     <ClInclude Include="GraphicsPipeline.hpp" />
-    <ClInclude Include="UnidormBufferObject.hpp" />
+    <ClInclude Include="UniformManager.hpp" />
     <ClInclude Include="Vertex.hpp" />
     <ClInclude Include="VulkanApplication.hpp" />
   </ItemGroup>

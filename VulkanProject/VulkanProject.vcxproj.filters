@@ -33,6 +33,9 @@
     <ClCompile Include="GraphicsPipeline.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="UniformManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\shader.vert">
@@ -46,7 +49,7 @@
     <ClInclude Include="Vertex.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="UnidormBufferObject.hpp">
+    <ClInclude Include="UniformManager.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Device.hpp">
