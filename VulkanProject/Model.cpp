@@ -63,15 +63,15 @@ void Model::loadModel(Device device, CommandManager commandManager, std::string 
 	//--------------------------------------------------------
 	// CREATE VERTEX AND INDEX BUFFERS
 	createModelBuffer(commandManager, sizeof(vertices[0]) * vertices.size(), vertices.data(),
-		vertexBuffer, vertexBufferMemory);
+		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertexBuffer, vertexBufferMemory);
 	createModelBuffer(commandManager, sizeof(indices[0]) * indices.size(), indices.data(),
-		indexBuffer, indexBufferMemory);
+		VK_BUFFER_USAGE_INDEX_BUFFER_BIT, indexBuffer, indexBufferMemory);
 }
 
 // TODO: allocate more than one resource from a single call
 // TODO: store all the data in a single buffer and use offsets in calls with them
 void Model::createModelBuffer(CommandManager commandManager, VkDeviceSize bufferSize, void* bufferData,
-	VkBuffer& buffer, VkDeviceMemory bufferMemory) {
+	VkBufferUsageFlagBits usage, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
 
 	//--------------------------------------------
 	// STAGING BUFFER
@@ -89,9 +89,8 @@ void Model::createModelBuffer(CommandManager commandManager, VkDeviceSize buffer
 
 	//--------------------------------------------
 	// CREATE BUFFER AND FILL IT WITH DATA
-	device.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		buffer, bufferMemory);
+	device.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, bufferMemory);
 
 	commandManager.copyBuffer(stagingBuffer, buffer, bufferSize);
 

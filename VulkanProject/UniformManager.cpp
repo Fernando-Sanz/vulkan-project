@@ -13,13 +13,20 @@
 
 
 void UniformManager::createBuffers(Device device, int count) {
+
+	//--------------------------------------------------------
+	// SET CLASS MEMBERS
+
 	this->device = device;
-	VkDeviceSize bufferSize = sizeof(UniformBufferObject);
 
 	buffers.resize(count);
 	buffersMemory.resize(count);
 	buffersMapped.resize(count);
 
+	//--------------------------------------------------------
+	// CREATE BUFFERS
+
+	VkDeviceSize bufferSize = sizeof(UniformBufferObject);
 	for (size_t i = 0; i < count; i++) {
 		device.createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -30,29 +37,35 @@ void UniformManager::createBuffers(Device device, int count) {
 }
 
 void UniformManager::upateBuffer(uint32_t index, uint32_t screenWidth, uint32_t screenHeight) {
+	//--------------------------------------------------------
 	// Time management
 	static auto startTime = std::chrono::high_resolution_clock::now();
 
 	auto currentTime = std::chrono::high_resolution_clock::now();
 	float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
-	// UNIFORM BUFFER
+	//--------------------------------------------------------
+	// UNIFORM VALUES
+
 	UniformBufferObject ubo{};
 
-	// model
+	//-------------------------
+	// MODEL
 	ubo.model = glm::rotate(
 		glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-
-	// view
+	//-------------------------
+	// VIEW
 	ubo.view = glm::lookAt(
 		glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-
-	// proj
+	//-------------------------
+	// PROJECTION
 	ubo.proj = glm::perspective(
 		glm::radians(45.0f), screenWidth / (float)screenHeight, 0.1f, 10.0f);
 	ubo.proj[1][1] *= -1; // non-OpenGL GLM usage adjustment
 
-	// Copy data
+	//--------------------------------------------------------
+	// UPDATE BUFFER
+
 	memcpy(buffersMapped[index], &ubo, sizeof(ubo));
 }
 

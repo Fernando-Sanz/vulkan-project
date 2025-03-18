@@ -248,6 +248,7 @@ void Device::createLogicalDevice() {
 	// SPECIFY DEVICE FEATURES
 	VkPhysicalDeviceFeatures deviceFeatures{};
 	deviceFeatures.samplerAnisotropy = VK_TRUE;
+	deviceFeatures.sampleRateShading = VK_TRUE;
 
 	//-----------------------------------------
 	// DEVICE CREATE INFO

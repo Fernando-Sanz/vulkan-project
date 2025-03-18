@@ -44,5 +44,5 @@ private:
 
 	// Create a buffer in GPU memory and fill it with the received data
 	void createModelBuffer(CommandManager commandManager, VkDeviceSize bufferSize, void* bufferData,
-		VkBuffer& buffer, VkDeviceMemory bufferMemory);
+		VkBufferUsageFlagBits bufferUsage, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 };

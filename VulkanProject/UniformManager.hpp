@@ -26,10 +26,13 @@ public:
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // METHODS
 
+    // Create as many uniform buffers as count
     void createBuffers(Device device, int count);
 
+    // Update uniform values
     void upateBuffer(uint32_t currentImage, uint32_t screenWidth, uint32_t screenHeight);
 
+    // Destroy Vulkan an other objects
     void cleanup();
 
 private:
