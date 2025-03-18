@@ -17,14 +17,13 @@
 #include <fstream>
 
 #include <stb_image.h>
-#include <tiny_obj_loader.h>
 
 #include "Device.hpp"
 
-#include "Vertex.hpp"
-#include "UniformManager.hpp"
 #include "CommandManager.hpp"
 #include "GraphicsPipeline.hpp"
+#include "UniformManager.hpp"
+#include "Model.hpp"
 
 
 const uint32_t WIDTH = 800;
@@ -148,14 +147,8 @@ private:
 	VkImageView textureImageView;
 	VkSampler textureSampler;
 
-	// Geometry objects
-	std::vector<Vertex> vertices;
-	std::vector<uint32_t> indices;
-
-	VkBuffer vertexBuffer;
-	VkDeviceMemory vertexBufferMemory;
-	VkBuffer indexBuffer;
-	VkDeviceMemory indexBufferMemory;
+	// Geometry
+	Model model;
 
 	// Uniform
 	UniformManager uniformManager;
@@ -241,9 +234,7 @@ private:
 		createTextureImageView();
 		createTextureSampler();
 		
-		loadModel();
-		createVertexBuffer();
-		createIndexBuffer();
+		model.loadModel(device, commandManager, MODEL_PATH);
 
 		uniformManager.createBuffers(device, MAX_FRAMES_IN_FLIGHT);
 		createDescriptorPool();
@@ -717,12 +708,12 @@ private:
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline.get());
 
 		// vertex buffers
-		VkBuffer vertexBuffers[] = { vertexBuffer };
+		VkBuffer vertexBuffers[] = { model.getVertexBuffer() };
 		VkDeviceSize offsets[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
 		// index buffer
-		vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindIndexBuffer(commandBuffer, model.getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
 		// viewport and scissor stage
 		VkViewport viewport{};
@@ -743,7 +734,7 @@ private:
 			graphicsPipeline.getLayout(), 0, 1, &descriptorSets[currentFrame], 0, nullptr);
 
 		// draw geometry
-		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model.getIndices().size()), 1, 0, 0, 0);
 
 		// end recording
 		vkCmdEndRenderPass(commandBuffer);
@@ -1086,127 +1077,6 @@ private:
 
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// VERTEX BUFFER CREATION
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	void loadModel() {
-		// Elements loaded from obj file
-		tinyobj::attrib_t attrib;
-		std::vector<tinyobj::shape_t> shapes;
-		std::vector<tinyobj::material_t> materials;
-		std::string warn, err;
-
-		// LOAD THE MODEL
-		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str())) {
-			throw std::runtime_error(warn + err);
-		}
-
-
-		// POPULLATE THE VERTICES
-
-		std::unordered_map<Vertex, uint32_t> uniqueVertices{};
-
-		for (const auto& shape : shapes) {
-			for (const auto& index : shape.mesh.indices) {
-				Vertex vertex{};
-
-				// position
-				vertex.pos = {
-					attrib.vertices[3 * index.vertex_index + 0],
-					attrib.vertices[3 * index.vertex_index + 1],
-					attrib.vertices[3 * index.vertex_index + 2]
-				};
-
-				// texture coordinates
-				//	the vertical component is flipped for correct visualization (OBJ to Vulkan conversion)
-				vertex.texCoord = {
-					attrib.texcoords[2 * index.texcoord_index + 0],
-					1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-				};
-
-				// base color
-				vertex.color = { 1.0f, 1.0f, 1.0f };
-
-				// check if the vertex already exists and store the index
-				if (uniqueVertices.count(vertex) == 0) {
-					uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
-					vertices.push_back(vertex);
-				}
-
-				indices.push_back(uniqueVertices[vertex]);
-			}
-		}
-
-		std::cout << "Model loaded: " << vertices.size() << " vertices" << std::endl;
-	}
-
-	// TODO: allocate more than one resource from a single call
-	// TODO: store all the data in a single buffer and use offsets in calls with them
-	void createVertexBuffer() {
-
-
-		VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
-
-		//--------------------------------------------
-		// STAGING BUFFER
-		VkBuffer stagingBuffer;
-		VkDeviceMemory stagingBufferMemory;
-		device.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			stagingBuffer, stagingBufferMemory);
-
-		// copy data to the buffer
-		void* data;
-		vkMapMemory(device.get(), stagingBufferMemory, 0, bufferSize, 0, &data);
-		memcpy(data, vertices.data(), (size_t)bufferSize);
-		vkUnmapMemory(device.get(), stagingBufferMemory);
-
-		//--------------------------------------------
-		// VERTEX BUFFER
-		device.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			vertexBuffer, vertexBufferMemory);
-
-		commandManager.copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
-
-		// Clean up
-		vkDestroyBuffer(device.get(), stagingBuffer, nullptr);
-		vkFreeMemory(device.get(), stagingBufferMemory, nullptr);
-	}
-
-	void createIndexBuffer() {
-
-		VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
-
-		//--------------------------------------------
-		// STAGING BUFFER
-		VkBuffer stagingBuffer;
-		VkDeviceMemory stagingBufferMemory;
-		device.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			stagingBuffer, stagingBufferMemory);
-
-		// copy data to the buffer
-		void* data;
-		vkMapMemory(device.get(), stagingBufferMemory, 0, bufferSize, 0, &data);
-		memcpy(data, indices.data(), (size_t)bufferSize);
-		vkUnmapMemory(device.get(), stagingBufferMemory);
-
-		//--------------------------------------------
-		// VERTEX BUFFER
-		device.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-			VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			indexBuffer, indexBufferMemory);
-
-		commandManager.copyBuffer(stagingBuffer, indexBuffer, bufferSize);
-
-		// Clean up
-		vkDestroyBuffer(device.get(), stagingBuffer, nullptr);
-		vkFreeMemory(device.get(), stagingBufferMemory, nullptr);
-	}
-
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// DESCRIPTOR POOL AND DESCRIPTOR SETS CREATION
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1449,11 +1319,8 @@ private:
 		// Descriptor pool and set layout
 		vkDestroyDescriptorPool(device.get(), descriptorPool, nullptr);
 
-		// Geometry buffers
-		vkDestroyBuffer(device.get(), vertexBuffer, nullptr);
-		vkFreeMemory(device.get(), vertexBufferMemory, nullptr);
-		vkDestroyBuffer(device.get(), indexBuffer, nullptr);
-		vkFreeMemory(device.get(), indexBufferMemory, nullptr);
+		// Model
+		model.cleanup();
 
 		// Sync objects
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
