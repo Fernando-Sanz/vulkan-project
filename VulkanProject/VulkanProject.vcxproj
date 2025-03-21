@@ -137,9 +137,11 @@
   <ItemGroup>
     <ClCompile Include="CommandManager.cpp" />
     <ClCompile Include="GraphicsPipeline.cpp" />
+    <ClCompile Include="imageUtils.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Device.cpp" />
     <ClCompile Include="Model.cpp" />
+    <ClCompile Include="Texture.cpp" />
     <ClCompile Include="UniformManager.cpp" />
     <ClCompile Include="utils.cpp" />
   </ItemGroup>
@@ -151,7 +153,9 @@
     <ClInclude Include="CommandManager.hpp" />
     <ClInclude Include="Device.hpp" />
     <ClInclude Include="GraphicsPipeline.hpp" />
+    <ClInclude Include="imageUtils.hpp" />
     <ClInclude Include="Model.hpp" />
+    <ClInclude Include="Texture.hpp" />
     <ClInclude Include="UniformManager.hpp" />
     <ClInclude Include="Vertex.hpp" />
     <ClInclude Include="VulkanApplication.hpp" />
