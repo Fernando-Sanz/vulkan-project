@@ -141,9 +141,11 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Device.cpp" />
     <ClCompile Include="Model.cpp" />
+    <ClCompile Include="SwapChain.cpp" />
     <ClCompile Include="Texture.cpp" />
     <ClCompile Include="UniformManager.cpp" />
     <ClCompile Include="utils.cpp" />
+    <ClCompile Include="window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\shader.frag" />
@@ -155,10 +157,12 @@
     <ClInclude Include="GraphicsPipeline.hpp" />
     <ClInclude Include="imageUtils.hpp" />
     <ClInclude Include="Model.hpp" />
+    <ClInclude Include="SwapChain.hpp" />
     <ClInclude Include="Texture.hpp" />
     <ClInclude Include="UniformManager.hpp" />
     <ClInclude Include="Vertex.hpp" />
     <ClInclude Include="VulkanApplication.hpp" />
+    <ClInclude Include="window.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
