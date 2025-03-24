@@ -1,23 +1,57 @@
 #pragma once
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-
 #include "Device.hpp"
+#include "window.hpp"
 
 
-extern struct SwapChainObjects {
+class SwapChain {
+
+public:
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// GETTERS AND SETTERS
+
+	VkSwapchainKHR get() { return swapChain; }
+
+	VkFormat getImageFormat() { return imageFormat; }
+
+	size_t getImageCount() { return images.size(); }
+
+	VkImageView getImageView(size_t index) { return imageViews[index]; }
+
+	VkExtent2D getExtent() { return extent; }
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// METHODS
+
+	void create(Device device, Window window, VkSurfaceKHR surface);
+
+	void cleanup();
+
+private:
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// CLASS MEMBERS
+
+	Device device;
+
 	VkSwapchainKHR swapChain;
 	VkFormat imageFormat;
 	VkExtent2D extent;
-	size_t imageCount;
 	std::vector<VkImage> images; // destroyed with swap chain
 	std::vector<VkImageView> imageViews;
-}swapChainObjects;
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// METHODS
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// METHODS
 
-void createSwapChainObjects(SwapChainObjects& swapChainObjects, Device device, GLFWwindow* window, VkSurfaceKHR surface);
+	void createSwapChain(Window window, VkSurfaceKHR surface);
 
-void cleanupSwapChain(SwapChainObjects& swapChainObjects, Device device);
+	VkSurfaceFormatKHR chooseSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+
+	VkPresentModeKHR choosePresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+
+	VkExtent2D chooseExtent(Window window, const VkSurfaceCapabilitiesKHR& capabilities);
+
+	void createImageViews();
+
+};

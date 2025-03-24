@@ -14,7 +14,6 @@ public:
 
 	GLFWwindow* get() { return window; }
 
-	VkExtent2D getFramebufferSize();
 
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,6 +36,9 @@ public:
 	}
 
 	void createSurface(VkInstance vulkanInstance, VkSurfaceKHR* surface);
+
+	// Get the resolution in pixels
+	VkExtent2D getFramebufferSize();
 
 	int shouldClose();
 

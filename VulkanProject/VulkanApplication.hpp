@@ -116,7 +116,7 @@ private:
 	Device device;
 
 	// Swap chain stuff
-	SwapChainObjects swapChainObjects;
+	SwapChain swapChain;
 
 	// Render target (multisampling)
 	VkImage colorImage;
@@ -203,9 +203,9 @@ private:
 		window.createSurface(instance, &surface);
 
 		device.pickDevice();
-		createSwapChainObjects(swapChainObjects, device, window.get(), surface);
+		swapChain.create(device, window, surface);
 
-		graphicsPipeline.create(device, swapChainObjects.imageFormat, findDepthFormat(), VERT_SHADER_PATH, FRAG_SHADER_PATH);
+		graphicsPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(), VERT_SHADER_PATH, FRAG_SHADER_PATH);
 
 		commandManager.createPoolAndBuffers(device, MAX_FRAMES_IN_FLIGHT);
 
@@ -399,7 +399,7 @@ private:
 
 		cleanupRenderImages();
 
-		createSwapChainObjects(swapChainObjects, device, window.get(), surface);
+		swapChain.create(device, window, surface);
 		createColorResources();
 		createDepthResources();
 		createFramebuffers();
@@ -412,14 +412,14 @@ private:
 
 	void createFramebuffers() {
 		// Resize framebuffer
-		swapChainFramebuffers.resize(swapChainObjects.imageViews.size());
+		swapChainFramebuffers.resize(swapChain.getImageCount());
 
 		// Create framebuffers
-		for (size_t i = 0; i < swapChainObjects.imageCount; i++) {
+		for (size_t i = 0; i < swapChain.getImageCount(); i++) {
 			std::array<VkImageView, 3> attachments = {
 				colorImageView,
 				depthImageView,
-				swapChainObjects.imageViews[i]
+				swapChain.getImageView(i)
 			};
 
 			VkFramebufferCreateInfo framebufferInfo{};
@@ -427,8 +427,8 @@ private:
 			framebufferInfo.renderPass = graphicsPipeline.getRenderPass();
 			framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
 			framebufferInfo.pAttachments = attachments.data();
-			framebufferInfo.width = swapChainObjects.extent.width;
-			framebufferInfo.height = swapChainObjects.extent.height;
+			framebufferInfo.width = swapChain.getExtent().width;
+			framebufferInfo.height = swapChain.getExtent().height;
 			framebufferInfo.layers = 1;
 
 			if (vkCreateFramebuffer(device.get(), &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) {
@@ -444,9 +444,9 @@ private:
 
 	void createColorResources() {
 		VkSampleCountFlagBits msaaSamples = device.getMsaaSamples();
-		VkFormat colorFormat = swapChainObjects.imageFormat;
+		VkFormat colorFormat = swapChain.getImageFormat();
 
-		createImage(device, swapChainObjects.extent.width, swapChainObjects.extent.height, 1, msaaSamples,
+		createImage(device, swapChain.getExtent().width, swapChain.getExtent().height, 1, msaaSamples,
 			colorFormat, VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
@@ -465,7 +465,7 @@ private:
 
 		// Let the graphics pipeline change the layout of the image (implicit)
 		// from UNDEFINED to DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-		createImage(device, swapChainObjects.extent.width, swapChainObjects.extent.height, 1, msaaSamples,
+		createImage(device, swapChain.getExtent().width, swapChain.getExtent().height, 1, msaaSamples,
 			depthFormat, VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			depthImage, depthImageMemory);
@@ -510,7 +510,7 @@ private:
 		renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
 
 		renderPassInfo.renderArea.offset = { 0, 0 };
-		renderPassInfo.renderArea.extent = swapChainObjects.extent;
+		renderPassInfo.renderArea.extent = swapChain.getExtent();
 
 		std::array<VkClearValue, 2> clearValues = {};
 		// The order must be identical to the attachments one
@@ -536,15 +536,15 @@ private:
 		VkViewport viewport{};
 		viewport.x = 0.0f;
 		viewport.y = 0.0f;
-		viewport.width = static_cast<float>(swapChainObjects.extent.width);
-		viewport.height = static_cast<float>(swapChainObjects.extent.height);
+		viewport.width = static_cast<float>(swapChain.getExtent().width);
+		viewport.height = static_cast<float>(swapChain.getExtent().height);
 		viewport.minDepth = 0.0f;
 		viewport.maxDepth = 1.0f;
 		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
 		VkRect2D scissor{};
 		scissor.offset = { 0, 0 };
-		scissor.extent = swapChainObjects.extent;
+		scissor.extent = swapChain.getExtent();
 		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -705,7 +705,7 @@ private:
 		//---------------------------------------
 		// ACQUIRE AN IMAGE FROM THE SWAP CHAIN
 		uint32_t imageIndex;
-		VkResult result = vkAcquireNextImageKHR(device.get(), swapChainObjects.swapChain, UINT64_MAX,
+		VkResult result = vkAcquireNextImageKHR(device.get(), swapChain.get(), UINT64_MAX,
 			imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
 		// check result to resize the swap chain
@@ -718,7 +718,7 @@ private:
 		}
 
 		// TODO: change this way and use push constants
-		uniformManager.upateBuffer(currentFrame, swapChainObjects.extent.width, swapChainObjects.extent.height);
+		uniformManager.upateBuffer(currentFrame, swapChain.getExtent().width, swapChain.getExtent().height);
 
 		vkResetFences(device.get(), 1, &inFlightFences[currentFrame]);
 
@@ -750,7 +750,7 @@ private:
 
 		//---------------------------------------
 		// PRESENT THE IMAGE
-		VkSwapchainKHR swapChains[] = { swapChainObjects.swapChain };
+		VkSwapchainKHR swapChains[] = { swapChain.get() };
 
 		VkPresentInfoKHR presentInfo{};
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -843,7 +843,7 @@ private:
 			vkDestroyFramebuffer(device.get(), framebuffer, nullptr);
 		}
 
-		cleanupSwapChain(swapChainObjects, device);
+		swapChain.cleanup();
 	}
 
 };
