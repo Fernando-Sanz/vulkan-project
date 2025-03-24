@@ -183,6 +183,8 @@ private:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	void initWindow() {
+		glfwInit();
+
 		window.create<void>(this, WIDTH, HEIGHT);
 		window.subscribeFramebufferResizedEvent([this](int width, int height) {
 			framebufferResized = true;

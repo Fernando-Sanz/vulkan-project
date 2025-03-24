@@ -21,8 +21,6 @@ public:
 	
 	template <typename F>
 	void create(void* userPointer, int width, int height) {
-		glfwInit();
-
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
 		window = glfwCreateWindow(width, height, "Vulkan", nullptr, nullptr);

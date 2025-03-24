@@ -70,7 +70,7 @@ void UniformManager::upateBuffer(uint32_t index, uint32_t screenWidth, uint32_t 
 }
 
 void UniformManager::cleanup() {
-	int count = buffers.size();
+	size_t count = buffers.size();
 	for (size_t i = 0; i < count; i++) {
 		vkDestroyBuffer(device.get(), buffers[i], nullptr);
 		vkFreeMemory(device.get(), buffersMemory[i], nullptr);
