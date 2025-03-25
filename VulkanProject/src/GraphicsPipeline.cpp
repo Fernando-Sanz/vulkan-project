@@ -9,6 +9,7 @@
 #include <fstream>
 #include <string>
 
+#include <filesystem>
 
 namespace {
 	std::vector<char> readFile(const std::string& filename) {
@@ -16,6 +17,11 @@ namespace {
 		std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
 		if (!file.is_open()) {
+			std::cout << "PATH: " << filename << std::endl;
+			std::filesystem::path currentPath = std::filesystem::current_path();
+
+			// Mostrar la ruta en consola
+			std::cout << "Directorio de trabajo actual: " << currentPath << std::endl;
 			throw std::runtime_error("failed to open file");
 		}
 
