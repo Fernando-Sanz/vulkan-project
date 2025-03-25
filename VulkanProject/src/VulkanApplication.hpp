@@ -15,7 +15,7 @@
 #include <limits> // std::numeric_limits
 #include <fstream>
 
-#include "window.hpp"
+#include "Window.hpp"
 #include "Device.hpp"
 #include "SwapChain.hpp"
 #include "imageUtils.hpp"
@@ -29,11 +29,11 @@
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
-const std::string VERT_SHADER_PATH = "shaders/vert.spv";
-const std::string FRAG_SHADER_PATH = "shaders/frag.spv";
+const std::string VERT_SHADER_PATH = "../../VulkanProject/assets/shaders/vert.spv";
+const std::string FRAG_SHADER_PATH = "../../VulkanProject/assets/shaders/frag.spv";
 
-const std::string MODEL_PATH = "models/viking_room.obj";
-const std::string TEXTURE_PATH = "textures/viking_room.png";
+const std::string MODEL_PATH = "../../VulkanProject/assets/models/viking_room.obj";
+const std::string TEXTURE_PATH = "../../VulkanProject/assets/textures/viking_room.png";
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -199,6 +199,7 @@ private:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	void initVulkan() {
+
 		createInstance();
 		setupDebugMessenger();
 
