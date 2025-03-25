@@ -238,12 +238,13 @@ private:
 			throw std::runtime_error("validation layers requested, but no available");
 		}
 
+		//-----------------------------------------------
 		// APPLICATION INFO
 		VkApplicationInfo appInfo{};
 		appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 		appInfo.pApplicationName = "Vulkan application";
 		appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-		appInfo.pEngineName = "My left egg's engine";
+		appInfo.pEngineName = "Render Engine";
 		appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
 		appInfo.apiVersion = VK_API_VERSION_1_0;
 
@@ -261,6 +262,7 @@ private:
 			layerCount = 0;
 		}
 
+		//-----------------------------------------------
 		// INSTANCE DEBUG MESSENGER
 		VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
 		VkDebugUtilsMessengerCreateInfoEXT* pNext = nullptr;
