@@ -5,14 +5,20 @@ set(PROJECT_NAME "VulkanProject")
 project(${PROJECT_NAME})
 
 set(CMAKE_CXX_STANDARD 17)
+set(BUILD_LIBRARY true)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # PROJECT FILES
 
 set(SOURCE_CODE_PATH "${PROJECT_NAME}/src")
 include_directories(${SOURCE_CODE_PATH})
+
+if(NOT BUILD_LIBRARY)
+    set(TEST_FILES "tests/main.cpp")
+endif()
+
 set(SOURCES
-    tests/main.cpp
+    ${TEST_FILES}
     ${SOURCE_CODE_PATH}/CommandManager.cpp
     ${SOURCE_CODE_PATH}/Device.cpp
     ${SOURCE_CODE_PATH}/GraphicsPipeline.cpp
@@ -25,7 +31,11 @@ set(SOURCES
     ${SOURCE_CODE_PATH}/Window.cpp
 )
 
-add_executable(${PROJECT_NAME} ${SOURCES})
+if(BUILD_LIBRARY)
+    add_library(${PROJECT_NAME} STATIC ${SOURCES})
+else()
+    add_executable(${PROJECT_NAME} ${SOURCES})
+endif()
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # EXTERNAL LIBRARIES
@@ -41,4 +51,5 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 target_link_libraries(${PROJECT_NAME}
     ${THIRD_PARTY_LIB_PATH}/glfw-3.4.bin.WIN64/lib-vc2022/glfw3.lib
-    Vulkan::Vulkan)
+    Vulkan::Vulkan
+)
