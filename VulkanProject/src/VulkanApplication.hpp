@@ -75,7 +75,6 @@ namespace {
 			func(instance, debugMessenger, pAllocator);
 		}
 	}
-
 }
 
 
@@ -118,20 +117,16 @@ private:
 	// Swap chain stuff
 	SwapChain swapChain;
 
-	// Render target (multisampling)
-	VkImage colorImage;
-	VkDeviceMemory colorImageMemory;
-	VkImageView colorImageView;
-
-	// Depth resources
-	VkImage depthImage;
-	VkDeviceMemory depthImageMemory;
-	VkImageView depthImageView;
+	// Images for framebuffers
+	ImageObjects colorImage; // multisampling
+	ImageObjects depthImage;
+	ImageObjects firstOutputImage;
 
 	// Pipeline
 	GraphicsPipeline graphicsPipeline;
 
 	// Framebuffers
+	VkFramebuffer firstPassFramebuffer;
 	std::vector<VkFramebuffer> swapChainFramebuffers;
 
 	// Commands
@@ -214,7 +209,9 @@ private:
 
 		createColorResources();
 		createDepthResources();
-		createFramebuffers();
+		createFirstPassOutput();
+		createFirstPassFramebuffer();
+		createSwapChainFramebuffers();
 
 		texture.create(device, commandManager, TEXTURE_PATH);
 		
@@ -407,39 +404,9 @@ private:
 		swapChain.create(device, window, surface);
 		createColorResources();
 		createDepthResources();
-		createFramebuffers();
-	}
-
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// FRAMEBUFFERS CREATION
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	void createFramebuffers() {
-		// Resize framebuffer
-		swapChainFramebuffers.resize(swapChain.getImageCount());
-
-		// Create framebuffers
-		for (size_t i = 0; i < swapChain.getImageCount(); i++) {
-			std::array<VkImageView, 3> attachments = {
-				colorImageView,
-				depthImageView,
-				swapChain.getImageView(i)
-			};
-
-			VkFramebufferCreateInfo framebufferInfo{};
-			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-			framebufferInfo.renderPass = graphicsPipeline.getRenderPass();
-			framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-			framebufferInfo.pAttachments = attachments.data();
-			framebufferInfo.width = swapChain.getExtent().width;
-			framebufferInfo.height = swapChain.getExtent().height;
-			framebufferInfo.layers = 1;
-
-			if (vkCreateFramebuffer(device.get(), &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) {
-				throw std::runtime_error("failed to create framebuffer");
-			}
-		}
+		createFirstPassOutput();
+		createSwapChainFramebuffers();
+		createFirstPassFramebuffer();
 	}
 
 
@@ -455,8 +422,8 @@ private:
 			colorFormat, VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			colorImage, colorImageMemory);
-		colorImageView = createImageView(device, colorImage, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+			colorImage.image, colorImage.memory);
+		colorImage.view = createImageView(device, colorImage.image, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 	}
 
 
@@ -473,8 +440,8 @@ private:
 		createImage(device, swapChain.getExtent().width, swapChain.getExtent().height, 1, msaaSamples,
 			depthFormat, VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			depthImage, depthImageMemory);
-		depthImageView = createImageView(device, depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+			depthImage.image, depthImage.memory);
+		depthImage.view = createImageView(device, depthImage.image, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
 	}
 
 	VkFormat findDepthFormat() {
@@ -487,6 +454,81 @@ private:
 
 	bool hasStencilComponent(VkFormat format) {
 		return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+	}
+
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// CREATE FIRST PASS OUTPUT RESOURCES
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	void createFirstPassOutput() {
+		if (true) return;
+		VkFormat colorFormat = swapChain.getImageFormat();
+
+		createImage(device, swapChain.getExtent().width, swapChain.getExtent().height, 1, VK_SAMPLE_COUNT_1_BIT,
+			colorFormat, VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			colorImage.image, colorImage.memory);
+		colorImage.view = createImageView(device, colorImage.image, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+	}
+
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// FRAMEBUFFERS CREATION
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	void createFirstPassFramebuffer() {
+
+		if (true) return;
+
+		// Create framebuffer
+		std::array<VkImageView, 2> attachments = {
+			colorImage.view,
+			depthImage.view,
+			
+			//swapChain.getImageView(i)
+		};
+
+		VkFramebufferCreateInfo framebufferInfo{};
+		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		framebufferInfo.renderPass = graphicsPipeline.getRenderPass();
+		framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+		framebufferInfo.pAttachments = attachments.data();
+		framebufferInfo.width = swapChain.getExtent().width;
+		framebufferInfo.height = swapChain.getExtent().height;
+		framebufferInfo.layers = 1;
+
+		if (vkCreateFramebuffer(device.get(), &framebufferInfo, nullptr, &firstPassFramebuffer) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create first pass framebuffer");
+		}
+	}
+
+	void createSwapChainFramebuffers() {
+		// Resize framebuffer
+		swapChainFramebuffers.resize(swapChain.getImageCount());
+
+		// Create framebuffers
+		for (size_t i = 0; i < swapChain.getImageCount(); i++) {
+			std::array<VkImageView, 3> attachments = {
+				colorImage.view,
+				depthImage.view,
+				swapChain.getImageView(i)
+			};
+
+			VkFramebufferCreateInfo framebufferInfo{};
+			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+			framebufferInfo.renderPass = graphicsPipeline.getRenderPass();
+			framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+			framebufferInfo.pAttachments = attachments.data();
+			framebufferInfo.width = swapChain.getExtent().width;
+			framebufferInfo.height = swapChain.getExtent().height;
+			framebufferInfo.layers = 1;
+
+			if (vkCreateFramebuffer(device.get(), &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) {
+				throw std::runtime_error("failed to create swap chain framebuffer");
+			}
+		}
 	}
 
 
@@ -834,14 +876,14 @@ private:
 
 	void cleanupRenderImages() {
 		// Color resources
-		vkDestroyImageView(device.get(), colorImageView, nullptr);
-		vkDestroyImage(device.get(), colorImage, nullptr);
-		vkFreeMemory(device.get(), colorImageMemory, nullptr);
+		vkDestroyImageView(device.get(), colorImage.view, nullptr);
+		vkDestroyImage(device.get(), colorImage.image, nullptr);
+		vkFreeMemory(device.get(), colorImage.memory, nullptr);
 
 		// depth resources
-		vkDestroyImageView(device.get(), depthImageView, nullptr);
-		vkDestroyImage(device.get(), depthImage, nullptr);
-		vkFreeMemory(device.get(), depthImageMemory, nullptr);
+		vkDestroyImageView(device.get(), depthImage.view, nullptr);
+		vkDestroyImage(device.get(), depthImage.image, nullptr);
+		vkFreeMemory(device.get(), depthImage.memory, nullptr);
 
 		// color attachments
 		for (auto framebuffer : swapChainFramebuffers) {

@@ -5,6 +5,13 @@
 #include "Device.hpp"
 #include "CommandManager.hpp"
 
+
+// TODO: use the struct in other classes (Texture.hpp)
+struct ImageObjects {
+	VkImage image;
+	VkDeviceMemory memory;
+	VkImageView view;
+};
 	
 // Create an image with the specified properties and bind it with the memory
 void createImage(Device device, uint32_t width, uint32_t height, uint32_t mipLevels,

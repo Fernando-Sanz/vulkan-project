@@ -45,6 +45,8 @@ void GraphicsPipeline::create(Device device, VkFormat imageFormat, VkFormat dept
 
 void GraphicsPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFormat) {
 
+	// TODO: check if is a better solution to define attachment presets inside a 
+	//  framebuffer class
 	// ATTACHMENTS (description and reference)
 
 	//----------------------------------------------------
