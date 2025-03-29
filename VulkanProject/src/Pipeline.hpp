@@ -2,12 +2,11 @@
 
 #include <vulkan/vulkan.h>
 
-#include <vector>
 #include <string>
 #include "Device.hpp"
 
 
-class  GraphicsPipeline {
+class  Pipeline {
 
 public:
 
@@ -27,9 +26,18 @@ public:
 		std::string vertexShaderLocation, std::string fragmentShaderLocation);
 
 	// Destroy Vulkan and other objects
-	void cleapup();
+	void cleanup();
 
-private:
+protected:
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// INTERNAL STRUCT
+
+	struct Attachment {
+		VkAttachmentDescription description;
+		VkAttachmentReference reference;
+		bool isValid = true;
+	};
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// CLASS MEMBERS
@@ -46,16 +54,22 @@ private:
 	// METHODS
 
 	// Create RenderPass defining attachments, subpasses and dependencies
-	void createRenderPass(VkFormat imageFormat, VkFormat depthFormat);
+	virtual void createRenderPass(VkFormat imageFormat, VkFormat depthFormat);
+
+	virtual Attachment getColorAttachment(uint32_t id, VkFormat format);
+	
+	virtual Attachment getDepthAttachment(uint32_t id, VkFormat format);
+
+	virtual Attachment getColorResolveAttachment(uint32_t id, VkFormat format);
 
 	// Defines the Descriptor Set Layout of the pipeline
-	void createDescriptorSetLayout();
+	virtual void createDescriptorSetLayout();
 
-	// Create a GraphicsPipeline with all the stages and a PipelineLayout
-	void createGraphicsPipeline(std::string vertexShaderLocation, std::string fragmentShaderLocation);
+	// Create a Pipeline with all the stages and a PipelineLayout
+	virtual void createGraphicsPipeline(std::string vertexShaderLocation, std::string fragmentShaderLocation);
 
 	// Create a ShaderModule given its code
-	VkShaderModule createShaderModule(const std::vector<char>& code);
+	VkShaderModule createShaderModule(const std::string& filename);
 
 
 };

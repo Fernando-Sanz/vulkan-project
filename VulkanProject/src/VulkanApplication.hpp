@@ -20,7 +20,8 @@
 #include "SwapChain.hpp"
 #include "imageUtils.hpp"
 #include "CommandManager.hpp"
-#include "GraphicsPipeline.hpp"
+#include "Pipeline.hpp"
+#include "StandardPipeline.hpp"
 #include "UniformManager.hpp"
 #include "Model.hpp"
 #include "Texture.hpp"
@@ -123,7 +124,8 @@ private:
 	ImageObjects firstOutputImage;
 
 	// Pipeline
-	GraphicsPipeline graphicsPipeline;
+	Pipeline graphicsPipeline;
+	StandardPipeline firstPassPipeline;
 
 	// Framebuffers
 	VkFramebuffer firstPassFramebuffer;
@@ -508,7 +510,7 @@ private:
 		// Create framebuffers
 		for (size_t i = 0; i < swapChain.getImageCount(); i++) {
 			std::array<VkImageView, 3> attachments = {
-				firstOutputImage.view,
+				colorImage.view,
 				depthImage.view,
 				swapChain.getImageView(i)
 			};
@@ -855,7 +857,7 @@ private:
 		commandManager.cleanup();
 
 		// Pipeline
-		graphicsPipeline.cleapup();
+		graphicsPipeline.cleanup();
 
 		// Device
 		device.cleanup();

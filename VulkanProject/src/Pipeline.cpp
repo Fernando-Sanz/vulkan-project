@@ -1,16 +1,16 @@
-#include "GraphicsPipeline.hpp"
+#include "Pipeline.hpp"
 #include <vulkan/vulkan.h>
 
 #include <vector>
 #include <stdexcept>
-#include "Vertex.hpp"
 #include <iostream>
-
 #include <fstream>
-#include <string>
+
+#include "Vertex.hpp"
 
 
 namespace {
+	// TODO: move to utils type file
 	std::vector<char> readFile(const std::string& filename) {
 
 		std::ifstream file(filename, std::ios::ate | std::ios::binary);
@@ -33,7 +33,8 @@ namespace {
 	}
 }
 
-void GraphicsPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat,
+
+void Pipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat,
 	std::string vertShaderLocation, std::string fragShaderLocation) {
 
 	this->device = device;
@@ -43,73 +44,44 @@ void GraphicsPipeline::create(Device device, VkFormat imageFormat, VkFormat dept
 	createGraphicsPipeline(vertShaderLocation, fragShaderLocation);
 }
 
-void GraphicsPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFormat) {
 
-	// TODO: check if is a better solution to define attachment presets inside a 
-	//  framebuffer class
-	// ATTACHMENTS (description and reference)
+void Pipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFormat) {
 
 	//----------------------------------------------------
-	// COLOR ATTACHMENT
+	// GET THE ATTACHMENTS
 
-	VkAttachmentDescription colorAttachment{};
-	colorAttachment.format = imageFormat;
-	colorAttachment.samples = device.getMsaaSamples();
-	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	Attachment colorAtt = getColorAttachment(0, imageFormat);
+	VkAttachmentDescription colorAttachment = colorAtt.description;
+	VkAttachmentReference colorAttachmentRef = colorAtt.reference;
 
-	VkAttachmentReference colorAttachmentRef{};
-	colorAttachmentRef.attachment = 0; // It is also the location value in frag shader
-	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	Attachment depthAtt = getDepthAttachment(1, depthFormat);
+	VkAttachmentDescription depthAttachment = depthAtt.description;
+	VkAttachmentReference depthAttachmentRef = depthAtt.reference;
 
-	//----------------------------------------------------
-	// DEPTH ATTACHMENT
-
-	VkAttachmentDescription depthAttachment{};
-	depthAttachment.format = depthFormat;
-	depthAttachment.samples = device.getMsaaSamples();
-	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-	VkAttachmentReference depthAttachmentRef{};
-	depthAttachmentRef.attachment = 1;
-	depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-	//----------------------------------------------------
-	// RESOLVE COLOR ATTACHMENT (for presentation)
-
-	VkAttachmentDescription colorAttachmentResolve{};
-	colorAttachmentResolve.format = imageFormat;
-	colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
-	colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-	// attachment reference
-	VkAttachmentReference colorAttachmentResolveRef{};
-	colorAttachmentResolveRef.attachment = 2;
-	colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	Attachment colorResolveAtt = getColorResolveAttachment(2, imageFormat);
+	VkAttachmentDescription colorResolveAttachment = colorResolveAtt.description;
+	VkAttachmentReference colorResolveAttachmentRef = colorResolveAtt.reference;
 
 	//----------------------------------------------------
 	// RENDER SUBPASS
 
+	std::vector<VkAttachmentDescription> attachments;
 	VkSubpassDescription subpass{};
 	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 	subpass.colorAttachmentCount = 1;
-	subpass.pColorAttachments = &colorAttachmentRef;
-	subpass.pDepthStencilAttachment = &depthAttachmentRef;
-	subpass.pResolveAttachments = &colorAttachmentResolveRef;
+
+	if (colorAtt.isValid) {
+		attachments.push_back(colorAttachment);
+		subpass.pColorAttachments = &colorAttachmentRef;
+	}
+	if (depthAtt.isValid) {
+		attachments.push_back(depthAttachment);
+		subpass.pDepthStencilAttachment = &depthAttachmentRef;
+	}
+	if (colorResolveAtt.isValid) {
+		attachments.push_back(colorResolveAttachment);
+		subpass.pResolveAttachments = &colorResolveAttachmentRef;
+	}
 
 	//----------------------------------------------------
 	// DEPENDENCIES
@@ -124,7 +96,6 @@ void GraphicsPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthForm
 	//----------------------------------------------------
 	// CREATE RENDER PASS
 
-	std::array<VkAttachmentDescription, 3> attachments = { colorAttachment, depthAttachment, colorAttachmentResolve };
 	VkRenderPassCreateInfo renderPassInfo{};
 	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 	renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
@@ -139,7 +110,65 @@ void GraphicsPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthForm
 	}
 }
 
-void GraphicsPipeline::createDescriptorSetLayout() {
+Pipeline::Attachment Pipeline::getColorAttachment(uint32_t id, VkFormat format) {
+
+	Attachment attachment{};
+
+	attachment.description.format = format;
+	attachment.description.samples = device.getMsaaSamples();
+	attachment.description.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	attachment.description.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachment.description.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attachment.description.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachment.description.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attachment.description.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	attachment.reference.attachment = id;
+	attachment.reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	return attachment;
+}
+
+Pipeline::Attachment Pipeline::getDepthAttachment(uint32_t id, VkFormat format) {
+
+	Attachment attachment{};
+
+	attachment.description.format = format;
+	attachment.description.samples = device.getMsaaSamples();
+	attachment.description.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	attachment.description.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	attachment.description.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attachment.description.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachment.description.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attachment.description.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	attachment.reference.attachment = id;
+	attachment.reference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	return attachment;
+}
+
+Pipeline::Attachment Pipeline::getColorResolveAttachment(uint32_t id, VkFormat format) {
+	
+	Attachment attachment{};
+
+	attachment.description.format = format;
+	attachment.description.samples = VK_SAMPLE_COUNT_1_BIT;
+	attachment.description.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attachment.description.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	attachment.description.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attachment.description.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachment.description.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attachment.description.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+	attachment.reference.attachment = id;
+	attachment.reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	return attachment;
+}
+
+
+void Pipeline::createDescriptorSetLayout() {
 
 	//----------------------------------------------------
 	// BINDINGS
@@ -176,16 +205,15 @@ void GraphicsPipeline::createDescriptorSetLayout() {
 	}
 }
 
-void GraphicsPipeline::createGraphicsPipeline(std::string vertShaderLocation, std::string fragShaderLocation) {
+
+void Pipeline::createGraphicsPipeline(std::string vertShaderLocation, std::string fragShaderLocation) {
 
 	//--------------------------------------------------------
 	// SHADERS
 
 	// create shader modules
-	auto vertShaderCode = readFile(vertShaderLocation);
-	auto fragShaderCode = readFile(fragShaderLocation);
-	VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
-	VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+	VkShaderModule vertShaderModule = createShaderModule(vertShaderLocation);
+	VkShaderModule fragShaderModule = createShaderModule(fragShaderLocation);
 
 	// VERTEX SHADER
 	VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
@@ -258,7 +286,7 @@ void GraphicsPipeline::createGraphicsPipeline(std::string vertShaderLocation, st
 
 
 	//--------------------------------------------------------
-	// MULTISAMPLING (disabled)
+	// MULTISAMPLING
 
 	VkPipelineMultisampleStateCreateInfo multisampling{};
 	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
@@ -372,7 +400,11 @@ void GraphicsPipeline::createGraphicsPipeline(std::string vertShaderLocation, st
 	vkDestroyShaderModule(device.get(), vertShaderModule, nullptr);
 }
 
-VkShaderModule GraphicsPipeline::createShaderModule(const std::vector<char>& code) {
+//VkShaderModule Pipeline::createShaderModule(const std::vector<char>& code) {
+VkShaderModule Pipeline::createShaderModule(const std::string& filename) {
+
+	auto code = readFile(filename);
+
 	// CREATE INFO
 	VkShaderModuleCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -389,7 +421,8 @@ VkShaderModule GraphicsPipeline::createShaderModule(const std::vector<char>& cod
 	return shaderModule;
 }
 
-void GraphicsPipeline::cleapup() {
+
+void Pipeline::cleanup() {
 	vkDestroyDescriptorSetLayout(device.get(), descriptorSetLayout, nullptr);
 	vkDestroyPipeline(device.get(), pipeline, nullptr);
 	vkDestroyPipelineLayout(device.get(), pipelineLayout, nullptr);
