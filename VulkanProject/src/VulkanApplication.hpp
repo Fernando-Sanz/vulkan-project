@@ -145,6 +145,7 @@ private:
 
 	// Geometry
 	Model model;
+	Model postProcessingQuad;
 
 	// Uniform
 	UniformManager uniformManager;
@@ -563,26 +564,32 @@ private:
 
 		// DRAWING
 
-		// render pass info
+		//--------------------------------------------------------
+		// FIRST PASS
+		
+		//---------------------
+		// RENDER PASS
 		VkRenderPassBeginInfo renderPassInfo{};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassInfo.renderPass = Pipeline.getRenderPass();
-		renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
+		renderPassInfo.renderPass = firstPassPipeline.getRenderPass();
+		renderPassInfo.framebuffer = firstPassFramebuffer;
 
 		renderPassInfo.renderArea.offset = { 0, 0 };
 		renderPassInfo.renderArea.extent = swapChain.getExtent();
 
 		std::array<VkClearValue, 2> clearValues = {};
-		// The order must be identical to the attachments one
-		clearValues[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
-		clearValues[1].depthStencil = { 1.0f, 0 };
+		clearValues[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };	// for color attachment
+		clearValues[1].depthStencil = { 1.0f, 0 };				// for depth attachment
 
 		renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
 		renderPassInfo.pClearValues = clearValues.data();
 
 		// drawing commands
 		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline.get());
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, firstPassPipeline.get());
+
+		//---------------------
+		// PIPELINE DATA
 
 		// vertex buffers
 		VkBuffer vertexBuffers[] = { model.getVertexBuffer() };
@@ -608,13 +615,72 @@ private:
 		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-			graphicsPipeline.getLayout(), 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+			firstPassPipeline.getLayout(), 0, 1, &firstPassDescriptorSet, 0, nullptr);
 
-		// draw geometry
+		//---------------------
+		// DRAW GEOMETRY AND END
 		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model.getIndices().size()), 1, 0, 0, 0);
-
-		// end recording
 		vkCmdEndRenderPass(commandBuffer);
+
+		//--------------------------------------------------------
+		// SECOND PASS
+
+		//---------------------
+		// RENDER PASS
+		VkRenderPassBeginInfo renderPassInfo{};
+		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		renderPassInfo.renderPass = secondPassPipeline.getRenderPass();
+		renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
+
+		renderPassInfo.renderArea.offset = { 0, 0 };
+		renderPassInfo.renderArea.extent = swapChain.getExtent();
+
+		std::array<VkClearValue, 2> clearValues = {};
+		clearValues[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+
+		renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+		renderPassInfo.pClearValues = clearValues.data();
+
+		// drawing commands
+		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, secondPassPipeline.get());
+
+		//---------------------
+		// PIPELINE DATA
+
+		// vertex buffers
+		VkBuffer vertexBuffers[] = { postProcessingQuad.getVertexBuffer() };
+		VkDeviceSize offsets[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+		// index buffer
+		vkCmdBindIndexBuffer(commandBuffer, postProcessingQuad.getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+
+		// viewport and scissor stage
+		VkViewport viewport{};
+		viewport.x = 0.0f;
+		viewport.y = 0.0f;
+		viewport.width = static_cast<float>(swapChain.getExtent().width);
+		viewport.height = static_cast<float>(swapChain.getExtent().height);
+		viewport.minDepth = 0.0f;
+		viewport.maxDepth = 1.0f;
+		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+		VkRect2D scissor{};
+		scissor.offset = { 0, 0 };
+		scissor.extent = swapChain.getExtent();
+		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			secondPassPipeline.getLayout(), 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+
+		//---------------------
+		// DRAW GEOMETRY AND END
+		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(postProcessingQuad.getIndices().size()), 1, 0, 0, 0);
+		vkCmdEndRenderPass(commandBuffer);
+
+		//--------------------------------------------------------
+		// FINISH COMMAND
 
 		if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to record command buffer");
