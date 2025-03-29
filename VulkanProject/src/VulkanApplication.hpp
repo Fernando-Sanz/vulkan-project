@@ -20,8 +20,9 @@
 #include "SwapChain.hpp"
 #include "imageUtils.hpp"
 #include "CommandManager.hpp"
-#include "Pipeline.hpp"
 #include "StandardPipeline.hpp"
+#include "FirstPassPipeline.hpp"
+#include "SecondPassPipeline.hpp"
 #include "UniformManager.hpp"
 #include "Model.hpp"
 #include "Texture.hpp"
@@ -122,10 +123,12 @@ private:
 	ImageObjects colorImage; // multisampling
 	ImageObjects depthImage;
 	ImageObjects firstOutputImage;
+	VkSampler firstPassOutputSampler;
 
 	// Pipeline
-	Pipeline graphicsPipeline;
 	StandardPipeline firstPassPipeline;
+	FirstPassPipeline FirstPassPipeline;
+	SecondPassPipeline secondPassPipeline;
 
 	// Framebuffers
 	VkFramebuffer firstPassFramebuffer;
@@ -205,13 +208,15 @@ private:
 		device.pickDevice();
 		swapChain.create(device, window, surface);
 
-		graphicsPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(), VERT_SHADER_PATH, FRAG_SHADER_PATH);
+		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(), VERT_SHADER_PATH, FRAG_SHADER_PATH);
+		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(), , );
 
 		commandManager.createPoolAndBuffers(device, MAX_FRAMES_IN_FLIGHT);
 
 		createColorResources();
 		createDepthResources();
 		createFirstPassOutput();
+		createFirstPassOutputSampler();
 
 		createFirstPassFramebuffer();
 		createSwapChainFramebuffers();
@@ -475,6 +480,10 @@ private:
 		firstOutputImage.view = createImageView(device, firstOutputImage.image, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 	}
 
+	void createFirstPassOutputSampler() {
+		Texture::createSampler(device, 1, firstPassOutputSampler);
+	}
+
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// FRAMEBUFFERS CREATION
@@ -491,7 +500,7 @@ private:
 
 		VkFramebufferCreateInfo framebufferInfo{};
 		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebufferInfo.renderPass = graphicsPipeline.getRenderPass();
+		framebufferInfo.renderPass = firstPassPipeline.getRenderPass();
 		framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
 		framebufferInfo.pAttachments = attachments.data();
 		framebufferInfo.width = swapChain.getExtent().width;
@@ -510,14 +519,13 @@ private:
 		// Create framebuffers
 		for (size_t i = 0; i < swapChain.getImageCount(); i++) {
 			std::array<VkImageView, 3> attachments = {
-				colorImage.view,
-				depthImage.view,
-				swapChain.getImageView(i)
+				swapChain.getImageView(i),
+				depthImage.view
 			};
 
 			VkFramebufferCreateInfo framebufferInfo{};
 			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-			framebufferInfo.renderPass = graphicsPipeline.getRenderPass();
+			framebufferInfo.renderPass = secondPassPipeline.getRenderPass();
 			framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
 			framebufferInfo.pAttachments = attachments.data();
 			framebufferInfo.width = swapChain.getExtent().width;
@@ -552,7 +560,7 @@ private:
 		// render pass info
 		VkRenderPassBeginInfo renderPassInfo{};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassInfo.renderPass = graphicsPipeline.getRenderPass();
+		renderPassInfo.renderPass = Pipeline.getRenderPass();
 		renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
 
 		renderPassInfo.renderArea.offset = { 0, 0 };

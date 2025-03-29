@@ -1,4 +1,4 @@
-#include "StandardPipeline.hpp"
+#include "FirstPassPipeline.hpp"
 
 #include <vulkan/vulkan.h>
 
@@ -11,7 +11,7 @@
 #include "Vertex.hpp"
 
 
-void StandardPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat,
+void FirstPassPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat,
 	std::string vertShaderLocation, std::string fragShaderLocation) {
 
 	this->device = device;
@@ -21,7 +21,7 @@ void StandardPipeline::create(Device device, VkFormat imageFormat, VkFormat dept
 	createGraphicsPipeline(vertShaderLocation, fragShaderLocation);
 }
 
-void StandardPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFormat) {
+void FirstPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFormat) {
 
 	// ATTACHMENTS (description and reference)
 
@@ -39,7 +39,7 @@ void StandardPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthForm
 	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentReference colorAttachmentRef{};
-	colorAttachmentRef.attachment = 0; // It is also the location value in frag shader
+	colorAttachmentRef.attachment = 0;
 	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	//----------------------------------------------------
@@ -49,7 +49,7 @@ void StandardPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthForm
 	depthAttachment.format = depthFormat;
 	depthAttachment.samples = device.getMsaaSamples();
 	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -70,7 +70,7 @@ void StandardPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthForm
 	colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // input for second pass
 
 	// attachment reference
 	VkAttachmentReference colorAttachmentResolveRef{};
@@ -115,7 +115,7 @@ void StandardPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthForm
 	}
 }
 
-void StandardPipeline::createDescriptorSetLayout() {
+void FirstPassPipeline::createDescriptorSetLayout() {
 
 	//----------------------------------------------------
 	// BINDINGS
@@ -152,7 +152,7 @@ void StandardPipeline::createDescriptorSetLayout() {
 	}
 }
 
-void StandardPipeline::createGraphicsPipeline(std::string vertShaderLocation, std::string fragShaderLocation) {
+void FirstPassPipeline::createGraphicsPipeline(std::string vertShaderLocation, std::string fragShaderLocation) {
 
 	//--------------------------------------------------------
 	// SHADERS
@@ -348,7 +348,7 @@ void StandardPipeline::createGraphicsPipeline(std::string vertShaderLocation, st
 	vkDestroyShaderModule(device.get(), vertShaderModule, nullptr);
 }
 
-void StandardPipeline::cleapup() {
+void FirstPassPipeline::cleapup() {
 	vkDestroyDescriptorSetLayout(device.get(), descriptorSetLayout, nullptr);
 	vkDestroyPipeline(device.get(), pipeline, nullptr);
 	vkDestroyPipelineLayout(device.get(), pipelineLayout, nullptr);

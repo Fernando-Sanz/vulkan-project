@@ -1,40 +1,17 @@
-#include "Pipeline.hpp"
+#include "SecondPassPipeline.hpp"
+
 #include <vulkan/vulkan.h>
 
 #include <vector>
+#include <array>
 #include <stdexcept>
-#include <iostream>
-#include <fstream>
+#include <string>
 
+#include "PipelineUtils.hpp"
 #include "Vertex.hpp"
 
 
-namespace {
-	// TODO: move to utils type file
-	std::vector<char> readFile(const std::string& filename) {
-
-		std::ifstream file(filename, std::ios::ate | std::ios::binary);
-
-		if (!file.is_open()) {
-			throw std::runtime_error("failed to open file");
-		}
-
-		// take the size
-		size_t fileSize = (size_t)file.tellg();
-		std::vector<char> buffer(fileSize);
-		std::cout << "Shader " << filename << " with size: " << fileSize << std::endl;
-
-		// read
-		file.seekg(0);
-		file.read(buffer.data(), fileSize);
-
-		file.close();
-		return buffer;
-	}
-}
-
-
-void Pipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat,
+void SecondPassPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat,
 	std::string vertShaderLocation, std::string fragShaderLocation) {
 
 	this->device = device;
@@ -44,44 +21,52 @@ void Pipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat,
 	createGraphicsPipeline(vertShaderLocation, fragShaderLocation);
 }
 
+void SecondPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFormat) {
 
-void Pipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFormat) {
+	// ATTACHMENTS (description and reference)
 
 	//----------------------------------------------------
-	// GET THE ATTACHMENTS
+	// COLOR ATTACHMENT
 
-	Attachment colorAtt = getColorAttachment(0, imageFormat);
-	VkAttachmentDescription colorAttachment = colorAtt.description;
-	VkAttachmentReference colorAttachmentRef = colorAtt.reference;
+	VkAttachmentDescription colorAttachment{};
+	colorAttachment.format = imageFormat;
+	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-	Attachment depthAtt = getDepthAttachment(1, depthFormat);
-	VkAttachmentDescription depthAttachment = depthAtt.description;
-	VkAttachmentReference depthAttachmentRef = depthAtt.reference;
+	VkAttachmentReference colorAttachmentRef{};
+	colorAttachmentRef.attachment = 0;
+	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	Attachment colorResolveAtt = getColorResolveAttachment(2, imageFormat);
-	VkAttachmentDescription colorResolveAttachment = colorResolveAtt.description;
-	VkAttachmentReference colorResolveAttachmentRef = colorResolveAtt.reference;
+	//----------------------------------------------------
+	// DEPTH ATTACHMENT
+
+	VkAttachmentDescription depthAttachment{};
+	depthAttachment.format = depthFormat;
+	depthAttachment.samples = device.getMsaaSamples();
+	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD; // load previous depth
+	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depthAttachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL;
+	depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentReference depthAttachmentRef{};
+	depthAttachmentRef.attachment = 1;
+	depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 	//----------------------------------------------------
 	// RENDER SUBPASS
 
-	std::vector<VkAttachmentDescription> attachments;
 	VkSubpassDescription subpass{};
 	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 	subpass.colorAttachmentCount = 1;
-
-	if (colorAtt.isValid) {
-		attachments.push_back(colorAttachment);
-		subpass.pColorAttachments = &colorAttachmentRef;
-	}
-	if (depthAtt.isValid) {
-		attachments.push_back(depthAttachment);
-		subpass.pDepthStencilAttachment = &depthAttachmentRef;
-	}
-	if (colorResolveAtt.isValid) {
-		attachments.push_back(colorResolveAttachment);
-		subpass.pResolveAttachments = &colorResolveAttachmentRef;
-	}
+	subpass.pColorAttachments = &colorAttachmentRef;
+	subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
 	//----------------------------------------------------
 	// DEPENDENCIES
@@ -96,6 +81,7 @@ void Pipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFormat) {
 	//----------------------------------------------------
 	// CREATE RENDER PASS
 
+	std::array<VkAttachmentDescription, 2> attachments = { colorAttachment, depthAttachment };
 	VkRenderPassCreateInfo renderPassInfo{};
 	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 	renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
@@ -110,77 +96,10 @@ void Pipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFormat) {
 	}
 }
 
-Pipeline::Attachment Pipeline::getColorAttachment(uint32_t id, VkFormat format) {
-
-	Attachment attachment{};
-
-	attachment.description.format = format;
-	attachment.description.samples = device.getMsaaSamples();
-	attachment.description.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	attachment.description.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	attachment.description.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	attachment.description.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	attachment.description.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	attachment.description.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-	attachment.reference.attachment = id;
-	attachment.reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-	return attachment;
-}
-
-Pipeline::Attachment Pipeline::getDepthAttachment(uint32_t id, VkFormat format) {
-
-	Attachment attachment{};
-
-	attachment.description.format = format;
-	attachment.description.samples = device.getMsaaSamples();
-	attachment.description.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	attachment.description.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	attachment.description.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	attachment.description.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	attachment.description.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	attachment.description.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-	attachment.reference.attachment = id;
-	attachment.reference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-	return attachment;
-}
-
-Pipeline::Attachment Pipeline::getColorResolveAttachment(uint32_t id, VkFormat format) {
-	
-	Attachment attachment{};
-
-	attachment.description.format = format;
-	attachment.description.samples = VK_SAMPLE_COUNT_1_BIT;
-	attachment.description.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	attachment.description.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	attachment.description.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	attachment.description.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	attachment.description.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	attachment.description.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-	attachment.reference.attachment = id;
-	attachment.reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-	return attachment;
-}
-
-
-void Pipeline::createDescriptorSetLayout() {
+void SecondPassPipeline::createDescriptorSetLayout() {
 
 	//----------------------------------------------------
 	// BINDINGS
-
-	//---------------------
-	// ubo binding
-	VkDescriptorSetLayoutBinding uboLayoutBinding{};
-	uboLayoutBinding.binding = 0;
-	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	uboLayoutBinding.descriptorCount = 1;
-	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
 
 	//---------------------
 	// sampler binding
@@ -193,11 +112,10 @@ void Pipeline::createDescriptorSetLayout() {
 
 	//----------------------------------------------------
 	// CREATE DESCRIPTOR SET
-	std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
 	VkDescriptorSetLayoutCreateInfo layoutInfo{};
 	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-	layoutInfo.pBindings = bindings.data();
+	layoutInfo.bindingCount = 1;
+	layoutInfo.pBindings = &samplerLayoutBinding;
 
 	// CREATION
 	if (vkCreateDescriptorSetLayout(device.get(), &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
@@ -205,15 +123,16 @@ void Pipeline::createDescriptorSetLayout() {
 	}
 }
 
-
-void Pipeline::createGraphicsPipeline(std::string vertShaderLocation, std::string fragShaderLocation) {
+void SecondPassPipeline::createGraphicsPipeline(std::string vertShaderLocation, std::string fragShaderLocation) {
 
 	//--------------------------------------------------------
 	// SHADERS
 
 	// create shader modules
-	VkShaderModule vertShaderModule = createShaderModule(vertShaderLocation);
-	VkShaderModule fragShaderModule = createShaderModule(fragShaderLocation);
+	auto vertShaderCode = readFile(vertShaderLocation);
+	auto fragShaderCode = readFile(fragShaderLocation);
+	VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
+	VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
 
 	// VERTEX SHADER
 	VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
@@ -286,32 +205,22 @@ void Pipeline::createGraphicsPipeline(std::string vertShaderLocation, std::strin
 
 
 	//--------------------------------------------------------
-	// MULTISAMPLING
+	// MULTISAMPLING (disabled)
 
 	VkPipelineMultisampleStateCreateInfo multisampling{};
 	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-	multisampling.sampleShadingEnable = VK_TRUE;
-	multisampling.rasterizationSamples = device.getMsaaSamples();
-	multisampling.minSampleShading = 1.0f; // Optional
-	multisampling.pSampleMask = nullptr; // Optional
-	multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
-	multisampling.alphaToOneEnable = VK_FALSE; // Optional
+	multisampling.sampleShadingEnable = VK_FALSE;
 
 
 	//--------------------------------------------------------
-	// DEPTH AND STENCIL
+	// DEPTH AND STENCIL (all disabled)
 
 	VkPipelineDepthStencilStateCreateInfo depthStencil{};
 	depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-	depthStencil.depthTestEnable = VK_TRUE;
-	depthStencil.depthWriteEnable = VK_TRUE;
-	depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+	depthStencil.depthTestEnable = VK_FALSE;
+	depthStencil.depthWriteEnable = VK_FALSE;
 	depthStencil.depthBoundsTestEnable = VK_FALSE;
-	depthStencil.minDepthBounds = 0.0f; // Optional
-	depthStencil.maxDepthBounds = 1.0f; // Optional
 	depthStencil.stencilTestEnable = VK_FALSE;
-	depthStencil.front = {}; // Optional
-	depthStencil.back = {}; // Optional
 
 
 	//--------------------------------------------------------
@@ -400,29 +309,7 @@ void Pipeline::createGraphicsPipeline(std::string vertShaderLocation, std::strin
 	vkDestroyShaderModule(device.get(), vertShaderModule, nullptr);
 }
 
-//VkShaderModule Pipeline::createShaderModule(const std::vector<char>& code) {
-VkShaderModule Pipeline::createShaderModule(const std::string& filename) {
-
-	auto code = readFile(filename);
-
-	// CREATE INFO
-	VkShaderModuleCreateInfo createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-	createInfo.codeSize = code.size(); // Size in bytes (char)
-	createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data()); // Vulkan uses uint32 pointer (not char)
-	// It is not necessary to check alignment, std::vector already does
-
-	// CREATE SHADER MODULE
-	VkShaderModule shaderModule;
-	if (vkCreateShaderModule(device.get(), &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create shader module");
-	}
-
-	return shaderModule;
-}
-
-
-void Pipeline::cleanup() {
+void SecondPassPipeline::cleapup() {
 	vkDestroyDescriptorSetLayout(device.get(), descriptorSetLayout, nullptr);
 	vkDestroyPipeline(device.get(), pipeline, nullptr);
 	vkDestroyPipelineLayout(device.get(), pipelineLayout, nullptr);

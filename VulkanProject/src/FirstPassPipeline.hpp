@@ -6,7 +6,7 @@
 #include "Device.hpp"
 
 
-class  StandardPipeline {
+class  FirstPassPipeline {
 
 public:
 
