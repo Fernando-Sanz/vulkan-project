@@ -31,8 +31,11 @@
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
-const std::string VERT_SHADER_PATH = "../../VulkanProject/assets/shaders/vert.spv";
-const std::string FRAG_SHADER_PATH = "../../VulkanProject/assets/shaders/frag.spv";
+const std::string FIRST_PASS_VERT_SHADER_PATH = "../../VulkanProject/assets/shaders/vert.spv";
+const std::string FIRST_PASS_FRAG_SHADER_PATH = "../../VulkanProject/assets/shaders/frag.spv";
+
+const std::string SECOND_PASS_VERT_SHADER_PATH = "../../VulkanProject/assets/shaders/secondPassVert.spv";
+const std::string SECOND_PASS_FRAG_SHADER_PATH = "../../VulkanProject/assets/shaders/secondPassFrag.spv";
 
 const std::string MODEL_PATH = "../../VulkanProject/assets/models/viking_room.obj";
 const std::string TEXTURE_PATH = "../../VulkanProject/assets/textures/viking_room.png";
@@ -209,8 +212,10 @@ private:
 		device.pickDevice();
 		swapChain.create(device, window, surface);
 
-		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(), VERT_SHADER_PATH, FRAG_SHADER_PATH);
-		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(), , );
+		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(),
+			FIRST_PASS_VERT_SHADER_PATH, FIRST_PASS_FRAG_SHADER_PATH);
+		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(),
+			SECOND_PASS_VERT_SHADER_PATH, SECOND_PASS_FRAG_SHADER_PATH);
 
 		commandManager.createPoolAndBuffers(device, MAX_FRAMES_IN_FLIGHT);
 
