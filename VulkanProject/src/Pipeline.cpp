@@ -136,7 +136,7 @@ Pipeline::Attachment Pipeline::getDepthAttachment(uint32_t id, VkFormat format) 
 	attachment.description.format = format;
 	attachment.description.samples = device.getMsaaSamples();
 	attachment.description.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	attachment.description.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	attachment.description.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	attachment.description.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	attachment.description.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	attachment.description.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
