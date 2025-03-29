@@ -348,7 +348,7 @@ void StandardPipeline::createGraphicsPipeline(std::string vertShaderLocation, st
 	vkDestroyShaderModule(device.get(), vertShaderModule, nullptr);
 }
 
-void StandardPipeline::cleapup() {
+void StandardPipeline::cleanup() {
 	vkDestroyDescriptorSetLayout(device.get(), descriptorSetLayout, nullptr);
 	vkDestroyPipeline(device.get(), pipeline, nullptr);
 	vkDestroyPipelineLayout(device.get(), pipelineLayout, nullptr);

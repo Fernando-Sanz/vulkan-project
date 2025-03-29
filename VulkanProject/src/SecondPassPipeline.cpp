@@ -309,7 +309,7 @@ void SecondPassPipeline::createGraphicsPipeline(std::string vertShaderLocation, 
 	vkDestroyShaderModule(device.get(), vertShaderModule, nullptr);
 }
 
-void SecondPassPipeline::cleapup() {
+void SecondPassPipeline::cleanup() {
 	vkDestroyDescriptorSetLayout(device.get(), descriptorSetLayout, nullptr);
 	vkDestroyPipeline(device.get(), pipeline, nullptr);
 	vkDestroyPipelineLayout(device.get(), pipelineLayout, nullptr);

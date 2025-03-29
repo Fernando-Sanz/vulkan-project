@@ -122,7 +122,7 @@ private:
 	// Images for framebuffers
 	ImageObjects colorImage; // multisampling
 	ImageObjects depthImage;
-	ImageObjects firstOutputImage;
+	ImageObjects firstPassOutputImage;
 	VkSampler firstPassOutputSampler;
 
 	// Pipeline
@@ -148,6 +148,7 @@ private:
 
 	// Descriptor pool and sets
 	VkDescriptorPool descriptorPool;
+	VkDescriptorSet firstPassDescriptorSet;
 	std::vector<VkDescriptorSet> descriptorSets; // destroyed with descriptorPool
 
 	// Sync objects
@@ -228,7 +229,7 @@ private:
 		uniformManager.createBuffers(device, MAX_FRAMES_IN_FLIGHT);
 
 		createDescriptorPool();
-		allocateDescriptorSets();
+		allocateSecondPassDescriptorSets();
 
 		createSyncObjects();
 	}
@@ -476,8 +477,8 @@ private:
 			colorFormat, VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			firstOutputImage.image, firstOutputImage.memory);
-		firstOutputImage.view = createImageView(device, firstOutputImage.image, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+			firstPassOutputImage.image, firstPassOutputImage.memory);
+		firstPassOutputImage.view = createImageView(device, firstPassOutputImage.image, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 	}
 
 	void createFirstPassOutputSampler() {
@@ -495,7 +496,7 @@ private:
 		std::array<VkImageView, 3> attachments = {
 			colorImage.view,
 			depthImage.view,
-			firstOutputImage.view
+			firstPassOutputImage.view
 		};
 
 		VkFramebufferCreateInfo framebufferInfo{};
@@ -623,27 +624,83 @@ private:
 	void createDescriptorPool() {
 		// Sizes
 		std::array<VkDescriptorPoolSize, 2> poolSizes{};
-		// uniform buffer
+		// uniform buffer (for first pass)
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-		// image sampler
+		poolSizes[0].descriptorCount = 1;
+		// image sampler (all second passes and first pass)
 		poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+		poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) + 1;
 
 		// Create info
 		VkDescriptorPoolCreateInfo poolInfo{};
 		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 		poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
 		poolInfo.pPoolSizes = poolSizes.data();
-		poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+		poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) + 1;
 
 		if (vkCreateDescriptorPool(device.get(), &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create descriptor pool");
 		}
 	}
 
-	void allocateDescriptorSets() {
-		std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, graphicsPipeline.getDescriptorSetLayout());
+	void allocateFirstPassDescriptorSets() {
+		VkDescriptorSetLayout layout = firstPassPipeline.getDescriptorSetLayout();
+
+		// DESCRIPTOR SETS ALLOCATION
+		VkDescriptorSetAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		allocInfo.descriptorPool = descriptorPool;
+		allocInfo.descriptorSetCount = 1;
+		allocInfo.pSetLayouts = &layout;
+
+		if (vkAllocateDescriptorSets(device.get(), &allocInfo, &firstPassDescriptorSet) != VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate first pass descriptor set");
+		}
+
+		// DESCRIPTOR SET CONFIGURATION
+		// UNIFORM BUFFER INFO
+		VkDescriptorBufferInfo bufferInfo{};
+		bufferInfo.buffer = uniformManager.getBuffer(0);
+		bufferInfo.offset = 0;
+		bufferInfo.range = sizeof(UniformBufferObject);
+
+		// TEXTURE IMAGE SAMPLER INFO
+		VkDescriptorImageInfo imageInfo{};
+		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		imageInfo.imageView = texture.getImageView();
+		imageInfo.sampler = texture.getSampler();
+
+		// DESCRIPTOR WRITES
+		std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+
+		// buffer
+		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[0].dstSet = firstPassDescriptorSet;
+		descriptorWrites[0].dstBinding = 0;
+		descriptorWrites[0].dstArrayElement = 0;
+		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrites[0].descriptorCount = 1;
+		descriptorWrites[0].pBufferInfo = &bufferInfo;
+		descriptorWrites[0].pImageInfo = nullptr; // Not used
+		descriptorWrites[0].pTexelBufferView = nullptr; // Not used
+
+		// image sampler
+		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[1].dstSet = firstPassDescriptorSet;
+		descriptorWrites[1].dstBinding = 1;
+		descriptorWrites[1].dstArrayElement = 0;
+		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		descriptorWrites[1].descriptorCount = 1;
+		descriptorWrites[1].pImageInfo = &imageInfo;
+
+		// UPDATE
+		vkUpdateDescriptorSets(device.get(), static_cast<uint32_t>(descriptorWrites.size()),
+			descriptorWrites.data(), 0, nullptr);
+	}
+
+
+	void allocateSecondPassDescriptorSets() {
+		std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, secondPassPipeline.getDescriptorSetLayout());
 
 		// DESCRIPTOR SETS ALLOCATION
 		VkDescriptorSetAllocateInfo allocInfo{};
@@ -654,49 +711,30 @@ private:
 
 		descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
 		if (vkAllocateDescriptorSets(device.get(), &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
-			throw std::runtime_error("failed to allocate descriptor sets");
+			throw std::runtime_error("failed to allocate second pass descriptor sets");
 		}
 
 		// DESCRIPTOR SETS CONFIGURATION
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-			// UNIFORM BUFFER INFO
-			VkDescriptorBufferInfo bufferInfo{};
-			bufferInfo.buffer = uniformManager.getBuffer(i);
-			bufferInfo.offset = 0;
-			bufferInfo.range = sizeof(UniformBufferObject);
 
 			// TEXTURE IMAGE SAMPLER INFO
 			VkDescriptorImageInfo imageInfo{};
 			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			imageInfo.imageView = texture.getImageView();
+			imageInfo.imageView = firstPassOutputImage.view;
 			imageInfo.sampler = texture.getSampler();
 
 			// DESCRIPTOR WRITES
-			std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
-
-			// buffer
-			descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			descriptorWrites[0].dstSet = descriptorSets[i];
-			descriptorWrites[0].dstBinding = 0;
-			descriptorWrites[0].dstArrayElement = 0;
-			descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-			descriptorWrites[0].descriptorCount = 1;
-			descriptorWrites[0].pBufferInfo = &bufferInfo;
-			descriptorWrites[0].pImageInfo = nullptr; // Not used
-			descriptorWrites[0].pTexelBufferView = nullptr; // Not used
-
-			// image sampler
-			descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			descriptorWrites[1].dstSet = descriptorSets[i];
-			descriptorWrites[1].dstBinding = 1;
-			descriptorWrites[1].dstArrayElement = 0;
-			descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			descriptorWrites[1].descriptorCount = 1;
-			descriptorWrites[1].pImageInfo = &imageInfo;
+			VkWriteDescriptorSet descriptorWrite{};
+			descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			descriptorWrite.dstSet = descriptorSets[i];
+			descriptorWrite.dstBinding = 0;
+			descriptorWrite.dstArrayElement = 0;
+			descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			descriptorWrite.descriptorCount = 1;
+			descriptorWrite.pImageInfo = &imageInfo;
 
 			// UPDATE
-			vkUpdateDescriptorSets(device.get(), static_cast<uint32_t>(descriptorWrites.size()),
-				descriptorWrites.data(), 0, nullptr);
+			vkUpdateDescriptorSets(device.get(), 1, &descriptorWrite, 0, nullptr);
 		}
 	}
 
@@ -865,7 +903,7 @@ private:
 		commandManager.cleanup();
 
 		// Pipeline
-		graphicsPipeline.cleanup();
+		firstPassPipeline.cleanup();
 
 		// Device
 		device.cleanup();

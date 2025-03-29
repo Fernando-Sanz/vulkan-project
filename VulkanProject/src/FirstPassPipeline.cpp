@@ -348,7 +348,7 @@ void FirstPassPipeline::createGraphicsPipeline(std::string vertShaderLocation, s
 	vkDestroyShaderModule(device.get(), vertShaderModule, nullptr);
 }
 
-void FirstPassPipeline::cleapup() {
+void FirstPassPipeline::cleanup() {
 	vkDestroyDescriptorSetLayout(device.get(), descriptorSetLayout, nullptr);
 	vkDestroyPipeline(device.get(), pipeline, nullptr);
 	vkDestroyPipelineLayout(device.get(), pipelineLayout, nullptr);

@@ -26,7 +26,7 @@ public:
 		std::string vertexShaderLocation, std::string fragmentShaderLocation);
 
 	// Destroy Vulkan and other objects
-	void cleapup();
+	void cleanup();
 
 private:
 
