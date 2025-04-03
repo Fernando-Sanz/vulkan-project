@@ -32,3 +32,6 @@ void transitionImageLayout(CommandManager commandManager, VkImage image, VkForma
 // Generate 'mipLevels' mipmaps of the image
 void generateMipmaps(Device device, CommandManager commandManager,
 	VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
+
+// Destroy ImageObjects fields
+void destroyImageObjects(Device device, ImageObjects imageObjects);

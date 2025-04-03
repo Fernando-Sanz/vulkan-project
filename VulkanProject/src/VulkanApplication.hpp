@@ -424,6 +424,8 @@ private:
 		createColorResources();
 		createDepthResources();
 		createFirstPassOutput();
+		createFirstPassOutputSampler();
+		configureSecondPassDescriptorSets();
 		createSwapChainFramebuffers();
 		createFirstPassFramebuffer();
 	}
@@ -787,6 +789,11 @@ private:
 			throw std::runtime_error("failed to allocate second pass descriptor sets");
 		}
 
+		// Configure the allocated sets
+		configureSecondPassDescriptorSets();
+	}
+
+	void configureSecondPassDescriptorSets(){
 		// DESCRIPTOR SETS CONFIGURATION
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 
@@ -997,19 +1004,14 @@ private:
 
 	void cleanupRenderImages() {
 		// Color resources
-		vkDestroyImageView(device.get(), colorImage.view, nullptr);
-		vkDestroyImage(device.get(), colorImage.image, nullptr);
-		vkFreeMemory(device.get(), colorImage.memory, nullptr);
+		destroyImageObjects(device, colorImage);
 
 		// depth resources
-		vkDestroyImageView(device.get(), depthImage.view, nullptr);
-		vkDestroyImage(device.get(), depthImage.image, nullptr);
-		vkFreeMemory(device.get(), depthImage.memory, nullptr);
+		destroyImageObjects(device, depthImage);
 
 		// first pass output
-		vkDestroyImageView(device.get(), firstPassOutputImage.view, nullptr);
-		vkDestroyImage(device.get(), firstPassOutputImage.image, nullptr);
-		vkFreeMemory(device.get(), firstPassOutputImage.memory, nullptr);
+		vkDestroySampler(device.get(), firstPassOutputSampler, nullptr);
+		destroyImageObjects(device, firstPassOutputImage);
 
 		// color attachments
 		vkDestroyFramebuffer(device.get(), firstPassFramebuffer, nullptr);
