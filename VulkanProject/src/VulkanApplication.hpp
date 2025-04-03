@@ -26,6 +26,7 @@
 #include "UniformManager.hpp"
 #include "Model.hpp"
 #include "Texture.hpp"
+#include "AppTime.hpp"
 
 
 const uint32_t WIDTH = 800;
@@ -891,7 +892,10 @@ private:
 		}
 
 		// TODO: change this way and use push constants
-		uniformManager.upateBuffer(currentFrame, swapChain.getExtent().width, swapChain.getExtent().height);
+		// UPDATE
+		AppTime::updateDeltaTime();
+		model.update();
+		uniformManager.upateBuffer(currentFrame, swapChain.getExtent().width, swapChain.getExtent().height, model.getModelMatrix());
 
 		vkResetFences(device.get(), 1, &inFlightFences[currentFrame]);
 

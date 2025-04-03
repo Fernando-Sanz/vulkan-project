@@ -3,6 +3,8 @@
 #include <iostream>
 #include <tiny_obj_loader.h>
 
+#include "AppTime.hpp"
+
 
 void Model::loadModel(Device device, CommandManager commandManager, std::string modelPath) {
 
@@ -100,6 +102,10 @@ void Model::createModelBuffer(CommandManager commandManager, VkDeviceSize buffer
 	vkFreeMemory(device.get(), stagingBufferMemory, nullptr);
 }
 
+void Model::update() {
+	model = glm::rotate(
+		glm::mat4(1.0f), AppTime::deltaTime() * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+}
 
 void Model::cleanup() {
 	vkDestroyBuffer(device.get(), vertexBuffer, nullptr);
