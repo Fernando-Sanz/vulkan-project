@@ -25,6 +25,9 @@ public:
 	// Create all the resources involved in texture usage
 	void create(Device device, CommandManager commandManager, std::string texturePath);
 
+	// Create sampler for the texture
+	static void createSampler(Device device, uint32_t mipLevels, VkSampler& sampler);
+
 	// Destroy Vulkan and other objects
 	void cleanup();
 
@@ -47,8 +50,5 @@ private:
 
 	// Create an image and its memory for the texture and generate its mipmaps
 	void createTextureImage(std::string texturePath);
-
-	// Create sampler for the texture
-	void createTextureSampler();
 
 };

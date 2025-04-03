@@ -1,39 +1,17 @@
-#include "GraphicsPipeline.hpp"
+#include "StandardPipeline.hpp"
+
 #include <vulkan/vulkan.h>
 
 #include <vector>
+#include <array>
 #include <stdexcept>
-#include "Vertex.hpp"
-#include <iostream>
-
-#include <fstream>
 #include <string>
 
+#include "PipelineUtils.hpp"
+#include "Vertex.hpp"
 
-namespace {
-	std::vector<char> readFile(const std::string& filename) {
 
-		std::ifstream file(filename, std::ios::ate | std::ios::binary);
-
-		if (!file.is_open()) {
-			throw std::runtime_error("failed to open file");
-		}
-
-		// take the size
-		size_t fileSize = (size_t)file.tellg();
-		std::vector<char> buffer(fileSize);
-		std::cout << "Shader " << filename << " with size: " << fileSize << std::endl;
-
-		// read
-		file.seekg(0);
-		file.read(buffer.data(), fileSize);
-
-		file.close();
-		return buffer;
-	}
-}
-
-void GraphicsPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat,
+void StandardPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat,
 	std::string vertShaderLocation, std::string fragShaderLocation) {
 
 	this->device = device;
@@ -43,7 +21,7 @@ void GraphicsPipeline::create(Device device, VkFormat imageFormat, VkFormat dept
 	createGraphicsPipeline(vertShaderLocation, fragShaderLocation);
 }
 
-void GraphicsPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFormat) {
+void StandardPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFormat) {
 
 	// ATTACHMENTS (description and reference)
 
@@ -137,7 +115,7 @@ void GraphicsPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthForm
 	}
 }
 
-void GraphicsPipeline::createDescriptorSetLayout() {
+void StandardPipeline::createDescriptorSetLayout() {
 
 	//----------------------------------------------------
 	// BINDINGS
@@ -174,7 +152,7 @@ void GraphicsPipeline::createDescriptorSetLayout() {
 	}
 }
 
-void GraphicsPipeline::createGraphicsPipeline(std::string vertShaderLocation, std::string fragShaderLocation) {
+void StandardPipeline::createGraphicsPipeline(std::string vertShaderLocation, std::string fragShaderLocation) {
 
 	//--------------------------------------------------------
 	// SHADERS
@@ -182,8 +160,8 @@ void GraphicsPipeline::createGraphicsPipeline(std::string vertShaderLocation, st
 	// create shader modules
 	auto vertShaderCode = readFile(vertShaderLocation);
 	auto fragShaderCode = readFile(fragShaderLocation);
-	VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
-	VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+	VkShaderModule vertShaderModule = createShaderModule(device, vertShaderCode);
+	VkShaderModule fragShaderModule = createShaderModule(device, fragShaderCode);
 
 	// VERTEX SHADER
 	VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
@@ -256,7 +234,7 @@ void GraphicsPipeline::createGraphicsPipeline(std::string vertShaderLocation, st
 
 
 	//--------------------------------------------------------
-	// MULTISAMPLING (disabled)
+	// MULTISAMPLING
 
 	VkPipelineMultisampleStateCreateInfo multisampling{};
 	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
@@ -370,24 +348,7 @@ void GraphicsPipeline::createGraphicsPipeline(std::string vertShaderLocation, st
 	vkDestroyShaderModule(device.get(), vertShaderModule, nullptr);
 }
 
-VkShaderModule GraphicsPipeline::createShaderModule(const std::vector<char>& code) {
-	// CREATE INFO
-	VkShaderModuleCreateInfo createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-	createInfo.codeSize = code.size(); // Size in bytes (char)
-	createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data()); // Vulkan uses uint32 pointer (not char)
-	// It is not necessary to check alignment, std::vector already does
-
-	// CREATE SHADER MODULE
-	VkShaderModule shaderModule;
-	if (vkCreateShaderModule(device.get(), &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create shader module");
-	}
-
-	return shaderModule;
-}
-
-void GraphicsPipeline::cleapup() {
+void StandardPipeline::cleanup() {
 	vkDestroyDescriptorSetLayout(device.get(), descriptorSetLayout, nullptr);
 	vkDestroyPipeline(device.get(), pipeline, nullptr);
 	vkDestroyPipelineLayout(device.get(), pipelineLayout, nullptr);

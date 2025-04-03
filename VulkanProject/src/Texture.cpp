@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <stb_image.h>
 
-#include "ImageUtils.hpp"
+#include "imageUtils.hpp"
 
 
 void Texture::create(Device device, CommandManager commandManager, std::string texturePath) {
@@ -14,7 +14,7 @@ void Texture::create(Device device, CommandManager commandManager, std::string t
 	createTextureImage(texturePath);
 	imageView = createImageView(
 		device, image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels);
-	createTextureSampler();
+	createSampler(device, mipLevels, sampler);
 }
 
 void Texture::createTextureImage(std::string texturePath) {
@@ -74,7 +74,7 @@ void Texture::createTextureImage(std::string texturePath) {
 	generateMipmaps(device, commandManager, image, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels);
 }
 
-void Texture::createTextureSampler() {
+void Texture::createSampler(Device device, uint32_t mipLevels, VkSampler& sampler) {
 	//-----------------------------------------
 	// CREATE INFO
 	VkSamplerCreateInfo samplerInfo{};
@@ -109,6 +109,7 @@ void Texture::createTextureSampler() {
 		throw std::runtime_error("failed to create texture sampler");
 	}
 }
+
 
 void Texture::cleanup() {
 	vkDestroySampler(device.get(), sampler, nullptr);

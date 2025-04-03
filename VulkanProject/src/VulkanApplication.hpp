@@ -20,7 +20,9 @@
 #include "SwapChain.hpp"
 #include "imageUtils.hpp"
 #include "CommandManager.hpp"
-#include "GraphicsPipeline.hpp"
+#include "StandardPipeline.hpp"
+#include "FirstPassPipeline.hpp"
+#include "SecondPassPipeline.hpp"
 #include "UniformManager.hpp"
 #include "Model.hpp"
 #include "Texture.hpp"
@@ -29,11 +31,17 @@
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
-const std::string VERT_SHADER_PATH = "../../VulkanProject/assets/shaders/vert.spv";
-const std::string FRAG_SHADER_PATH = "../../VulkanProject/assets/shaders/frag.spv";
+const std::string FIRST_PASS_VERT_SHADER_PATH = "../../VulkanProject/assets/shaders/vert.spv";
+const std::string FIRST_PASS_FRAG_SHADER_PATH = "../../VulkanProject/assets/shaders/frag.spv";
 
-const std::string MODEL_PATH = "../../VulkanProject/assets/models/viking_room.obj";
-const std::string TEXTURE_PATH = "../../VulkanProject/assets/textures/viking_room.png";
+const std::string SECOND_PASS_VERT_SHADER_PATH = "../../VulkanProject/assets/shaders/secondPassVert.spv";
+const std::string SECOND_PASS_FRAG_SHADER_PATH = "../../VulkanProject/assets/shaders/secondPassFrag.spv";
+
+const std::string MODEL_PATH = "../../VulkanProject/assets/models/viking_room/viking_room.obj";
+const std::string TEXTURE_PATH = "../../VulkanProject/assets/models/viking_room/viking_room.png";
+
+const std::string POST_PROCESSING_QUAD_PATH = "../../VulkanProject/assets/models/post_processing/post_processing_quad.obj";
+
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -75,7 +83,6 @@ namespace {
 			func(instance, debugMessenger, pAllocator);
 		}
 	}
-
 }
 
 
@@ -118,20 +125,18 @@ private:
 	// Swap chain stuff
 	SwapChain swapChain;
 
-	// Render target (multisampling)
-	VkImage colorImage;
-	VkDeviceMemory colorImageMemory;
-	VkImageView colorImageView;
-
-	// Depth resources
-	VkImage depthImage;
-	VkDeviceMemory depthImageMemory;
-	VkImageView depthImageView;
+	// Images for framebuffers
+	ImageObjects colorImage; // multisampling
+	ImageObjects depthImage;
+	ImageObjects firstPassOutputImage;
+	VkSampler firstPassOutputSampler;
 
 	// Pipeline
-	GraphicsPipeline graphicsPipeline;
+	FirstPassPipeline firstPassPipeline;
+	SecondPassPipeline secondPassPipeline;
 
 	// Framebuffers
+	VkFramebuffer firstPassFramebuffer;
 	std::vector<VkFramebuffer> swapChainFramebuffers;
 
 	// Commands
@@ -142,12 +147,14 @@ private:
 
 	// Geometry
 	Model model;
+	Model postProcessingQuad;
 
 	// Uniform
 	UniformManager uniformManager;
 
 	// Descriptor pool and sets
 	VkDescriptorPool descriptorPool;
+	VkDescriptorSet firstPassDescriptorSet;
 	std::vector<VkDescriptorSet> descriptorSets; // destroyed with descriptorPool
 
 	// Sync objects
@@ -208,22 +215,31 @@ private:
 		device.pickDevice();
 		swapChain.create(device, window, surface);
 
-		graphicsPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(), VERT_SHADER_PATH, FRAG_SHADER_PATH);
+		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(),
+			FIRST_PASS_VERT_SHADER_PATH, FIRST_PASS_FRAG_SHADER_PATH);
+		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(),
+			SECOND_PASS_VERT_SHADER_PATH, SECOND_PASS_FRAG_SHADER_PATH);
 
 		commandManager.createPoolAndBuffers(device, MAX_FRAMES_IN_FLIGHT);
 
 		createColorResources();
 		createDepthResources();
-		createFramebuffers();
+		createFirstPassOutput();
+		createFirstPassOutputSampler();
+
+		createFirstPassFramebuffer();
+		createSwapChainFramebuffers();
 
 		texture.create(device, commandManager, TEXTURE_PATH);
 		
 		model.loadModel(device, commandManager, MODEL_PATH);
+		postProcessingQuad.loadModel(device, commandManager, POST_PROCESSING_QUAD_PATH);
 
 		uniformManager.createBuffers(device, MAX_FRAMES_IN_FLIGHT);
 
 		createDescriptorPool();
-		allocateDescriptorSets();
+		allocateFirstPassDescriptorSets();
+		allocateSecondPassDescriptorSets();
 
 		createSyncObjects();
 	}
@@ -407,39 +423,11 @@ private:
 		swapChain.create(device, window, surface);
 		createColorResources();
 		createDepthResources();
-		createFramebuffers();
-	}
-
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// FRAMEBUFFERS CREATION
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	void createFramebuffers() {
-		// Resize framebuffer
-		swapChainFramebuffers.resize(swapChain.getImageCount());
-
-		// Create framebuffers
-		for (size_t i = 0; i < swapChain.getImageCount(); i++) {
-			std::array<VkImageView, 3> attachments = {
-				colorImageView,
-				depthImageView,
-				swapChain.getImageView(i)
-			};
-
-			VkFramebufferCreateInfo framebufferInfo{};
-			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-			framebufferInfo.renderPass = graphicsPipeline.getRenderPass();
-			framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-			framebufferInfo.pAttachments = attachments.data();
-			framebufferInfo.width = swapChain.getExtent().width;
-			framebufferInfo.height = swapChain.getExtent().height;
-			framebufferInfo.layers = 1;
-
-			if (vkCreateFramebuffer(device.get(), &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) {
-				throw std::runtime_error("failed to create framebuffer");
-			}
-		}
+		createFirstPassOutput();
+		createFirstPassOutputSampler();
+		configureSecondPassDescriptorSets();
+		createSwapChainFramebuffers();
+		createFirstPassFramebuffer();
 	}
 
 
@@ -455,8 +443,8 @@ private:
 			colorFormat, VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			colorImage, colorImageMemory);
-		colorImageView = createImageView(device, colorImage, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+			colorImage.image, colorImage.memory);
+		colorImage.view = createImageView(device, colorImage.image, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 	}
 
 
@@ -473,8 +461,8 @@ private:
 		createImage(device, swapChain.getExtent().width, swapChain.getExtent().height, 1, msaaSamples,
 			depthFormat, VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			depthImage, depthImageMemory);
-		depthImageView = createImageView(device, depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+			depthImage.image, depthImage.memory);
+		depthImage.view = createImageView(device, depthImage.image, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
 	}
 
 	VkFormat findDepthFormat() {
@@ -487,6 +475,81 @@ private:
 
 	bool hasStencilComponent(VkFormat format) {
 		return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+	}
+
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// CREATE FIRST PASS OUTPUT RESOURCES
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	void createFirstPassOutput() {
+		VkFormat colorFormat = swapChain.getImageFormat();
+
+		createImage(device, swapChain.getExtent().width, swapChain.getExtent().height, 1, VK_SAMPLE_COUNT_1_BIT,
+			colorFormat, VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			firstPassOutputImage.image, firstPassOutputImage.memory);
+		firstPassOutputImage.view = createImageView(device, firstPassOutputImage.image, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+	}
+
+	void createFirstPassOutputSampler() {
+		Texture::createSampler(device, 1, firstPassOutputSampler);
+	}
+
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// FRAMEBUFFERS CREATION
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	void createFirstPassFramebuffer() {
+
+		// Create framebuffer
+		std::array<VkImageView, 3> attachments = {
+			colorImage.view,
+			depthImage.view,
+			firstPassOutputImage.view
+		};
+
+		VkFramebufferCreateInfo framebufferInfo{};
+		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		framebufferInfo.renderPass = firstPassPipeline.getRenderPass();
+		framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+		framebufferInfo.pAttachments = attachments.data();
+		framebufferInfo.width = swapChain.getExtent().width;
+		framebufferInfo.height = swapChain.getExtent().height;
+		framebufferInfo.layers = 1;
+
+		if (vkCreateFramebuffer(device.get(), &framebufferInfo, nullptr, &firstPassFramebuffer) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create first pass framebuffer");
+		}
+	}
+
+	void createSwapChainFramebuffers() {
+		// Resize framebuffer
+		swapChainFramebuffers.resize(swapChain.getImageCount());
+
+		// Create framebuffers
+		for (size_t i = 0; i < swapChain.getImageCount(); i++) {
+			std::array<VkImageView, 3> attachments = {
+				colorImage.view,
+				depthImage.view,
+				swapChain.getImageView(i)
+			};
+
+			VkFramebufferCreateInfo framebufferInfo{};
+			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+			framebufferInfo.renderPass = secondPassPipeline.getRenderPass();
+			framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+			framebufferInfo.pAttachments = attachments.data();
+			framebufferInfo.width = swapChain.getExtent().width;
+			framebufferInfo.height = swapChain.getExtent().height;
+			framebufferInfo.layers = 1;
+
+			if (vkCreateFramebuffer(device.get(), &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) {
+				throw std::runtime_error("failed to create swap chain framebuffer");
+			}
+		}
 	}
 
 
@@ -508,26 +571,32 @@ private:
 
 		// DRAWING
 
-		// render pass info
+		//--------------------------------------------------------
+		// FIRST PASS
+		
+		//---------------------
+		// RENDER PASS
 		VkRenderPassBeginInfo renderPassInfo{};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassInfo.renderPass = graphicsPipeline.getRenderPass();
-		renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
+		renderPassInfo.renderPass = firstPassPipeline.getRenderPass();
+		renderPassInfo.framebuffer = firstPassFramebuffer;
 
 		renderPassInfo.renderArea.offset = { 0, 0 };
 		renderPassInfo.renderArea.extent = swapChain.getExtent();
 
 		std::array<VkClearValue, 2> clearValues = {};
-		// The order must be identical to the attachments one
-		clearValues[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
-		clearValues[1].depthStencil = { 1.0f, 0 };
+		clearValues[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };	// for color attachment
+		clearValues[1].depthStencil = { 1.0f, 0 };				// for depth attachment
 
 		renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
 		renderPassInfo.pClearValues = clearValues.data();
 
 		// drawing commands
 		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline.get());
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, firstPassPipeline.get());
+
+		//---------------------
+		// PIPELINE DATA
 
 		// vertex buffers
 		VkBuffer vertexBuffers[] = { model.getVertexBuffer() };
@@ -553,13 +622,69 @@ private:
 		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-			graphicsPipeline.getLayout(), 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+			firstPassPipeline.getLayout(), 0, 1, &firstPassDescriptorSet, 0, nullptr);
 
-		// draw geometry
+		//---------------------
+		// DRAW GEOMETRY AND END
 		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model.getIndices().size()), 1, 0, 0, 0);
-
-		// end recording
 		vkCmdEndRenderPass(commandBuffer);
+
+		//--------------------------------------------------------
+		// SECOND PASS
+
+		//---------------------
+		// RENDER PASS
+		VkRenderPassBeginInfo secondRenderPassInfo{};
+		secondRenderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		secondRenderPassInfo.renderPass = secondPassPipeline.getRenderPass();
+		secondRenderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
+
+		secondRenderPassInfo.renderArea.offset = { 0, 0 };
+		secondRenderPassInfo.renderArea.extent = swapChain.getExtent();
+
+		secondRenderPassInfo.clearValueCount = 1;
+		secondRenderPassInfo.pClearValues = clearValues.data();
+
+		// drawing commands
+		vkCmdBeginRenderPass(commandBuffer, &secondRenderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, secondPassPipeline.get());
+
+		//---------------------
+		// PIPELINE DATA
+
+		// vertex buffers
+		VkBuffer secondVertexBuffers[] = { postProcessingQuad.getVertexBuffer() };
+		VkDeviceSize secondOffsets[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, secondVertexBuffers, secondOffsets);
+
+		// index buffer
+		vkCmdBindIndexBuffer(commandBuffer, postProcessingQuad.getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+
+		// viewport and scissor stage
+		VkViewport secondViewport{};
+		secondViewport.x = 0.0f;
+		secondViewport.y = 0.0f;
+		secondViewport.width = static_cast<float>(swapChain.getExtent().width);
+		secondViewport.height = static_cast<float>(swapChain.getExtent().height);
+		secondViewport.minDepth = 0.0f;
+		secondViewport.maxDepth = 1.0f;
+		vkCmdSetViewport(commandBuffer, 0, 1, &secondViewport);
+
+		VkRect2D secondScissor{};
+		secondScissor.offset = { 0, 0 };
+		secondScissor.extent = swapChain.getExtent();
+		vkCmdSetScissor(commandBuffer, 0, 1, &secondScissor);
+
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			secondPassPipeline.getLayout(), 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+
+		//---------------------
+		// DRAW GEOMETRY AND END
+		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(postProcessingQuad.getIndices().size()), 1, 0, 0, 0);
+		vkCmdEndRenderPass(commandBuffer);
+
+		//--------------------------------------------------------
+		// FINISH COMMAND
 
 		if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to record command buffer");
@@ -574,27 +699,83 @@ private:
 	void createDescriptorPool() {
 		// Sizes
 		std::array<VkDescriptorPoolSize, 2> poolSizes{};
-		// uniform buffer
+		// uniform buffer (for first pass)
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-		// image sampler
+		poolSizes[0].descriptorCount = 1;
+		// image sampler (all second passes and first pass)
 		poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+		poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) + 1;
 
 		// Create info
 		VkDescriptorPoolCreateInfo poolInfo{};
 		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 		poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
 		poolInfo.pPoolSizes = poolSizes.data();
-		poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+		poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) + 1;
 
 		if (vkCreateDescriptorPool(device.get(), &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create descriptor pool");
 		}
 	}
 
-	void allocateDescriptorSets() {
-		std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, graphicsPipeline.getDescriptorSetLayout());
+	void allocateFirstPassDescriptorSets() {
+		VkDescriptorSetLayout layout = firstPassPipeline.getDescriptorSetLayout();
+
+		// DESCRIPTOR SETS ALLOCATION
+		VkDescriptorSetAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		allocInfo.descriptorPool = descriptorPool;
+		allocInfo.descriptorSetCount = 1;
+		allocInfo.pSetLayouts = &layout;
+
+		if (vkAllocateDescriptorSets(device.get(), &allocInfo, &firstPassDescriptorSet) != VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate first pass descriptor set");
+		}
+
+		// DESCRIPTOR SET CONFIGURATION
+		// UNIFORM BUFFER INFO
+		VkDescriptorBufferInfo bufferInfo{};
+		bufferInfo.buffer = uniformManager.getBuffer(0);
+		bufferInfo.offset = 0;
+		bufferInfo.range = sizeof(UniformBufferObject);
+
+		// TEXTURE IMAGE SAMPLER INFO
+		VkDescriptorImageInfo imageInfo{};
+		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		imageInfo.imageView = texture.getImageView();
+		imageInfo.sampler = texture.getSampler();
+
+		// DESCRIPTOR WRITES
+		std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+
+		// buffer
+		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[0].dstSet = firstPassDescriptorSet;
+		descriptorWrites[0].dstBinding = 0;
+		descriptorWrites[0].dstArrayElement = 0;
+		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrites[0].descriptorCount = 1;
+		descriptorWrites[0].pBufferInfo = &bufferInfo;
+		descriptorWrites[0].pImageInfo = nullptr; // Not used
+		descriptorWrites[0].pTexelBufferView = nullptr; // Not used
+
+		// image sampler
+		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[1].dstSet = firstPassDescriptorSet;
+		descriptorWrites[1].dstBinding = 1;
+		descriptorWrites[1].dstArrayElement = 0;
+		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		descriptorWrites[1].descriptorCount = 1;
+		descriptorWrites[1].pImageInfo = &imageInfo;
+
+		// UPDATE
+		vkUpdateDescriptorSets(device.get(), static_cast<uint32_t>(descriptorWrites.size()),
+			descriptorWrites.data(), 0, nullptr);
+	}
+
+
+	void allocateSecondPassDescriptorSets() {
+		std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, secondPassPipeline.getDescriptorSetLayout());
 
 		// DESCRIPTOR SETS ALLOCATION
 		VkDescriptorSetAllocateInfo allocInfo{};
@@ -605,49 +786,35 @@ private:
 
 		descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
 		if (vkAllocateDescriptorSets(device.get(), &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
-			throw std::runtime_error("failed to allocate descriptor sets");
+			throw std::runtime_error("failed to allocate second pass descriptor sets");
 		}
 
+		// Configure the allocated sets
+		configureSecondPassDescriptorSets();
+	}
+
+	void configureSecondPassDescriptorSets(){
 		// DESCRIPTOR SETS CONFIGURATION
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-			// UNIFORM BUFFER INFO
-			VkDescriptorBufferInfo bufferInfo{};
-			bufferInfo.buffer = uniformManager.getBuffer(i);
-			bufferInfo.offset = 0;
-			bufferInfo.range = sizeof(UniformBufferObject);
 
 			// TEXTURE IMAGE SAMPLER INFO
 			VkDescriptorImageInfo imageInfo{};
 			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			imageInfo.imageView = texture.getImageView();
-			imageInfo.sampler = texture.getSampler();
+			imageInfo.imageView = firstPassOutputImage.view;
+			imageInfo.sampler = firstPassOutputSampler;
 
 			// DESCRIPTOR WRITES
-			std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
-
-			// buffer
-			descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			descriptorWrites[0].dstSet = descriptorSets[i];
-			descriptorWrites[0].dstBinding = 0;
-			descriptorWrites[0].dstArrayElement = 0;
-			descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-			descriptorWrites[0].descriptorCount = 1;
-			descriptorWrites[0].pBufferInfo = &bufferInfo;
-			descriptorWrites[0].pImageInfo = nullptr; // Not used
-			descriptorWrites[0].pTexelBufferView = nullptr; // Not used
-
-			// image sampler
-			descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			descriptorWrites[1].dstSet = descriptorSets[i];
-			descriptorWrites[1].dstBinding = 1;
-			descriptorWrites[1].dstArrayElement = 0;
-			descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			descriptorWrites[1].descriptorCount = 1;
-			descriptorWrites[1].pImageInfo = &imageInfo;
+			VkWriteDescriptorSet descriptorWrite{};
+			descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			descriptorWrite.dstSet = descriptorSets[i];
+			descriptorWrite.dstBinding = 0;
+			descriptorWrite.dstArrayElement = 0;
+			descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			descriptorWrite.descriptorCount = 1;
+			descriptorWrite.pImageInfo = &imageInfo;
 
 			// UPDATE
-			vkUpdateDescriptorSets(device.get(), static_cast<uint32_t>(descriptorWrites.size()),
-				descriptorWrites.data(), 0, nullptr);
+			vkUpdateDescriptorSets(device.get(), 1, &descriptorWrite, 0, nullptr);
 		}
 	}
 
@@ -795,6 +962,7 @@ private:
 
 		// Texture
 		texture.cleanup();
+		vkDestroySampler(device.get(), firstPassOutputSampler, nullptr);
 
 		// Uniform
 		uniformManager.cleanup();
@@ -804,6 +972,7 @@ private:
 
 		// Model
 		model.cleanup();
+		postProcessingQuad.cleanup();
 
 		// Sync objects
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -816,7 +985,8 @@ private:
 		commandManager.cleanup();
 
 		// Pipeline
-		graphicsPipeline.cleapup();
+		firstPassPipeline.cleanup();
+		secondPassPipeline.cleanup();
 
 		// Device
 		device.cleanup();
@@ -834,16 +1004,17 @@ private:
 
 	void cleanupRenderImages() {
 		// Color resources
-		vkDestroyImageView(device.get(), colorImageView, nullptr);
-		vkDestroyImage(device.get(), colorImage, nullptr);
-		vkFreeMemory(device.get(), colorImageMemory, nullptr);
+		destroyImageObjects(device, colorImage);
 
 		// depth resources
-		vkDestroyImageView(device.get(), depthImageView, nullptr);
-		vkDestroyImage(device.get(), depthImage, nullptr);
-		vkFreeMemory(device.get(), depthImageMemory, nullptr);
+		destroyImageObjects(device, depthImage);
+
+		// first pass output
+		vkDestroySampler(device.get(), firstPassOutputSampler, nullptr);
+		destroyImageObjects(device, firstPassOutputImage);
 
 		// color attachments
+		vkDestroyFramebuffer(device.get(), firstPassFramebuffer, nullptr);
 		for (auto framebuffer : swapChainFramebuffers) {
 			vkDestroyFramebuffer(device.get(), framebuffer, nullptr);
 		}

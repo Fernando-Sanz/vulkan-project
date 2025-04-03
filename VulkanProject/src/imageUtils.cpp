@@ -295,3 +295,9 @@ void generateMipmaps(Device device, CommandManager commandManager,
 
 	commandManager.endSingleTimeCommands(commandBuffer);
 }
+
+void destroyImageObjects(Device device, ImageObjects imageObjects) {
+	vkDestroyImageView(device.get(), imageObjects.view, nullptr);
+	vkDestroyImage(device.get(), imageObjects.image, nullptr);
+	vkFreeMemory(device.get(), imageObjects.memory, nullptr);
+}

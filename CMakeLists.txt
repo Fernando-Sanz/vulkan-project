@@ -21,9 +21,12 @@ set(SOURCES
     ${TEST_FILES}
     ${SOURCE_CODE_PATH}/CommandManager.cpp
     ${SOURCE_CODE_PATH}/Device.cpp
-    ${SOURCE_CODE_PATH}/GraphicsPipeline.cpp
+    ${SOURCE_CODE_PATH}/FirstPassPipeline.cpp
     ${SOURCE_CODE_PATH}/imageUtils.cpp
     ${SOURCE_CODE_PATH}/Model.cpp
+    ${SOURCE_CODE_PATH}/pipelineUtils.cpp
+    ${SOURCE_CODE_PATH}/SecondPassPipeline.cpp
+    ${SOURCE_CODE_PATH}/StandardPipeline.cpp
     ${SOURCE_CODE_PATH}/SwapChain.cpp
     ${SOURCE_CODE_PATH}/Texture.cpp
     ${SOURCE_CODE_PATH}/UniformManager.cpp

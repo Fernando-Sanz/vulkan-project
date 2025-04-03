@@ -400,3 +400,6 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Post-processing resources
+!VulkanProject/assets/models/post_processing/*.obj
