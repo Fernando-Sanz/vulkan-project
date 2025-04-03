@@ -31,15 +31,6 @@
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
-const std::string FIRST_PASS_VERT_SHADER_PATH = "../../VulkanProject/assets/shaders/vert.spv";
-const std::string FIRST_PASS_FRAG_SHADER_PATH = "../../VulkanProject/assets/shaders/frag.spv";
-
-const std::string SECOND_PASS_VERT_SHADER_PATH = "../../VulkanProject/assets/shaders/secondPassVert.spv";
-const std::string SECOND_PASS_FRAG_SHADER_PATH = "../../VulkanProject/assets/shaders/secondPassFrag.spv";
-
-const std::string MODEL_PATH = "../../VulkanProject/assets/models/viking_room/viking_room.obj";
-const std::string TEXTURE_PATH = "../../VulkanProject/assets/models/viking_room/viking_room.png";
-
 const std::string POST_PROCESSING_QUAD_PATH = "../../VulkanProject/assets/models/post_processing/post_processing_quad.obj";
 
 
@@ -54,6 +45,16 @@ const bool enableValidationLayers = true;
 
 const std::vector<const char*> validationLayers = {
 	"VK_LAYER_KHRONOS_validation"
+};
+
+
+struct VulkanAppParams {
+	std::string modelPath;
+	std::string texturePath;
+	std::string firstRenderPassVertShaderPath;
+	std::string firstRenderPassFragShaderPath;
+	std::string secondRenderPassVertShaderPath;
+	std::string secondRenderPassFragShaderPath;
 };
 
 
@@ -90,9 +91,9 @@ namespace {
 class VulkanApplication {
 
 public:
-	void run() {
+	void run(VulkanAppParams params) {
 		initWindow();
-		initVulkan();
+		initVulkan(params);
 		mainLoop();
 		cleanup();
 	}
@@ -205,7 +206,7 @@ private:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	void initVulkan() {
+	void initVulkan(VulkanAppParams params) {
 
 		createInstance();
 		setupDebugMessenger();
@@ -216,9 +217,9 @@ private:
 		swapChain.create(device, window, surface);
 
 		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(),
-			FIRST_PASS_VERT_SHADER_PATH, FIRST_PASS_FRAG_SHADER_PATH);
+			params.firstRenderPassVertShaderPath, params.firstRenderPassFragShaderPath);
 		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(),
-			SECOND_PASS_VERT_SHADER_PATH, SECOND_PASS_FRAG_SHADER_PATH);
+			params.secondRenderPassVertShaderPath, params.secondRenderPassFragShaderPath);
 
 		commandManager.createPoolAndBuffers(device, MAX_FRAMES_IN_FLIGHT);
 
@@ -230,9 +231,9 @@ private:
 		createFirstPassFramebuffer();
 		createSwapChainFramebuffers();
 
-		texture.create(device, commandManager, TEXTURE_PATH);
+		texture.create(device, commandManager, params.texturePath);
 		
-		model.loadModel(device, commandManager, MODEL_PATH);
+		model.loadModel(device, commandManager, params.modelPath);
 		postProcessingQuad.loadModel(device, commandManager, POST_PROCESSING_QUAD_PATH);
 
 		uniformManager.createBuffers(device, MAX_FRAMES_IN_FLIGHT);
