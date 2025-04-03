@@ -28,6 +28,8 @@ void FirstPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFor
 	//----------------------------------------------------
 	// COLOR ATTACHMENT
 
+	// Clear the image, undefined initial layout
+	// Store the image, color attch as final layout
 	VkAttachmentDescription colorAttachment{};
 	colorAttachment.format = imageFormat;
 	colorAttachment.samples = device.getMsaaSamples();
@@ -45,6 +47,8 @@ void FirstPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFor
 	//----------------------------------------------------
 	// DEPTH ATTACHMENT
 
+	// Clear the image, undefined initial layout
+	// Store the image, depth attch as final layout
 	VkAttachmentDescription depthAttachment{};
 	depthAttachment.format = depthFormat;
 	depthAttachment.samples = device.getMsaaSamples();
@@ -62,6 +66,8 @@ void FirstPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFor
 	//----------------------------------------------------
 	// RESOLVE COLOR ATTACHMENT (for presentation)
 
+	// Dont care load op, undefined initial layout
+	// Store the image, shader read as final layout
 	VkAttachmentDescription colorAttachmentResolve{};
 	colorAttachmentResolve.format = imageFormat;
 	colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -160,8 +166,8 @@ void FirstPassPipeline::createGraphicsPipeline(std::string vertShaderLocation, s
 	// create shader modules
 	auto vertShaderCode = readFile(vertShaderLocation);
 	auto fragShaderCode = readFile(fragShaderLocation);
-	VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
-	VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+	VkShaderModule vertShaderModule = createShaderModule(device, vertShaderCode);
+	VkShaderModule fragShaderModule = createShaderModule(device, fragShaderCode);
 
 	// VERTEX SHADER
 	VkPipelineShaderStageCreateInfo vertShaderStageInfo{};

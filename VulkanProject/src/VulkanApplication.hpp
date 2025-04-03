@@ -37,8 +37,11 @@ const std::string FIRST_PASS_FRAG_SHADER_PATH = "../../VulkanProject/assets/shad
 const std::string SECOND_PASS_VERT_SHADER_PATH = "../../VulkanProject/assets/shaders/secondPassVert.spv";
 const std::string SECOND_PASS_FRAG_SHADER_PATH = "../../VulkanProject/assets/shaders/secondPassFrag.spv";
 
-const std::string MODEL_PATH = "../../VulkanProject/assets/models/viking_room.obj";
-const std::string TEXTURE_PATH = "../../VulkanProject/assets/textures/viking_room.png";
+const std::string MODEL_PATH = "../../VulkanProject/assets/models/viking_room/viking_room.obj";
+const std::string TEXTURE_PATH = "../../VulkanProject/assets/models/viking_room/viking_room.png";
+
+const std::string POST_PROCESSING_QUAD_PATH = "../../VulkanProject/assets/models/post_processing/post_processing_quad.obj";
+
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -129,8 +132,7 @@ private:
 	VkSampler firstPassOutputSampler;
 
 	// Pipeline
-	StandardPipeline firstPassPipeline;
-	FirstPassPipeline FirstPassPipeline;
+	FirstPassPipeline firstPassPipeline;
 	SecondPassPipeline secondPassPipeline;
 
 	// Framebuffers
@@ -231,10 +233,12 @@ private:
 		texture.create(device, commandManager, TEXTURE_PATH);
 		
 		model.loadModel(device, commandManager, MODEL_PATH);
+		postProcessingQuad.loadModel(device, commandManager, POST_PROCESSING_QUAD_PATH);
 
 		uniformManager.createBuffers(device, MAX_FRAMES_IN_FLIGHT);
 
 		createDescriptorPool();
+		allocateFirstPassDescriptorSets();
 		allocateSecondPassDescriptorSets();
 
 		createSyncObjects();
@@ -481,7 +485,7 @@ private:
 
 		createImage(device, swapChain.getExtent().width, swapChain.getExtent().height, 1, VK_SAMPLE_COUNT_1_BIT,
 			colorFormat, VK_IMAGE_TILING_OPTIMAL,
-			VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			firstPassOutputImage.image, firstPassOutputImage.memory);
 		firstPassOutputImage.view = createImageView(device, firstPassOutputImage.image, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
@@ -526,8 +530,9 @@ private:
 		// Create framebuffers
 		for (size_t i = 0; i < swapChain.getImageCount(); i++) {
 			std::array<VkImageView, 3> attachments = {
-				swapChain.getImageView(i),
-				depthImage.view
+				colorImage.view,
+				depthImage.view,
+				swapChain.getImageView(i)
 			};
 
 			VkFramebufferCreateInfo framebufferInfo{};
@@ -627,49 +632,46 @@ private:
 
 		//---------------------
 		// RENDER PASS
-		VkRenderPassBeginInfo renderPassInfo{};
-		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassInfo.renderPass = secondPassPipeline.getRenderPass();
-		renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
+		VkRenderPassBeginInfo secondRenderPassInfo{};
+		secondRenderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		secondRenderPassInfo.renderPass = secondPassPipeline.getRenderPass();
+		secondRenderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
 
-		renderPassInfo.renderArea.offset = { 0, 0 };
-		renderPassInfo.renderArea.extent = swapChain.getExtent();
+		secondRenderPassInfo.renderArea.offset = { 0, 0 };
+		secondRenderPassInfo.renderArea.extent = swapChain.getExtent();
 
-		std::array<VkClearValue, 2> clearValues = {};
-		clearValues[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
-
-		renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-		renderPassInfo.pClearValues = clearValues.data();
+		secondRenderPassInfo.clearValueCount = 1;
+		secondRenderPassInfo.pClearValues = clearValues.data();
 
 		// drawing commands
-		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBeginRenderPass(commandBuffer, &secondRenderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, secondPassPipeline.get());
 
 		//---------------------
 		// PIPELINE DATA
 
 		// vertex buffers
-		VkBuffer vertexBuffers[] = { postProcessingQuad.getVertexBuffer() };
-		VkDeviceSize offsets[] = { 0 };
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+		VkBuffer secondVertexBuffers[] = { postProcessingQuad.getVertexBuffer() };
+		VkDeviceSize secondOffsets[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, secondVertexBuffers, secondOffsets);
 
 		// index buffer
 		vkCmdBindIndexBuffer(commandBuffer, postProcessingQuad.getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
 		// viewport and scissor stage
-		VkViewport viewport{};
-		viewport.x = 0.0f;
-		viewport.y = 0.0f;
-		viewport.width = static_cast<float>(swapChain.getExtent().width);
-		viewport.height = static_cast<float>(swapChain.getExtent().height);
-		viewport.minDepth = 0.0f;
-		viewport.maxDepth = 1.0f;
-		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+		VkViewport secondViewport{};
+		secondViewport.x = 0.0f;
+		secondViewport.y = 0.0f;
+		secondViewport.width = static_cast<float>(swapChain.getExtent().width);
+		secondViewport.height = static_cast<float>(swapChain.getExtent().height);
+		secondViewport.minDepth = 0.0f;
+		secondViewport.maxDepth = 1.0f;
+		vkCmdSetViewport(commandBuffer, 0, 1, &secondViewport);
 
-		VkRect2D scissor{};
-		scissor.offset = { 0, 0 };
-		scissor.extent = swapChain.getExtent();
-		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+		VkRect2D secondScissor{};
+		secondScissor.offset = { 0, 0 };
+		secondScissor.extent = swapChain.getExtent();
+		vkCmdSetScissor(commandBuffer, 0, 1, &secondScissor);
 
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
 			secondPassPipeline.getLayout(), 0, 1, &descriptorSets[currentFrame], 0, nullptr);
@@ -792,7 +794,7 @@ private:
 			VkDescriptorImageInfo imageInfo{};
 			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			imageInfo.imageView = firstPassOutputImage.view;
-			imageInfo.sampler = texture.getSampler();
+			imageInfo.sampler = firstPassOutputSampler;
 
 			// DESCRIPTOR WRITES
 			VkWriteDescriptorSet descriptorWrite{};
@@ -953,6 +955,7 @@ private:
 
 		// Texture
 		texture.cleanup();
+		vkDestroySampler(device.get(), firstPassOutputSampler, nullptr);
 
 		// Uniform
 		uniformManager.cleanup();
@@ -962,6 +965,7 @@ private:
 
 		// Model
 		model.cleanup();
+		postProcessingQuad.cleanup();
 
 		// Sync objects
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -975,6 +979,7 @@ private:
 
 		// Pipeline
 		firstPassPipeline.cleanup();
+		secondPassPipeline.cleanup();
 
 		// Device
 		device.cleanup();
@@ -1001,7 +1006,13 @@ private:
 		vkDestroyImage(device.get(), depthImage.image, nullptr);
 		vkFreeMemory(device.get(), depthImage.memory, nullptr);
 
+		// first pass output
+		vkDestroyImageView(device.get(), firstPassOutputImage.view, nullptr);
+		vkDestroyImage(device.get(), firstPassOutputImage.image, nullptr);
+		vkFreeMemory(device.get(), firstPassOutputImage.memory, nullptr);
+
 		// color attachments
+		vkDestroyFramebuffer(device.get(), firstPassFramebuffer, nullptr);
 		for (auto framebuffer : swapChainFramebuffers) {
 			vkDestroyFramebuffer(device.get(), framebuffer, nullptr);
 		}

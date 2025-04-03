@@ -4,8 +4,9 @@
 
 #include <string>
 #include <vector>
+#include "Device.hpp"
 
 
 std::vector<char> readFile(const std::string& filename);
 
-VkShaderModule createShaderModule(const std::vector<char>& code);
+VkShaderModule createShaderModule(Device device, const std::vector<char>& code);

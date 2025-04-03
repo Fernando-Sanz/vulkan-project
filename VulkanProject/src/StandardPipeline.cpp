@@ -160,8 +160,8 @@ void StandardPipeline::createGraphicsPipeline(std::string vertShaderLocation, st
 	// create shader modules
 	auto vertShaderCode = readFile(vertShaderLocation);
 	auto fragShaderCode = readFile(fragShaderLocation);
-	VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
-	VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+	VkShaderModule vertShaderModule = createShaderModule(device, vertShaderCode);
+	VkShaderModule fragShaderModule = createShaderModule(device, fragShaderCode);
 
 	// VERTEX SHADER
 	VkPipelineShaderStageCreateInfo vertShaderStageInfo{};

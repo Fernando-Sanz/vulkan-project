@@ -74,7 +74,7 @@ void Texture::createTextureImage(std::string texturePath) {
 	generateMipmaps(device, commandManager, image, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels);
 }
 
-void createSampler(Device device, uint32_t mipLevels, VkSampler& sampler) {
+void Texture::createSampler(Device device, uint32_t mipLevels, VkSampler& sampler) {
 	//-----------------------------------------
 	// CREATE INFO
 	VkSamplerCreateInfo samplerInfo{};

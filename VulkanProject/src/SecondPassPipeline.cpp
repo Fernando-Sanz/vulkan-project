@@ -28,15 +28,17 @@ void SecondPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFo
 	//----------------------------------------------------
 	// COLOR ATTACHMENT
 
+	// Clear the image, undefined initial layout
+	// Store the image, color attch as final layout
 	VkAttachmentDescription colorAttachment{};
 	colorAttachment.format = imageFormat;
-	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	colorAttachment.samples = device.getMsaaSamples();
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentReference colorAttachmentRef{};
 	colorAttachmentRef.attachment = 0;
@@ -45,19 +47,41 @@ void SecondPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFo
 	//----------------------------------------------------
 	// DEPTH ATTACHMENT
 
+	// Load the image, undefined initial layout
+	// Dont care store op, depth attch as final layout
 	VkAttachmentDescription depthAttachment{};
 	depthAttachment.format = depthFormat;
 	depthAttachment.samples = device.getMsaaSamples();
-	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD; // load previous depth
+	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	depthAttachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL;
+	depthAttachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 	depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentReference depthAttachmentRef{};
 	depthAttachmentRef.attachment = 1;
 	depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	//----------------------------------------------------
+	// RESOLVE COLOR ATTACHMENT (for presentation)
+
+	// Dont care load op, undefined initial layout
+	// Store the image, present as final layout
+	VkAttachmentDescription colorAttachmentResolve{};
+	colorAttachmentResolve.format = imageFormat;
+	colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
+	colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+	// attachment reference
+	VkAttachmentReference colorAttachmentResolveRef{};
+	colorAttachmentResolveRef.attachment = 2;
+	colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	//----------------------------------------------------
 	// RENDER SUBPASS
@@ -67,6 +91,7 @@ void SecondPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFo
 	subpass.colorAttachmentCount = 1;
 	subpass.pColorAttachments = &colorAttachmentRef;
 	subpass.pDepthStencilAttachment = &depthAttachmentRef;
+	subpass.pResolveAttachments = &colorAttachmentResolveRef;
 
 	//----------------------------------------------------
 	// DEPENDENCIES
@@ -81,7 +106,7 @@ void SecondPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFo
 	//----------------------------------------------------
 	// CREATE RENDER PASS
 
-	std::array<VkAttachmentDescription, 2> attachments = { colorAttachment, depthAttachment };
+	std::array<VkAttachmentDescription, 3> attachments = { colorAttachment, depthAttachment, colorAttachmentResolve };
 	VkRenderPassCreateInfo renderPassInfo{};
 	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 	renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
@@ -104,7 +129,7 @@ void SecondPassPipeline::createDescriptorSetLayout() {
 	//---------------------
 	// sampler binding
 	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-	samplerLayoutBinding.binding = 1;
+	samplerLayoutBinding.binding = 0;
 	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	samplerLayoutBinding.descriptorCount = 1;
 	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -131,8 +156,8 @@ void SecondPassPipeline::createGraphicsPipeline(std::string vertShaderLocation, 
 	// create shader modules
 	auto vertShaderCode = readFile(vertShaderLocation);
 	auto fragShaderCode = readFile(fragShaderLocation);
-	VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
-	VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+	VkShaderModule vertShaderModule = createShaderModule(device, vertShaderCode);
+	VkShaderModule fragShaderModule = createShaderModule(device, fragShaderCode);
 
 	// VERTEX SHADER
 	VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
@@ -197,7 +222,7 @@ void SecondPassPipeline::createGraphicsPipeline(std::string vertShaderLocation, 
 	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizer.lineWidth = 1.0f;
 
-	rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+	rasterizer.cullMode = VK_CULL_MODE_NONE;
 	rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 
 	// depth value changes
@@ -209,7 +234,9 @@ void SecondPassPipeline::createGraphicsPipeline(std::string vertShaderLocation, 
 
 	VkPipelineMultisampleStateCreateInfo multisampling{};
 	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-	multisampling.sampleShadingEnable = VK_FALSE;
+	multisampling.sampleShadingEnable = VK_TRUE;
+	multisampling.rasterizationSamples = device.getMsaaSamples();
+	multisampling.minSampleShading = 1.0f; // Optional
 
 
 	//--------------------------------------------------------

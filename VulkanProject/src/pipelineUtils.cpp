@@ -26,7 +26,7 @@ std::vector<char> readFile(const std::string& filename) {
 	return buffer;
 }
 
-VkShaderModule createShaderModule(const std::vector<char>& code) {
+VkShaderModule createShaderModule(Device device, const std::vector<char>& code) {
 	// CREATE INFO
 	VkShaderModuleCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
