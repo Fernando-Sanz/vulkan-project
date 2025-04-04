@@ -32,7 +32,7 @@
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
-const std::string POST_PROCESSING_QUAD_PATH = "../../VulkanProject/assets/models/post_processing/post_processing_quad.obj";
+const std::string POST_PROCESSING_QUAD_PATH = "C:/development/cpp/VulkanProject/assets/models/post_processing/post_processing_quad.obj";
 
 
 const int MAX_FRAMES_IN_FLIGHT = 2;

@@ -53,6 +53,10 @@ if(BUILD_LIBRARY)
     file(GLOB HEADER_FILES "${SOURCE_CODE_PATH}/*.hpp")
     file(COPY ${HEADER_FILES} DESTINATION ${LIBRARY_OUTPUT_DIRECTORY}/include)
 
+    # Copy resource files outside the project
+    file(GLOB RESOURCE_FILES "${PROJECT_NAME}/assets")
+    file(COPY ${RESOURCE_FILES} DESTINATION "${LIBRARY_OUTPUT_DIRECTORY}")
+
 #------------------------------
 # BUILD THE EXECUTABLE
 else()
