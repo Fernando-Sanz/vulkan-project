@@ -19,6 +19,7 @@ endif()
 
 set(SOURCES
     ${TEST_FILES}
+    ${SOURCE_CODE_PATH}/AppTime.cpp
     ${SOURCE_CODE_PATH}/CommandManager.cpp
     ${SOURCE_CODE_PATH}/Device.cpp
     ${SOURCE_CODE_PATH}/FirstPassPipeline.cpp
