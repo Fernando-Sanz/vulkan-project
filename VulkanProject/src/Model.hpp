@@ -14,12 +14,15 @@ public:
 	std::vector<uint32_t> getIndices() { return indices; }
 	VkBuffer getVertexBuffer() { return vertexBuffer; }
 	VkBuffer getIndexBuffer() { return indexBuffer; }
+	glm::mat4 getModelMatrix() { return model; }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// METHODS
 
 	// Load a model and create vertex and index buffer
 	void loadModel(Device device, CommandManager commandManager, std::string modelPath);
+
+	void update();
 
 	// Destroy Vulkan and other objects
 	void cleanup();
@@ -38,6 +41,8 @@ private:
 	VkDeviceMemory vertexBufferMemory;
 	VkBuffer indexBuffer;
 	VkDeviceMemory indexBufferMemory;
+
+	glm::mat4 model;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// METHODS

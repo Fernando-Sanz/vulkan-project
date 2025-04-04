@@ -19,6 +19,7 @@ endif()
 
 set(SOURCES
     ${TEST_FILES}
+    ${SOURCE_CODE_PATH}/AppTime.cpp
     ${SOURCE_CODE_PATH}/CommandManager.cpp
     ${SOURCE_CODE_PATH}/Device.cpp
     ${SOURCE_CODE_PATH}/FirstPassPipeline.cpp
@@ -51,6 +52,10 @@ if(BUILD_LIBRARY)
     # Copy header files outside the project
     file(GLOB HEADER_FILES "${SOURCE_CODE_PATH}/*.hpp")
     file(COPY ${HEADER_FILES} DESTINATION ${LIBRARY_OUTPUT_DIRECTORY}/include)
+
+    # Copy resource files outside the project
+    file(GLOB RESOURCE_FILES "${PROJECT_NAME}/assets")
+    file(COPY ${RESOURCE_FILES} DESTINATION "${LIBRARY_OUTPUT_DIRECTORY}")
 
 #------------------------------
 # BUILD THE EXECUTABLE

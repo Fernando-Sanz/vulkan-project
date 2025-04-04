@@ -30,7 +30,7 @@ public:
     void createBuffers(Device device, int count);
 
     // Update uniform values
-    void upateBuffer(uint32_t currentImage, uint32_t screenWidth, uint32_t screenHeight);
+    void upateBuffer(uint32_t currentImage, uint32_t screenWidth, uint32_t screenHeight, glm::mat4 model);
 
     // Destroy Vulkan an other objects
     void cleanup();

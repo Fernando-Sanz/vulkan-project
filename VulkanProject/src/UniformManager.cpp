@@ -2,14 +2,13 @@
 
 #include <vulkan/vulkan.h>
 
-#include <chrono>
-
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE // range 0.0 to 1.0 not -1.0 to 1.0
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "Device.hpp"
+#include "AppTime.hpp"
 
 
 void UniformManager::createBuffers(Device device, int count) {
@@ -36,14 +35,7 @@ void UniformManager::createBuffers(Device device, int count) {
 	}
 }
 
-void UniformManager::upateBuffer(uint32_t index, uint32_t screenWidth, uint32_t screenHeight) {
-	//--------------------------------------------------------
-	// Time management
-	static auto startTime = std::chrono::high_resolution_clock::now();
-
-	auto currentTime = std::chrono::high_resolution_clock::now();
-	float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-
+void UniformManager::upateBuffer(uint32_t index, uint32_t screenWidth, uint32_t screenHeight, glm::mat4 model) {
 	//--------------------------------------------------------
 	// UNIFORM VALUES
 
@@ -51,8 +43,7 @@ void UniformManager::upateBuffer(uint32_t index, uint32_t screenWidth, uint32_t 
 
 	//-------------------------
 	// MODEL
-	ubo.model = glm::rotate(
-		glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.model = model;
 	//-------------------------
 	// VIEW
 	ubo.view = glm::lookAt(
