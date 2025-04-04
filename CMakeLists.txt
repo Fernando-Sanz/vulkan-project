@@ -1,11 +1,11 @@
 
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 
 set(PROJECT_NAME "VulkanProject")
 project(${PROJECT_NAME})
 
 set(CMAKE_CXX_STANDARD 17)
-set(BUILD_LIBRARY true)
+set(BUILD_LIBRARY false)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # PROJECT FILES
@@ -60,11 +60,16 @@ if(BUILD_LIBRARY)
 #------------------------------
 # BUILD THE EXECUTABLE
 else()
+    # Change the output to have the SDL .dll automatically inside the .exe directory
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIGURATION>")
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIGURATION>")
     add_executable(${PROJECT_NAME} ${SOURCES})
 endif()
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # EXTERNAL LIBRARIES
+
+add_subdirectory(third-party/SDL EXCLUDE_FROM_ALL)
 
 find_package(Vulkan REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -77,4 +82,5 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 target_link_libraries(${PROJECT_NAME}
     ${THIRD_PARTY_LIB_PATH}/glfw-3.4.bin.WIN64/lib-vc2022/glfw3.lib
     Vulkan::Vulkan
+    SDL3::SDL3
 )
