@@ -35,15 +35,13 @@ set(SOURCES
     ${SOURCE_CODE_PATH}/Window.cpp
 )
 
-set(THIRD_PARTY_LIB_PATH "C:/development/cpp")
-
 #------------------------------
 # BUILD THE LIBRARY
 if(BUILD_LIBRARY)
     add_library(${PROJECT_NAME} STATIC ${SOURCES})
 
     # Build library outside the project
-    set(LIBRARY_OUTPUT_DIRECTORY "${THIRD_PARTY_LIB_PATH}/${PROJECT_NAME}")
+    set(LIBRARY_OUTPUT_DIRECTORY "C:/development/cpp/${PROJECT_NAME}")
     set_target_properties(${PROJECT_NAME} PROPERTIES
         ARCHIVE_OUTPUT_DIRECTORY "${LIBRARY_OUTPUT_DIRECTORY}"
     )
@@ -69,18 +67,20 @@ endif()
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # EXTERNAL LIBRARIES
 
+set(THIRD_PARTY_LIB_PATH "${CMAKE_SOURCE_DIR}/third-party")
+
 add_subdirectory(third-party/SDL EXCLUDE_FROM_ALL)
 
 find_package(Vulkan REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE
-    ${THIRD_PARTY_LIB_PATH}/glfw-3.4.bin.WIN64/include
+    ${THIRD_PARTY_LIB_PATH}/glfw/include
     ${THIRD_PARTY_LIB_PATH}/glm
-    ${THIRD_PARTY_LIB_PATH}/stb-master
+    ${THIRD_PARTY_LIB_PATH}/stb
     ${THIRD_PARTY_LIB_PATH}/tiny_obj_loader/include
 )
 
 target_link_libraries(${PROJECT_NAME}
-    ${THIRD_PARTY_LIB_PATH}/glfw-3.4.bin.WIN64/lib-vc2022/glfw3.lib
+    ${THIRD_PARTY_LIB_PATH}/glfw/lib-vc2022/glfw3.lib
     Vulkan::Vulkan
     SDL3::SDL3
 )
