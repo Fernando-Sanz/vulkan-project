@@ -27,6 +27,7 @@
 #include "Model.hpp"
 #include "Texture.hpp"
 #include "AppTime.hpp"
+#include "eventManagement.hpp"
 
 
 const uint32_t WIDTH = 800;
@@ -196,7 +197,7 @@ private:
 		SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO);
 
 		window.create("Vulkan Render Engine", WIDTH, HEIGHT);
-		window.subscribeFramebufferResizedEvent([this](int width, int height) {
+		addEventSubscriber(SDL_EVENT_WINDOW_RESIZED, [this](SDL_Event e) {
 			framebufferResized = true;
 			});
 	}
@@ -858,6 +859,7 @@ private:
 
 		while (!window.shouldClose()) {
 			// PROCESS INPUT
+			pollEvents();
 
 			// DRAW
 			drawFrame();
