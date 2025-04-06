@@ -74,14 +74,12 @@ add_subdirectory(third-party/SDL EXCLUDE_FROM_ALL)
 
 find_package(Vulkan REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE
-    ${THIRD_PARTY_LIB_PATH}/glfw/include
     ${THIRD_PARTY_LIB_PATH}/glm
     ${THIRD_PARTY_LIB_PATH}/stb
     ${THIRD_PARTY_LIB_PATH}/tiny_obj_loader/include
 )
 
 target_link_libraries(${PROJECT_NAME}
-    ${THIRD_PARTY_LIB_PATH}/glfw/lib-vc2022/glfw3.lib
     Vulkan::Vulkan
     SDL3::SDL3
 )
