@@ -972,7 +972,6 @@ private:
 
 		// Texture
 		texture.cleanup();
-		vkDestroySampler(device.get(), firstPassOutputSampler, nullptr);
 
 		// Uniform
 		uniformManager.cleanup();
