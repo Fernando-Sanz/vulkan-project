@@ -1,8 +1,8 @@
 #pragma once
 
-//#include <vulkan/vulkan.h>
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+#include <vulkan/vulkan.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_vulkan.h>
 
 #include <iostream>
 #include <stdexcept>
@@ -27,6 +27,7 @@
 #include "Model.hpp"
 #include "Texture.hpp"
 #include "AppTime.hpp"
+#include "eventManagement.hpp"
 
 
 const uint32_t WIDTH = 800;
@@ -192,10 +193,11 @@ private:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	void initWindow() {
-		glfwInit();
 
-		window.create<void>(this, WIDTH, HEIGHT);
-		window.subscribeFramebufferResizedEvent([this](int width, int height) {
+		SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO);
+
+		window.create("Vulkan Render Engine", WIDTH, HEIGHT);
+		addEventSubscriber(SDL_EVENT_WINDOW_RESIZED, [this](SDL_Event e) {
 			framebufferResized = true;
 			});
 	}
@@ -311,11 +313,11 @@ private:
 	}
 
 	std::vector<const char*> getRequiredExtensions() {
-		uint32_t glfwExtensionCount = 0;
-		const char** glfwExtensions;
-		glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+		uint32_t sdlExtensionCount = 0;
+		const char* const* sdlExtensions;
+		sdlExtensions = SDL_Vulkan_GetInstanceExtensions(&sdlExtensionCount);
 
-		std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+		std::vector<const char*> extensions(sdlExtensions, sdlExtensions + sdlExtensionCount);
 
 		// add debug utils extension (if debugging)
 		if (enableValidationLayers)
@@ -415,7 +417,7 @@ private:
 		VkExtent2D extent = {0, 0};
 		while(extent.width == 0 || extent.height == 0){
 			extent = window.getFramebufferSize();
-			glfwWaitEvents();
+			SDL_WaitEvent(NULL);
 		}
 
 		vkDeviceWaitIdle(device.get());
@@ -856,7 +858,10 @@ private:
 	void mainLoop() {
 
 		while (!window.shouldClose()) {
-			glfwPollEvents();
+			// PROCESS INPUT
+			pollEvents();
+
+			// DRAW
 			drawFrame();
 		}
 
@@ -1004,7 +1009,7 @@ private:
 
 		window.cleanup();
 
-		glfwTerminate();
+		SDL_Quit();
 	}
 
 	void cleanupRenderImages() {

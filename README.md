@@ -6,9 +6,9 @@ The project will also serve as Bachelor's Degree Final Project, as the intention
 
 The project depends on the following libraries used externally:
 
-- **[GLFW](https://www.glfw.org/)**
-   - For window creation and other OS dependent operations.
-   - **License**: zlib/libpng License.
+- **[SDL](https://www.libsdl.org/)**
+   - For window creation and other OS dependent operations like events.
+   - **License**: zlib License.
 
 - **[GLM](https://github.com/g-truc/glm)**
    - For the maths behind the vertex of the models and matrices like `model`, `view` and `projection`.
@@ -19,7 +19,7 @@ The project depends on the following libraries used externally:
    - **License**: Public Domain or MIT License.
 
 - **[tinyobjloader](https://github.com/tinyobjloader/tinyobjloader)**
-   - For obj. model loading.
+   - For .obj model loading.
    - **License**: MIT License.
 
 ## License:

@@ -19,6 +19,9 @@ mono_crash.*
 # SpirV binaries
 *.spv
 
+[Tt]hird-[Pp]arty/*
+!third-party/licenses/
+
 # Build results
 [Bb]uild/
 [Dd]ebug/
