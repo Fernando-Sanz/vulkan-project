@@ -59,8 +59,8 @@ if(BUILD_LIBRARY)
 # BUILD THE EXECUTABLE
 else()
     # Change the output to have the SDL .dll automatically inside the .exe directory
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIGURATION>")
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIGURATION>")
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
     add_executable(${PROJECT_NAME} ${SOURCES})
 endif()
 
