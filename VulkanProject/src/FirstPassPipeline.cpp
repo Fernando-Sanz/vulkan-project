@@ -133,20 +133,37 @@ void FirstPassPipeline::createDescriptorSetLayout() {
 	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	uboLayoutBinding.descriptorCount = 1;
 	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
 
 	//---------------------
 	// sampler binding
 	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
 	samplerLayoutBinding.binding = 1;
-	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
 	samplerLayoutBinding.descriptorCount = 1;
 	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	samplerLayoutBinding.pImmutableSamplers = nullptr;
+	samplerLayoutBinding.pImmutableSamplers = nullptr; // Optional
+
+	//---------------------
+	// color texture binding
+	VkDescriptorSetLayoutBinding colorTextureLayoutBinding{};
+	colorTextureLayoutBinding.binding = 2;
+	colorTextureLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+	colorTextureLayoutBinding.descriptorCount = 1;
+	colorTextureLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	//---------------------
+	// normal texture binding
+	VkDescriptorSetLayoutBinding normalTextureLayoutBinding{};
+	normalTextureLayoutBinding.binding = 3;
+	normalTextureLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+	normalTextureLayoutBinding.descriptorCount = 1;
+	normalTextureLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
 	//----------------------------------------------------
 	// CREATE DESCRIPTOR SET
-	std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
+	std::array<VkDescriptorSetLayoutBinding, 4> bindings = { uboLayoutBinding, samplerLayoutBinding,
+		colorTextureLayoutBinding, normalTextureLayoutBinding };
+
 	VkDescriptorSetLayoutCreateInfo layoutInfo{};
 	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());

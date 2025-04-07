@@ -53,6 +53,7 @@ const std::vector<const char*> validationLayers = {
 struct VulkanAppParams {
 	std::string modelPath;
 	std::string texturePath;
+	std::string texture2Path;
 	std::string firstRenderPassVertShaderPath;
 	std::string firstRenderPassFragShaderPath;
 	std::string secondRenderPassVertShaderPath;
@@ -234,6 +235,7 @@ private:
 
 		textureManager.create(device, commandManager);
 		textureManager.createTexture(params.texturePath);
+		textureManager.createTexture(params.texture2Path);
 
 		
 		model.loadModel(device, commandManager, params.modelPath);
@@ -702,13 +704,19 @@ private:
 
 	void createDescriptorPool() {
 		// Sizes
-		std::array<VkDescriptorPoolSize, 2> poolSizes{};
+		std::array<VkDescriptorPoolSize, 4> poolSizes{};
 		// uniform buffer (for first pass)
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		poolSizes[0].descriptorCount = 1;
-		// image sampler (all second passes and first pass)
-		poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) + 1;
+		// sampler (for first pass)
+		poolSizes[1].type = VK_DESCRIPTOR_TYPE_SAMPLER;
+		poolSizes[1].descriptorCount = 1;
+		// sampler (for first pass)
+		poolSizes[2].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		poolSizes[2].descriptorCount = 2;
+		// image sampler (for second pass)
+		poolSizes[3].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		poolSizes[3].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
 		// Create info
 		VkDescriptorPoolCreateInfo poolInfo{};
@@ -743,14 +751,23 @@ private:
 		bufferInfo.offset = 0;
 		bufferInfo.range = sizeof(UniformBufferObject);
 
-		// TEXTURE IMAGE SAMPLER INFO
-		VkDescriptorImageInfo imageInfo{};
-		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		imageInfo.imageView = textureManager.getTexture(0).view;
-		imageInfo.sampler = textureManager.getSampler();
+		// TEXTURE SAMPLER INFO
+		VkDescriptorImageInfo samplerInfo{};
+		samplerInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		samplerInfo.sampler = textureManager.getSampler();
+
+		// COLOR TEXTURE INFO
+		VkDescriptorImageInfo colorTextureInfo{};
+		colorTextureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		colorTextureInfo.imageView = textureManager.getTexture(0).view;
+
+		// NORMAL TEXTURE INFO
+		VkDescriptorImageInfo normalTextureInfo{};
+		normalTextureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		normalTextureInfo.imageView = textureManager.getTexture(1).view;
 
 		// DESCRIPTOR WRITES
-		std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+		std::array<VkWriteDescriptorSet, 4> descriptorWrites{};
 
 		// buffer
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -763,14 +780,32 @@ private:
 		descriptorWrites[0].pImageInfo = nullptr; // Not used
 		descriptorWrites[0].pTexelBufferView = nullptr; // Not used
 
-		// image sampler
+		// texture sampler
 		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[1].dstSet = firstPassDescriptorSet;
 		descriptorWrites[1].dstBinding = 1;
 		descriptorWrites[1].dstArrayElement = 0;
-		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
 		descriptorWrites[1].descriptorCount = 1;
-		descriptorWrites[1].pImageInfo = &imageInfo;
+		descriptorWrites[1].pImageInfo = &samplerInfo;
+
+		// color texture
+		descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[2].dstSet = firstPassDescriptorSet;
+		descriptorWrites[2].dstBinding = 2;
+		descriptorWrites[2].dstArrayElement = 0;
+		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		descriptorWrites[2].descriptorCount = 1;
+		descriptorWrites[2].pImageInfo = &colorTextureInfo;
+
+		// normal texture
+		descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[3].dstSet = firstPassDescriptorSet;
+		descriptorWrites[3].dstBinding = 3;
+		descriptorWrites[3].dstArrayElement = 0;
+		descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		descriptorWrites[3].descriptorCount = 1;
+		descriptorWrites[3].pImageInfo = &normalTextureInfo;
 
 		// UPDATE
 		vkUpdateDescriptorSets(device.get(), static_cast<uint32_t>(descriptorWrites.size()),
