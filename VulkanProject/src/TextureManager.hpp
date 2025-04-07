@@ -9,14 +9,28 @@
 #include "imageUtils.hpp"
 
 
+enum TextureType {
+	TEXTURE_TYPE_ALBEDO_BIT = 0b0001,
+	TEXTURE_TYPE_SPECULAR_BIT = 0b0010,
+	TEXTURE_TYPE_NORMAL_BIT = 0b0100,
+	TEXTURE_TYPE_CUSTOM_BIT = 0b1000
+};
+
 class TextureManager {
 public:
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// GETTERS AND SETTERS
 
-	ImageObjects getTexture(size_t index) { return textures[index]; }
-	std::vector<ImageObjects> getTextures() { return textures; }
+	int getTextureTypesUsed() { return usedTypes; }
+
+	ImageObjects getAlbedo() { return albedo; }
+	ImageObjects getSpecular() { return specular; }
+	ImageObjects getNormal() { return normal; }
+
+	ImageObjects getCustomTexture(size_t index) { return customTextures[index]; }
+	std::vector<ImageObjects> getCustomTextures() { return customTextures; }
+
 	VkSampler getSampler() { return sampler; }
 
 
@@ -26,14 +40,17 @@ public:
 	// Store the device and command manager for future operations
 	void create(Device device, CommandManager commandManager);
 
-	// Add a texture to the list
-	void addTexture(ImageObjects texture);
+	// Add a texture of the specified type
+	void addTexture(TextureType type, ImageObjects texture);
 
 	// Create all the resources involved in texture usage and add it to the texture list
-	void createTexture(std::string texturePath);
+	void createTexture(TextureType type, std::string texturePath);
 
-	// Destroy the specified texture
-	void destroyTexture(size_t index);
+	// Destroy the specified texture, if type = TEXTURE_TYPE_CUSTOM_BIT only first custom texture is destroyed
+	void destroyTexture(TextureType type);
+
+	// Destroy the specified custom texture
+	void destroyCustomTexture(size_t index);
 
 	// Destroy Vulkan and other objects
 	void cleanup();
@@ -46,7 +63,11 @@ private:
 	Device device;
 	CommandManager commandManager;
 
-	std::vector<ImageObjects> textures;
+	int usedTypes = 0;
+	ImageObjects albedo;
+	ImageObjects specular;
+	ImageObjects normal;
+	std::vector<ImageObjects> customTextures;
 	uint32_t mipLevels = 1;
 	VkSampler sampler = VK_NULL_HANDLE;
 

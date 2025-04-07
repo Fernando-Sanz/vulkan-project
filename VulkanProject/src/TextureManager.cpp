@@ -12,28 +12,70 @@ void TextureManager::create(Device device, CommandManager commandManager) {
 	this->commandManager = commandManager;
 }
 
-void TextureManager::addTexture(ImageObjects texture) {
+void TextureManager::addTexture(TextureType type, ImageObjects texture) {
 	// CREATE THE SAMPLER (if not created yet)
 	if (sampler == VK_NULL_HANDLE) createSampler(mipLevels);
 
 	// STORE THE TEXTURE
-	textures.push_back(texture);
+	switch (type) {
+	case TEXTURE_TYPE_ALBEDO_BIT:
+		albedo = texture;
+		break;
+	case TEXTURE_TYPE_SPECULAR_BIT:
+		specular = texture;
+		break;
+	case TEXTURE_TYPE_NORMAL_BIT:
+		normal = texture;
+		break;
+	case TEXTURE_TYPE_CUSTOM_BIT:
+		customTextures.push_back(texture);
+		break;
+	default:
+		throw std::runtime_error("texture type not supported");
+	}
+
+	// Store the type
+	usedTypes |= type;
 }
 
-void TextureManager::createTexture(std::string texturePath) {
+void TextureManager::createTexture(TextureType type, std::string texturePath) {
 	// CREATE THE TEXTURE
 	ImageObjects newTexture{};
 	createTextureImage(texturePath, newTexture);
 	newTexture.view = createImageView(
 		device, newTexture.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels);
 
-	addTexture(newTexture);
+	addTexture(type, newTexture);
 }
 
-void TextureManager::destroyTexture(size_t index) {
-	ImageObjects oldTexture = textures[index];
+void TextureManager::destroyTexture(TextureType type) {
+	switch (type) {
+	case TEXTURE_TYPE_ALBEDO_BIT:
+		destroyImageObjects(device, albedo);
+		usedTypes -= TEXTURE_TYPE_ALBEDO_BIT;
+		break;
+	case TEXTURE_TYPE_SPECULAR_BIT:
+		destroyImageObjects(device, specular);
+		usedTypes -= TEXTURE_TYPE_SPECULAR_BIT;
+		break;
+	case TEXTURE_TYPE_NORMAL_BIT:
+		destroyImageObjects(device, normal);
+		usedTypes -= TEXTURE_TYPE_NORMAL_BIT;
+		break;
+	case TEXTURE_TYPE_CUSTOM_BIT:
+		destroyCustomTexture(0);
+		break;
+	default:
+		throw std::runtime_error("texture type not supported");
+	}
+}
+
+void TextureManager::destroyCustomTexture(size_t index) {
+	ImageObjects oldTexture = customTextures[index];
 	destroyImageObjects(device, oldTexture);
-	textures.erase(textures.begin() + index);
+	customTextures.erase(customTextures.begin() + index);
+
+	if (customTextures.size() == 0) usedTypes -= TEXTURE_TYPE_CUSTOM_BIT;
 }
 
 void TextureManager::createTextureImage(std::string texturePath, ImageObjects& texture) {
@@ -130,12 +172,21 @@ void TextureManager::createSampler(uint32_t mipLevels) {
 	}
 }
 
-
 void TextureManager::cleanup() {
 	vkDestroySampler(device.get(), sampler, nullptr);
 
-	if (textures.size() == 0) return;
-	for (auto& texture : textures) {
-		destroyImageObjects(device, texture);
+	if (TEXTURE_TYPE_ALBEDO_BIT & usedTypes)
+		destroyImageObjects(device, albedo);
+	if (TEXTURE_TYPE_SPECULAR_BIT & usedTypes)
+		destroyImageObjects(device, specular);
+	if (TEXTURE_TYPE_NORMAL_BIT & usedTypes)
+		destroyImageObjects(device, normal);
+
+	if (customTextures.size() == 0) {
+		for (auto& texture : customTextures) {
+			destroyImageObjects(device, texture);
+		}
 	}
+
+	usedTypes = 0b0000;
 }

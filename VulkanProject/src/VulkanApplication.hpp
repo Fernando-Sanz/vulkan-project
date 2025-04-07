@@ -52,8 +52,10 @@ const std::vector<const char*> validationLayers = {
 
 struct VulkanAppParams {
 	std::string modelPath;
-	std::string texturePath;
-	std::string texture2Path;
+	std::string albedoTexturePath;
+	std::string specularTexturePath;
+	std::string normalTexturePath;
+	std::vector<std::string> customTexturePaths;
 	std::string firstRenderPassVertShaderPath;
 	std::string firstRenderPassFragShaderPath;
 	std::string secondRenderPassVertShaderPath;
@@ -219,29 +221,26 @@ private:
 		device.pickDevice();
 		swapChain.create(device, window, surface);
 
-		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(),
-			params.firstRenderPassVertShaderPath, params.firstRenderPassFragShaderPath);
-		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(),
-			params.secondRenderPassVertShaderPath, params.secondRenderPassFragShaderPath);
-
 		commandManager.createPoolAndBuffers(device, MAX_FRAMES_IN_FLIGHT);
 
 		createColorResources();
 		createDepthResources();
 		createFirstPassOutputResources();
-
-		createFirstPassFramebuffer();
-		createSwapChainFramebuffers();
-
-		textureManager.create(device, commandManager);
-		textureManager.createTexture(params.texturePath);
-		textureManager.createTexture(params.texture2Path);
-
 		
+		createTextures(params);
+
 		model.loadModel(device, commandManager, params.modelPath);
 		postProcessingQuad.loadModel(device, commandManager, POST_PROCESSING_QUAD_PATH);
 
 		uniformManager.createBuffers(device, MAX_FRAMES_IN_FLIGHT);
+
+		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(), textureManager,
+			params.firstRenderPassVertShaderPath, params.firstRenderPassFragShaderPath);
+		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(),
+			params.secondRenderPassVertShaderPath, params.secondRenderPassFragShaderPath);
+
+		createFirstPassFramebuffer();
+		createSwapChainFramebuffers();
 
 		createDescriptorPool();
 		allocateFirstPassDescriptorSets();
@@ -500,7 +499,7 @@ private:
 
 		// CREATE THE TEXTURE
 		firstPassOutputManager.create(device, commandManager);
-		firstPassOutputManager.addTexture(texture);
+		firstPassOutputManager.addTexture(TEXTURE_TYPE_CUSTOM_BIT, texture);
 	}
 
 
@@ -514,7 +513,7 @@ private:
 		std::array<VkImageView, 3> attachments = {
 			colorImage.view,
 			depthImage.view,
-			firstPassOutputManager.getTexture(0).view
+			firstPassOutputManager.getCustomTexture(0).view
 		};
 
 		VkFramebufferCreateInfo framebufferInfo{};
@@ -697,6 +696,25 @@ private:
 		}
 	}
 
+	
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// TEXTURES
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	void createTextures(VulkanAppParams params) {
+		textureManager.create(device, commandManager);
+		if(!params.albedoTexturePath.empty())
+			textureManager.createTexture(TEXTURE_TYPE_ALBEDO_BIT, params.albedoTexturePath);
+		if(!params.specularTexturePath.empty())
+			textureManager.createTexture(TEXTURE_TYPE_SPECULAR_BIT, params.specularTexturePath);
+		if(!params.normalTexturePath.empty())
+			textureManager.createTexture(TEXTURE_TYPE_NORMAL_BIT, params.normalTexturePath);
+
+		for (auto& texturePath : params.customTexturePaths) {
+			textureManager.createTexture(TEXTURE_TYPE_CUSTOM_BIT, texturePath);
+		}
+	}
+
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// DESCRIPTOR POOL AND DESCRIPTOR SETS CREATION
@@ -759,12 +777,12 @@ private:
 		// COLOR TEXTURE INFO
 		VkDescriptorImageInfo colorTextureInfo{};
 		colorTextureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		colorTextureInfo.imageView = textureManager.getTexture(0).view;
+		colorTextureInfo.imageView = textureManager.getAlbedo().view;
 
 		// NORMAL TEXTURE INFO
 		VkDescriptorImageInfo normalTextureInfo{};
 		normalTextureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		normalTextureInfo.imageView = textureManager.getTexture(1).view;
+		normalTextureInfo.imageView = textureManager.getNormal().view;
 
 		// DESCRIPTOR WRITES
 		std::array<VkWriteDescriptorSet, 4> descriptorWrites{};
@@ -839,7 +857,7 @@ private:
 			// TEXTURE IMAGE SAMPLER INFO
 			VkDescriptorImageInfo imageInfo{};
 			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			imageInfo.imageView = firstPassOutputManager.getTexture(0).view;
+			imageInfo.imageView = firstPassOutputManager.getCustomTexture(0).view;
 			imageInfo.sampler = firstPassOutputManager.getSampler();
 
 			// DESCRIPTOR WRITES
@@ -1055,7 +1073,7 @@ private:
 		destroyImageObjects(device, depthImage);
 
 		// first pass output image
-		firstPassOutputManager.destroyTexture(0);
+		firstPassOutputManager.destroyCustomTexture(0);
 
 		// color attachments
 		vkDestroyFramebuffer(device.get(), firstPassFramebuffer, nullptr);

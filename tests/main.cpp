@@ -20,8 +20,8 @@ int main() {
 	params.secondRenderPassVertShaderPath = SECOND_PASS_VERT_SHADER_PATH;
 	params.secondRenderPassFragShaderPath = SECOND_PASS_FRAG_SHADER_PATH;
 	params.modelPath = MODEL_PATH;
-	params.texturePath = TEXTURE_PATH;
-	params.texture2Path = TEXTURE2_PATH;
+	params.albedoTexturePath = TEXTURE_PATH;
+	params.normalTexturePath = TEXTURE2_PATH;
 
 	try {
 		app.run(params);
