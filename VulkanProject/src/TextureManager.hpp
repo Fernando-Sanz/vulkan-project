@@ -6,27 +6,34 @@
 
 #include "Device.hpp"
 #include "CommandManager.hpp"
+#include "imageUtils.hpp"
 
 
-// TODO: check if it could be in Model
-class Texture {
+class TextureManager {
 public:
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// GETTERS AND SETTERS
 
-	VkImage getImage() { return image; }
-	VkImageView getImageView() { return imageView; }
+	ImageObjects getTexture(size_t index) { return textures[index]; }
+	std::vector<ImageObjects> getTextures() { return textures; }
 	VkSampler getSampler() { return sampler; }
-	
+
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// METHODS
+	
+	// Store the device and command manager for future operations
+	void create(Device device, CommandManager commandManager);
 
-	// Create all the resources involved in texture usage
-	void create(Device device, CommandManager commandManager, std::string texturePath);
+	// Add a texture to the list
+	void addTexture(ImageObjects texture);
 
-	// Create sampler for the texture
-	static void createSampler(Device device, uint32_t mipLevels, VkSampler& sampler);
+	// Create all the resources involved in texture usage and add it to the texture list
+	void createTexture(std::string texturePath);
+
+	// Destroy the specified texture
+	void destroyTexture(size_t index);
 
 	// Destroy Vulkan and other objects
 	void cleanup();
@@ -39,16 +46,18 @@ private:
 	Device device;
 	CommandManager commandManager;
 
-	uint32_t mipLevels;
-	VkImage image;
-	VkDeviceMemory imageMemory;
-	VkImageView imageView;
-	VkSampler sampler;
+	std::vector<ImageObjects> textures;
+	uint32_t mipLevels = 1;
+	VkSampler sampler = VK_NULL_HANDLE;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// METHODS
 
 	// Create an image and its memory for the texture and generate its mipmaps
-	void createTextureImage(std::string texturePath);
-
+	void createTextureImage(std::string texturePath, ImageObjects& texture);
+	
+	// Create sampler for the textures
+	void createSampler(uint32_t mipLevels);
 };
+
+

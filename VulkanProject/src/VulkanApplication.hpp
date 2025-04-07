@@ -25,7 +25,7 @@
 #include "SecondPassPipeline.hpp"
 #include "UniformManager.hpp"
 #include "Model.hpp"
-#include "Texture.hpp"
+#include "TextureManager.hpp"
 #include "AppTime.hpp"
 #include "eventManagement.hpp"
 
@@ -131,8 +131,7 @@ private:
 	// Images for framebuffers
 	ImageObjects colorImage; // multisampling
 	ImageObjects depthImage;
-	ImageObjects firstPassOutputImage;
-	VkSampler firstPassOutputSampler;
+	TextureManager firstPassOutputManager;
 
 	// Pipeline
 	FirstPassPipeline firstPassPipeline;
@@ -146,7 +145,7 @@ private:
 	CommandManager commandManager;
 
 	// Texture
-	Texture texture;
+	TextureManager textureManager;
 
 	// Geometry
 	Model model;
@@ -228,13 +227,14 @@ private:
 
 		createColorResources();
 		createDepthResources();
-		createFirstPassOutput();
-		createFirstPassOutputSampler();
+		createFirstPassOutputResources();
 
 		createFirstPassFramebuffer();
 		createSwapChainFramebuffers();
 
-		texture.create(device, commandManager, params.texturePath);
+		textureManager.create(device, commandManager);
+		textureManager.createTexture(params.texturePath);
+
 		
 		model.loadModel(device, commandManager, params.modelPath);
 		postProcessingQuad.loadModel(device, commandManager, POST_PROCESSING_QUAD_PATH);
@@ -427,8 +427,7 @@ private:
 		swapChain.create(device, window, surface);
 		createColorResources();
 		createDepthResources();
-		createFirstPassOutput();
-		createFirstPassOutputSampler();
+		createFirstPassOutputResources();
 		configureSecondPassDescriptorSets();
 		createSwapChainFramebuffers();
 		createFirstPassFramebuffer();
@@ -486,19 +485,20 @@ private:
 	// CREATE FIRST PASS OUTPUT RESOURCES
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	void createFirstPassOutput() {
+	void createFirstPassOutputResources() {
 		VkFormat colorFormat = swapChain.getImageFormat();
+		ImageObjects texture{};
 
 		createImage(device, swapChain.getExtent().width, swapChain.getExtent().height, 1, VK_SAMPLE_COUNT_1_BIT,
 			colorFormat, VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			firstPassOutputImage.image, firstPassOutputImage.memory);
-		firstPassOutputImage.view = createImageView(device, firstPassOutputImage.image, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
-	}
+			texture.image, texture.memory);
+		texture.view = createImageView(device, texture.image, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 
-	void createFirstPassOutputSampler() {
-		Texture::createSampler(device, 1, firstPassOutputSampler);
+		// CREATE THE TEXTURE
+		firstPassOutputManager.create(device, commandManager);
+		firstPassOutputManager.addTexture(texture);
 	}
 
 
@@ -512,7 +512,7 @@ private:
 		std::array<VkImageView, 3> attachments = {
 			colorImage.view,
 			depthImage.view,
-			firstPassOutputImage.view
+			firstPassOutputManager.getTexture(0).view
 		};
 
 		VkFramebufferCreateInfo framebufferInfo{};
@@ -746,8 +746,8 @@ private:
 		// TEXTURE IMAGE SAMPLER INFO
 		VkDescriptorImageInfo imageInfo{};
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		imageInfo.imageView = texture.getImageView();
-		imageInfo.sampler = texture.getSampler();
+		imageInfo.imageView = textureManager.getTexture(0).view;
+		imageInfo.sampler = textureManager.getSampler();
 
 		// DESCRIPTOR WRITES
 		std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
@@ -804,8 +804,8 @@ private:
 			// TEXTURE IMAGE SAMPLER INFO
 			VkDescriptorImageInfo imageInfo{};
 			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			imageInfo.imageView = firstPassOutputImage.view;
-			imageInfo.sampler = firstPassOutputSampler;
+			imageInfo.imageView = firstPassOutputManager.getTexture(0).view;
+			imageInfo.sampler = firstPassOutputManager.getSampler();
 
 			// DESCRIPTOR WRITES
 			VkWriteDescriptorSet descriptorWrite{};
@@ -970,8 +970,9 @@ private:
 		// Swap chain objects
 		cleanupRenderImages();
 
-		// Texture
-		texture.cleanup();
+		// Textures
+		firstPassOutputManager.cleanup();
+		textureManager.cleanup();
 
 		// Uniform
 		uniformManager.cleanup();
@@ -1018,9 +1019,8 @@ private:
 		// depth resources
 		destroyImageObjects(device, depthImage);
 
-		// first pass output
-		vkDestroySampler(device.get(), firstPassOutputSampler, nullptr);
-		destroyImageObjects(device, firstPassOutputImage);
+		// first pass output image
+		firstPassOutputManager.destroyTexture(0);
 
 		// color attachments
 		vkDestroyFramebuffer(device.get(), firstPassFramebuffer, nullptr);

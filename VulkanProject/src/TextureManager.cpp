@@ -1,4 +1,4 @@
-#include "Texture.hpp"
+#include "TextureManager.hpp"
 
 #include <iostream>
 #include <stdexcept>
@@ -7,23 +7,43 @@
 #include "imageUtils.hpp"
 
 
-void Texture::create(Device device, CommandManager commandManager, std::string texturePath) {
+void TextureManager::create(Device device, CommandManager commandManager) {
 	this->device = device;
 	this->commandManager = commandManager;
-
-	createTextureImage(texturePath);
-	imageView = createImageView(
-		device, image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels);
-	createSampler(device, mipLevels, sampler);
 }
 
-void Texture::createTextureImage(std::string texturePath) {
+void TextureManager::addTexture(ImageObjects texture) {
+	// CREATE THE SAMPLER (if not created yet)
+	if (sampler == VK_NULL_HANDLE) createSampler(mipLevels);
+
+	// STORE THE TEXTURE
+	textures.push_back(texture);
+}
+
+void TextureManager::createTexture(std::string texturePath) {
+	// CREATE THE TEXTURE
+	ImageObjects newTexture{};
+	createTextureImage(texturePath, newTexture);
+	newTexture.view = createImageView(
+		device, newTexture.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels);
+
+	addTexture(newTexture);
+}
+
+void TextureManager::destroyTexture(size_t index) {
+	ImageObjects oldTexture = textures[index];
+	destroyImageObjects(device, oldTexture);
+	textures.erase(textures.begin() + index);
+}
+
+void TextureManager::createTextureImage(std::string texturePath, ImageObjects& texture) {
 	//-----------------------------------------
 	// LOAD IMAGE
 	int texWidth, texHeight, texChannels;
 	stbi_uc* pixels = stbi_load(texturePath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 	if (!pixels) throw std::runtime_error("failed to load texture image");
 
+	// Compute image size and mip levels
 	VkDeviceSize imageSize = texWidth * texHeight * 4/*bytes per pixel*/;
 	mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
 
@@ -53,14 +73,14 @@ void Texture::createTextureImage(std::string texturePath) {
 		VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		image, imageMemory);
+		texture.image, texture.memory);
 
 	//-----------------------------------------
 	// COPY THE IMAGE FROM STAGING BUFFER
-	transitionImageLayout(commandManager, image,
+	transitionImageLayout(commandManager, texture.image,
 		VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		mipLevels);
-	copyBufferToImage(commandManager, stagingBuffer, image,
+	copyBufferToImage(commandManager, stagingBuffer, texture.image,
 		static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
 	// transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
 
@@ -71,10 +91,10 @@ void Texture::createTextureImage(std::string texturePath) {
 
 	//-----------------------------------------
 	// GENERATE MIPMAPS
-	generateMipmaps(device, commandManager, image, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels);
+	generateMipmaps(device, commandManager, texture.image, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels);
 }
 
-void Texture::createSampler(Device device, uint32_t mipLevels, VkSampler& sampler) {
+void TextureManager::createSampler(uint32_t mipLevels) {
 	//-----------------------------------------
 	// CREATE INFO
 	VkSamplerCreateInfo samplerInfo{};
@@ -111,9 +131,11 @@ void Texture::createSampler(Device device, uint32_t mipLevels, VkSampler& sample
 }
 
 
-void Texture::cleanup() {
+void TextureManager::cleanup() {
 	vkDestroySampler(device.get(), sampler, nullptr);
-	vkDestroyImageView(device.get(), imageView, nullptr);
-	vkDestroyImage(device.get(), image, nullptr);
-	vkFreeMemory(device.get(), imageMemory, nullptr);
+
+	if (textures.size() == 0) return;
+	for (auto& texture : textures) {
+		destroyImageObjects(device, texture);
+	}
 }
