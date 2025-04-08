@@ -18,13 +18,12 @@ void Model::loadModel(Device device, CommandManager commandManager, std::string 
 
 	if (!reader.ParseFromFile(modelPath, reader_config)) {
 		if (!reader.Error().empty()) {
-			std::cerr << "TinyObjReader: " << reader.Error();
+			throw std::runtime_error(reader.Error());
 		}
-		exit(1);
 	}
 
 	if (!reader.Warning().empty()) {
-		std::cout << "TinyObjReader: " << reader.Warning();
+		std::cout << "TinyObjLoader: " << reader.Warning();
 	}
 
 	auto& attrib = reader.GetAttrib();
