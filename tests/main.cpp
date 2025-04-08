@@ -9,6 +9,7 @@ const std::string SECOND_PASS_FRAG_SHADER_PATH = "../../VulkanProject/assets/sha
 
 const std::string MODEL_PATH = "../../VulkanProject/assets/models/viking_room/viking_room.obj";
 const std::string TEXTURE_PATH = "../../VulkanProject/assets/models/viking_room/viking_room.png";
+const std::string TEXTURE2_PATH = "../../VulkanProject/assets/models/viking_room/normal_texture_test.png";
 
 
 int main() {
@@ -19,7 +20,8 @@ int main() {
 	params.secondRenderPassVertShaderPath = SECOND_PASS_VERT_SHADER_PATH;
 	params.secondRenderPassFragShaderPath = SECOND_PASS_FRAG_SHADER_PATH;
 	params.modelPath = MODEL_PATH;
-	params.texturePath = TEXTURE_PATH;
+	params.albedoTexturePath = TEXTURE_PATH;
+	params.normalTexturePath = TEXTURE2_PATH;
 
 	try {
 		app.run(params);

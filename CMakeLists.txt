@@ -30,7 +30,7 @@ set(SOURCES
     ${SOURCE_CODE_PATH}/SecondPassPipeline.cpp
     ${SOURCE_CODE_PATH}/StandardPipeline.cpp
     ${SOURCE_CODE_PATH}/SwapChain.cpp
-    ${SOURCE_CODE_PATH}/Texture.cpp
+    ${SOURCE_CODE_PATH}/TextureManager.cpp
     ${SOURCE_CODE_PATH}/UniformManager.cpp
     ${SOURCE_CODE_PATH}/utils.cpp
     ${SOURCE_CODE_PATH}/Window.cpp

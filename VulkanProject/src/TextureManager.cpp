@@ -1,4 +1,4 @@
-#include "Texture.hpp"
+#include "TextureManager.hpp"
 
 #include <iostream>
 #include <stdexcept>
@@ -7,23 +7,85 @@
 #include "imageUtils.hpp"
 
 
-void Texture::create(Device device, CommandManager commandManager, std::string texturePath) {
+void TextureManager::create(Device device, CommandManager commandManager) {
 	this->device = device;
 	this->commandManager = commandManager;
-
-	createTextureImage(texturePath);
-	imageView = createImageView(
-		device, image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels);
-	createSampler(device, mipLevels, sampler);
 }
 
-void Texture::createTextureImage(std::string texturePath) {
+void TextureManager::addTexture(TextureType type, ImageObjects texture) {
+	// CREATE THE SAMPLER (if not created yet)
+	if (sampler == VK_NULL_HANDLE) createSampler(mipLevels);
+
+	// STORE THE TEXTURE
+	switch (type) {
+	case TEXTURE_TYPE_ALBEDO_BIT:
+		albedo = texture;
+		break;
+	case TEXTURE_TYPE_SPECULAR_BIT:
+		specular = texture;
+		break;
+	case TEXTURE_TYPE_NORMAL_BIT:
+		normal = texture;
+		break;
+	case TEXTURE_TYPE_CUSTOM_BIT:
+		customTextures.push_back(texture);
+		break;
+	default:
+		throw std::runtime_error("texture type not supported");
+	}
+
+	// Store the type
+	usedTypes |= type;
+}
+
+void TextureManager::createTexture(TextureType type, std::string texturePath) {
+	// CREATE THE TEXTURE
+	ImageObjects newTexture{};
+	createTextureImage(texturePath, newTexture);
+	newTexture.view = createImageView(
+		device, newTexture.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels);
+
+	addTexture(type, newTexture);
+}
+
+void TextureManager::destroyTexture(TextureType type) {
+	switch (type) {
+	case TEXTURE_TYPE_ALBEDO_BIT:
+		destroyImageObjects(device, albedo);
+		usedTypes -= TEXTURE_TYPE_ALBEDO_BIT;
+		break;
+	case TEXTURE_TYPE_SPECULAR_BIT:
+		destroyImageObjects(device, specular);
+		usedTypes -= TEXTURE_TYPE_SPECULAR_BIT;
+		break;
+	case TEXTURE_TYPE_NORMAL_BIT:
+		destroyImageObjects(device, normal);
+		usedTypes -= TEXTURE_TYPE_NORMAL_BIT;
+		break;
+	case TEXTURE_TYPE_CUSTOM_BIT:
+		destroyCustomTexture(0);
+		break;
+	default:
+		throw std::runtime_error("texture type not supported");
+	}
+}
+
+void TextureManager::destroyCustomTexture(size_t index) {
+	ImageObjects oldTexture = customTextures[index];
+	destroyImageObjects(device, oldTexture);
+	customTextures.erase(customTextures.begin() + index);
+
+	if (customTextures.size() == 0) usedTypes -= TEXTURE_TYPE_CUSTOM_BIT;
+}
+
+void TextureManager::createTextureImage(std::string texturePath, ImageObjects& texture) {
 	//-----------------------------------------
 	// LOAD IMAGE
 	int texWidth, texHeight, texChannels;
 	stbi_uc* pixels = stbi_load(texturePath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 	if (!pixels) throw std::runtime_error("failed to load texture image");
 
+	// Compute image size and mip levels
 	VkDeviceSize imageSize = texWidth * texHeight * 4/*bytes per pixel*/;
 	mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
 
@@ -53,14 +115,14 @@ void Texture::createTextureImage(std::string texturePath) {
 		VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		image, imageMemory);
+		texture.image, texture.memory);
 
 	//-----------------------------------------
 	// COPY THE IMAGE FROM STAGING BUFFER
-	transitionImageLayout(commandManager, image,
+	transitionImageLayout(commandManager, texture.image,
 		VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		mipLevels);
-	copyBufferToImage(commandManager, stagingBuffer, image,
+	copyBufferToImage(commandManager, stagingBuffer, texture.image,
 		static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
 	// transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
 
@@ -71,10 +133,10 @@ void Texture::createTextureImage(std::string texturePath) {
 
 	//-----------------------------------------
 	// GENERATE MIPMAPS
-	generateMipmaps(device, commandManager, image, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels);
+	generateMipmaps(device, commandManager, texture.image, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels);
 }
 
-void Texture::createSampler(Device device, uint32_t mipLevels, VkSampler& sampler) {
+void TextureManager::createSampler(uint32_t mipLevels) {
 	//-----------------------------------------
 	// CREATE INFO
 	VkSamplerCreateInfo samplerInfo{};
@@ -110,10 +172,21 @@ void Texture::createSampler(Device device, uint32_t mipLevels, VkSampler& sample
 	}
 }
 
-
-void Texture::cleanup() {
+void TextureManager::cleanup() {
 	vkDestroySampler(device.get(), sampler, nullptr);
-	vkDestroyImageView(device.get(), imageView, nullptr);
-	vkDestroyImage(device.get(), image, nullptr);
-	vkFreeMemory(device.get(), imageMemory, nullptr);
+
+	if (TEXTURE_TYPE_ALBEDO_BIT & usedTypes)
+		destroyImageObjects(device, albedo);
+	if (TEXTURE_TYPE_SPECULAR_BIT & usedTypes)
+		destroyImageObjects(device, specular);
+	if (TEXTURE_TYPE_NORMAL_BIT & usedTypes)
+		destroyImageObjects(device, normal);
+
+	if (customTextures.size() == 0) {
+		for (auto& texture : customTextures) {
+			destroyImageObjects(device, texture);
+		}
+	}
+
+	usedTypes = 0b0000;
 }

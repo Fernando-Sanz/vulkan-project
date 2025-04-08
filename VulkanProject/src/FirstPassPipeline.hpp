@@ -4,6 +4,7 @@
 
 #include <string>
 #include "Device.hpp"
+#include "TextureManager.hpp"
 
 
 class  FirstPassPipeline {
@@ -22,7 +23,7 @@ public:
 	// METHODS
 
 	// Create the graphics pipeline with the specified formats
-	void create(Device device, VkFormat imageFormat, VkFormat depthFormat,
+	void create(Device device, VkFormat imageFormat, VkFormat depthFormat, TextureManager textures,
 		std::string vertexShaderLocation, std::string fragmentShaderLocation);
 
 	// Destroy Vulkan and other objects
@@ -48,7 +49,7 @@ private:
 	void createRenderPass(VkFormat imageFormat, VkFormat depthFormat);
 
 	// Defines the Descriptor Set Layout of the pipeline
-	void createDescriptorSetLayout();
+	void createDescriptorSetLayout(TextureManager textures);
 
 	// Create a GraphicsPipeline with all the stages and a PipelineLayout
 	void createGraphicsPipeline(std::string vertexShaderLocation, std::string fragmentShaderLocation);

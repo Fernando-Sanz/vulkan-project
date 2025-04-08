@@ -11,13 +11,25 @@
 #include "Vertex.hpp"
 
 
-void FirstPassPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat,
+namespace {
+	VkDescriptorSetLayoutBinding getTextureDescriptorLayoutBinding(uint32_t binding) {
+		VkDescriptorSetLayoutBinding textureLayoutBinding{};
+		textureLayoutBinding.binding = binding;
+		textureLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		textureLayoutBinding.descriptorCount = 1;
+		textureLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+		return textureLayoutBinding;
+	}
+}
+
+void FirstPassPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat, TextureManager textures,
 	std::string vertShaderLocation, std::string fragShaderLocation) {
 
 	this->device = device;
 
 	createRenderPass(imageFormat, depthFormat);
-	createDescriptorSetLayout();
+	createDescriptorSetLayout(textures);
 	createGraphicsPipeline(vertShaderLocation, fragShaderLocation);
 }
 
@@ -121,7 +133,7 @@ void FirstPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFor
 	}
 }
 
-void FirstPassPipeline::createDescriptorSetLayout() {
+void FirstPassPipeline::createDescriptorSetLayout(TextureManager textures) {
 
 	//----------------------------------------------------
 	// BINDINGS
@@ -133,20 +145,42 @@ void FirstPassPipeline::createDescriptorSetLayout() {
 	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	uboLayoutBinding.descriptorCount = 1;
 	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
 
 	//---------------------
 	// sampler binding
 	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
 	samplerLayoutBinding.binding = 1;
-	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
 	samplerLayoutBinding.descriptorCount = 1;
 	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	samplerLayoutBinding.pImmutableSamplers = nullptr;
+	samplerLayoutBinding.pImmutableSamplers = nullptr; // Optional
+
+	//---------------------
+	// Texture bindings
+
+	std::vector<VkDescriptorSetLayoutBinding> textureBindings{};
+	uint32_t currentTextureBinding = 2;
+
+	if (textures.getTextureTypesUsed() & TEXTURE_TYPE_ALBEDO_BIT) {
+		textureBindings.push_back(getTextureDescriptorLayoutBinding(currentTextureBinding++));
+	}
+	if (textures.getTextureTypesUsed() & TEXTURE_TYPE_SPECULAR_BIT) {
+		textureBindings.push_back(getTextureDescriptorLayoutBinding(currentTextureBinding++));
+	}
+	if (textures.getTextureTypesUsed() & TEXTURE_TYPE_NORMAL_BIT) {
+		textureBindings.push_back(getTextureDescriptorLayoutBinding(currentTextureBinding++));
+	}
+	if (textures.getTextureTypesUsed() & TEXTURE_TYPE_CUSTOM_BIT) {
+		for (size_t i = 0; i < textures.getCustomTextures().size(); i++) {
+			textureBindings.push_back(getTextureDescriptorLayoutBinding(currentTextureBinding++));
+		}
+	}
 
 	//----------------------------------------------------
 	// CREATE DESCRIPTOR SET
-	std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
+	std::vector<VkDescriptorSetLayoutBinding> bindings = { uboLayoutBinding, samplerLayoutBinding };
+	bindings.insert(bindings.end(), textureBindings.begin(), textureBindings.end());
+
 	VkDescriptorSetLayoutCreateInfo layoutInfo{};
 	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());

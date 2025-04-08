@@ -25,7 +25,7 @@
 #include "SecondPassPipeline.hpp"
 #include "UniformManager.hpp"
 #include "Model.hpp"
-#include "Texture.hpp"
+#include "TextureManager.hpp"
 #include "AppTime.hpp"
 #include "eventManagement.hpp"
 
@@ -52,7 +52,10 @@ const std::vector<const char*> validationLayers = {
 
 struct VulkanAppParams {
 	std::string modelPath;
-	std::string texturePath;
+	std::string albedoTexturePath;
+	std::string specularTexturePath;
+	std::string normalTexturePath;
+	std::vector<std::string> customTexturePaths;
 	std::string firstRenderPassVertShaderPath;
 	std::string firstRenderPassFragShaderPath;
 	std::string secondRenderPassVertShaderPath;
@@ -131,8 +134,7 @@ private:
 	// Images for framebuffers
 	ImageObjects colorImage; // multisampling
 	ImageObjects depthImage;
-	ImageObjects firstPassOutputImage;
-	VkSampler firstPassOutputSampler;
+	TextureManager firstPassOutputManager;
 
 	// Pipeline
 	FirstPassPipeline firstPassPipeline;
@@ -146,7 +148,7 @@ private:
 	CommandManager commandManager;
 
 	// Texture
-	Texture texture;
+	TextureManager textureManager;
 
 	// Geometry
 	Model model;
@@ -219,27 +221,26 @@ private:
 		device.pickDevice();
 		swapChain.create(device, window, surface);
 
-		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(),
-			params.firstRenderPassVertShaderPath, params.firstRenderPassFragShaderPath);
-		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(),
-			params.secondRenderPassVertShaderPath, params.secondRenderPassFragShaderPath);
-
 		commandManager.createPoolAndBuffers(device, MAX_FRAMES_IN_FLIGHT);
 
 		createColorResources();
 		createDepthResources();
-		createFirstPassOutput();
-		createFirstPassOutputSampler();
-
-		createFirstPassFramebuffer();
-		createSwapChainFramebuffers();
-
-		texture.create(device, commandManager, params.texturePath);
+		createFirstPassOutputResources();
 		
+		createTextures(params);
+
 		model.loadModel(device, commandManager, params.modelPath);
 		postProcessingQuad.loadModel(device, commandManager, POST_PROCESSING_QUAD_PATH);
 
 		uniformManager.createBuffers(device, MAX_FRAMES_IN_FLIGHT);
+
+		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(), textureManager,
+			params.firstRenderPassVertShaderPath, params.firstRenderPassFragShaderPath);
+		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(),
+			params.secondRenderPassVertShaderPath, params.secondRenderPassFragShaderPath);
+
+		createFirstPassFramebuffer();
+		createSwapChainFramebuffers();
 
 		createDescriptorPool();
 		allocateFirstPassDescriptorSets();
@@ -427,8 +428,7 @@ private:
 		swapChain.create(device, window, surface);
 		createColorResources();
 		createDepthResources();
-		createFirstPassOutput();
-		createFirstPassOutputSampler();
+		createFirstPassOutputResources();
 		configureSecondPassDescriptorSets();
 		createSwapChainFramebuffers();
 		createFirstPassFramebuffer();
@@ -486,19 +486,20 @@ private:
 	// CREATE FIRST PASS OUTPUT RESOURCES
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	void createFirstPassOutput() {
+	void createFirstPassOutputResources() {
 		VkFormat colorFormat = swapChain.getImageFormat();
+		ImageObjects texture{};
 
 		createImage(device, swapChain.getExtent().width, swapChain.getExtent().height, 1, VK_SAMPLE_COUNT_1_BIT,
 			colorFormat, VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			firstPassOutputImage.image, firstPassOutputImage.memory);
-		firstPassOutputImage.view = createImageView(device, firstPassOutputImage.image, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
-	}
+			texture.image, texture.memory);
+		texture.view = createImageView(device, texture.image, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 
-	void createFirstPassOutputSampler() {
-		Texture::createSampler(device, 1, firstPassOutputSampler);
+		// CREATE THE TEXTURE
+		firstPassOutputManager.create(device, commandManager);
+		firstPassOutputManager.addTexture(TEXTURE_TYPE_CUSTOM_BIT, texture);
 	}
 
 
@@ -512,7 +513,7 @@ private:
 		std::array<VkImageView, 3> attachments = {
 			colorImage.view,
 			depthImage.view,
-			firstPassOutputImage.view
+			firstPassOutputManager.getCustomTexture(0).view
 		};
 
 		VkFramebufferCreateInfo framebufferInfo{};
@@ -695,6 +696,25 @@ private:
 		}
 	}
 
+	
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// TEXTURES
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	void createTextures(VulkanAppParams params) {
+		textureManager.create(device, commandManager);
+		if(!params.albedoTexturePath.empty())
+			textureManager.createTexture(TEXTURE_TYPE_ALBEDO_BIT, params.albedoTexturePath);
+		if(!params.specularTexturePath.empty())
+			textureManager.createTexture(TEXTURE_TYPE_SPECULAR_BIT, params.specularTexturePath);
+		if(!params.normalTexturePath.empty())
+			textureManager.createTexture(TEXTURE_TYPE_NORMAL_BIT, params.normalTexturePath);
+
+		for (auto& texturePath : params.customTexturePaths) {
+			textureManager.createTexture(TEXTURE_TYPE_CUSTOM_BIT, texturePath);
+		}
+	}
+
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// DESCRIPTOR POOL AND DESCRIPTOR SETS CREATION
@@ -702,13 +722,19 @@ private:
 
 	void createDescriptorPool() {
 		// Sizes
-		std::array<VkDescriptorPoolSize, 2> poolSizes{};
+		std::array<VkDescriptorPoolSize, 4> poolSizes{};
 		// uniform buffer (for first pass)
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		poolSizes[0].descriptorCount = 1;
-		// image sampler (all second passes and first pass)
-		poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) + 1;
+		// sampler (for first pass)
+		poolSizes[1].type = VK_DESCRIPTOR_TYPE_SAMPLER;
+		poolSizes[1].descriptorCount = 1;
+		// sampler (for first pass)
+		poolSizes[2].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		poolSizes[2].descriptorCount = 2;
+		// image sampler (for second pass)
+		poolSizes[3].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		poolSizes[3].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
 		// Create info
 		VkDescriptorPoolCreateInfo poolInfo{};
@@ -743,14 +769,23 @@ private:
 		bufferInfo.offset = 0;
 		bufferInfo.range = sizeof(UniformBufferObject);
 
-		// TEXTURE IMAGE SAMPLER INFO
-		VkDescriptorImageInfo imageInfo{};
-		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		imageInfo.imageView = texture.getImageView();
-		imageInfo.sampler = texture.getSampler();
+		// TEXTURE SAMPLER INFO
+		VkDescriptorImageInfo samplerInfo{};
+		samplerInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		samplerInfo.sampler = textureManager.getSampler();
+
+		// COLOR TEXTURE INFO
+		VkDescriptorImageInfo colorTextureInfo{};
+		colorTextureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		colorTextureInfo.imageView = textureManager.getAlbedo().view;
+
+		// NORMAL TEXTURE INFO
+		VkDescriptorImageInfo normalTextureInfo{};
+		normalTextureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		normalTextureInfo.imageView = textureManager.getNormal().view;
 
 		// DESCRIPTOR WRITES
-		std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+		std::array<VkWriteDescriptorSet, 4> descriptorWrites{};
 
 		// buffer
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -763,14 +798,32 @@ private:
 		descriptorWrites[0].pImageInfo = nullptr; // Not used
 		descriptorWrites[0].pTexelBufferView = nullptr; // Not used
 
-		// image sampler
+		// texture sampler
 		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[1].dstSet = firstPassDescriptorSet;
 		descriptorWrites[1].dstBinding = 1;
 		descriptorWrites[1].dstArrayElement = 0;
-		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
 		descriptorWrites[1].descriptorCount = 1;
-		descriptorWrites[1].pImageInfo = &imageInfo;
+		descriptorWrites[1].pImageInfo = &samplerInfo;
+
+		// color texture
+		descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[2].dstSet = firstPassDescriptorSet;
+		descriptorWrites[2].dstBinding = 2;
+		descriptorWrites[2].dstArrayElement = 0;
+		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		descriptorWrites[2].descriptorCount = 1;
+		descriptorWrites[2].pImageInfo = &colorTextureInfo;
+
+		// normal texture
+		descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[3].dstSet = firstPassDescriptorSet;
+		descriptorWrites[3].dstBinding = 3;
+		descriptorWrites[3].dstArrayElement = 0;
+		descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		descriptorWrites[3].descriptorCount = 1;
+		descriptorWrites[3].pImageInfo = &normalTextureInfo;
 
 		// UPDATE
 		vkUpdateDescriptorSets(device.get(), static_cast<uint32_t>(descriptorWrites.size()),
@@ -804,8 +857,8 @@ private:
 			// TEXTURE IMAGE SAMPLER INFO
 			VkDescriptorImageInfo imageInfo{};
 			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			imageInfo.imageView = firstPassOutputImage.view;
-			imageInfo.sampler = firstPassOutputSampler;
+			imageInfo.imageView = firstPassOutputManager.getCustomTexture(0).view;
+			imageInfo.sampler = firstPassOutputManager.getSampler();
 
 			// DESCRIPTOR WRITES
 			VkWriteDescriptorSet descriptorWrite{};
@@ -970,8 +1023,9 @@ private:
 		// Swap chain objects
 		cleanupRenderImages();
 
-		// Texture
-		texture.cleanup();
+		// Textures
+		firstPassOutputManager.cleanup();
+		textureManager.cleanup();
 
 		// Uniform
 		uniformManager.cleanup();
@@ -1018,9 +1072,8 @@ private:
 		// depth resources
 		destroyImageObjects(device, depthImage);
 
-		// first pass output
-		vkDestroySampler(device.get(), firstPassOutputSampler, nullptr);
-		destroyImageObjects(device, firstPassOutputImage);
+		// first pass output image
+		firstPassOutputManager.destroyCustomTexture(0);
 
 		// color attachments
 		vkDestroyFramebuffer(device.get(), firstPassFramebuffer, nullptr);
