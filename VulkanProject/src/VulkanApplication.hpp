@@ -168,7 +168,7 @@ private:
 	std::vector<VkFence> inFlightFences;
 
 	// Resize handled manually
-	bool framebufferResized = false;
+	int windowResizedEvent = -1;
 
 	// Frame tracking
 	uint32_t currentFrame = 0;
@@ -200,7 +200,10 @@ private:
 
 		window.create("Vulkan Render Engine", WIDTH, HEIGHT);
 		addEventSubscriber(SDL_EVENT_WINDOW_RESIZED, [this](SDL_Event e) {
-			framebufferResized = true;
+			windowResizedEvent = e.type;
+			});
+		addEventSubscriber(SDL_EVENT_WINDOW_MINIMIZED, [this](SDL_Event e) {
+			windowResizedEvent = e.type;
 			});
 	}
 
@@ -415,10 +418,15 @@ private:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	void recreateRenderImages() {
-		VkExtent2D extent = {0, 0};
-		while(extent.width == 0 || extent.height == 0){
+
+		VkExtent2D extent = { 0,0 };
+		bool minimized = windowResizedEvent == SDL_EVENT_WINDOW_MINIMIZED;
+		SDL_Event sdl_event;
+		while (minimized || extent.width == 0 || extent.height == 0) {
+			SDL_PollEvent(&sdl_event);
 			extent = window.getFramebufferSize();
-			SDL_WaitEvent(NULL);
+			// Restore only counts if the window was minimized
+			minimized = minimized && (sdl_event.type != SDL_EVENT_WINDOW_RESTORED);
 		}
 
 		vkDeviceWaitIdle(device.get());
@@ -997,9 +1005,9 @@ private:
 
 		result = vkQueuePresentKHR(device.getPresentQueue(), &presentInfo);
 
-		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
-			framebufferResized = false;
+		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || windowResizedEvent != -1) {
 			recreateRenderImages();
+			windowResizedEvent = -1;
 		}
 		else if (result != VK_SUCCESS) {
 			throw std::runtime_error("failed to present swap chain image");
