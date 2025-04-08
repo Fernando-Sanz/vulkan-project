@@ -11,24 +11,34 @@ void Model::loadModel(Device device, CommandManager commandManager, std::string 
 	this->device = device;
 
 	//--------------------------------------------------------
-	// Elements loaded from obj file
-	tinyobj::attrib_t attrib;
-	std::vector<tinyobj::shape_t> shapes;
-	std::vector<tinyobj::material_t> materials; // unused
-	std::string warn, err;
+	// Load obj file
 
-	// Load the model
-	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, modelPath.c_str())) {
-		throw std::runtime_error(warn + err);
+	tinyobj::ObjReader reader;
+	tinyobj::ObjReaderConfig reader_config;
+
+	if (!reader.ParseFromFile(modelPath, reader_config)) {
+		if (!reader.Error().empty()) {
+			throw std::runtime_error(reader.Error());
+		}
 	}
 
-	//--------------------------------------------------------
-	// POPULLATE THE VERTICES
+	if (!reader.Warning().empty()) {
+		std::cout << "TinyObjLoader: " << reader.Warning();
+	}
 
+	auto& attrib = reader.GetAttrib();
+	auto& shapes = reader.GetShapes();
+
+	//--------------------------------------------------------
+	// Fill in the model with the loaded data
+	
 	std::unordered_map<Vertex, uint32_t> uniqueVertices{};
 
+	// SHAPES LOOP
 	for (const auto& shape : shapes) {
+		// FACES LOOP
 		for (const auto& index : shape.mesh.indices) {
+
 			Vertex vertex{};
 
 			//-------------------------
@@ -39,15 +49,25 @@ void Model::loadModel(Device device, CommandManager commandManager, std::string 
 				attrib.vertices[3 * index.vertex_index + 2]
 			};
 
-			// TEXCOORDS
-			//	the vertical component is flipped for correct visualization (OBJ to Vulkan conversion)
-			vertex.texCoord = {
-				attrib.texcoords[2 * index.texcoord_index + 0],
-				1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-			};
+			//-------------------------
+			// NORMAL
+			if (index.normal_index >= 0) {
+				vertex.normal = {
+					attrib.normals[3 * index.normal_index + 0],
+					attrib.normals[3 * index.normal_index + 1],
+					attrib.normals[3 * index.normal_index + 2]
+				};
+			}
 
-			// BASE COLOR
-			vertex.color = { 1.0f, 1.0f, 1.0f };
+			//-------------------------
+			// TEXTURE COORDINATES
+			if (index.texcoord_index >= 0) {
+				// flip vertical component for correct visualization (OBJ to Vulkan conversion)
+				vertex.texCoord = {
+					attrib.texcoords[2 * index.texcoord_index + 0],
+					1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+				};
+			}
 
 			//-------------------------
 			// check if the vertex already exists and store the index
