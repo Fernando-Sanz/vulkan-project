@@ -32,7 +32,7 @@ void Camera::updateMatrices() {
 
 void Camera::computeView() {
 	view = glm::lookAt(
-		transform.position, glm::vec3(0.0f), transform.up);
+		transform.position, transform.position + transform.lookAt, transform.up);
 }
 
 void Camera::computeProjection() {
