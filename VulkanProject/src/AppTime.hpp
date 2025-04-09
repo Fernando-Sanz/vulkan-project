@@ -9,8 +9,8 @@ class AppTime {
 public:
 
 	static float time() { return timeValue; }
-	static float deltaTime() { return deltaTimeValue; }
-	static float startTime() { return startTimeValue; }
+	static float deltaTime() { return parseToSeconds(deltaTimeValue); }
+	static float startTime() { return parseToSeconds(startTimeValue); }
 
 	static void updateDeltaTime();
 
@@ -22,4 +22,9 @@ private:
 	static float deltaTimeValue;
 
 	static timeStamp startTimeStamp;
+	static timeStamp lastTimeStamp;
+
+	inline static float parseToSeconds(float time) {
+		return time / 1000000000.0f;
+	}
 };

@@ -123,8 +123,10 @@ void Model::createModelBuffer(CommandManager commandManager, VkDeviceSize buffer
 }
 
 void Model::update() {
+	static float angle = 0.0f;
+	angle += AppTime::deltaTime() * glm::radians(90.0f);
 	model = glm::rotate(
-		glm::mat4(1.0f), AppTime::deltaTime() * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		glm::mat4(1.0f), angle * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 }
 
 void Model::cleanup() {
