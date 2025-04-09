@@ -33,6 +33,13 @@ void UniformManager::createBuffers(Device device, int count) {
 
 		vkMapMemory(device.get(), buffersMemory[i], 0, bufferSize, 0, &buffersMapped[i]);
 	}
+
+	bufferSize = sizeof(LightUBO);
+	device.createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		lightUBOBuffer, lightUBOMemory);
+
+	vkMapMemory(device.get(), lightUBOMemory, 0, bufferSize, 0, &lightUBOMapped);
 }
 
 void UniformManager::upateBuffer(uint32_t index, uint32_t screenWidth, uint32_t screenHeight, glm::mat4 model) {
@@ -46,18 +53,31 @@ void UniformManager::upateBuffer(uint32_t index, uint32_t screenWidth, uint32_t 
 	ubo.model = model;
 	//-------------------------
 	// VIEW
+	glm::vec3 cameraPos = glm::vec3(3.0f, 0.0f, 2.0f);
 	ubo.view = glm::lookAt(
-		glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		cameraPos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	//-------------------------
 	// PROJECTION
 	ubo.proj = glm::perspective(
 		glm::radians(45.0f), screenWidth / (float)screenHeight, 0.1f, 10.0f);
 	ubo.proj[1][1] *= -1; // non-OpenGL GLM usage adjustment
 
+	//-------------------------
+	// LIGHT VARIABLES
+	LightUBO fragUBO{};
+
+	// Light pos and dir in camera coordinates
+	glm::vec4 lightPos = ubo.view * glm::vec4(0.0f, 2.0f, 3.0f, 1.0f);
+	glm::vec4 lightDirection = ubo.view * glm::vec4(1.0f, -1.0f, 0.0f, 0.0f);
+	fragUBO.lightPos = glm::vec3(lightPos);
+	fragUBO.lightColor = glm::vec3(0.5f, 0.437f, 0.365f);
+	fragUBO.lightDirection = glm::vec3(lightDirection);
+
 	//--------------------------------------------------------
 	// UPDATE BUFFER
 
 	memcpy(buffersMapped[index], &ubo, sizeof(ubo));
+	memcpy(lightUBOMapped, &fragUBO, sizeof(LightUBO));
 }
 
 void UniformManager::cleanup() {
@@ -66,4 +86,6 @@ void UniformManager::cleanup() {
 		vkDestroyBuffer(device.get(), buffers[i], nullptr);
 		vkFreeMemory(device.get(), buffersMemory[i], nullptr);
 	}
+	vkDestroyBuffer(device.get(), lightUBOBuffer, nullptr);
+	vkFreeMemory(device.get(), lightUBOMemory, nullptr);
 }

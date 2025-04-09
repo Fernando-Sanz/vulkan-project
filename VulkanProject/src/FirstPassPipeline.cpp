@@ -147,9 +147,17 @@ void FirstPassPipeline::createDescriptorSetLayout(TextureManager textures) {
 	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
 	//---------------------
+	// ligth ubo binding
+	VkDescriptorSetLayoutBinding lightUboLayoutBinding{};
+	lightUboLayoutBinding.binding = 1;
+	lightUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	lightUboLayoutBinding.descriptorCount = 1;
+	lightUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	//---------------------
 	// sampler binding
 	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-	samplerLayoutBinding.binding = 1;
+	samplerLayoutBinding.binding = 2;
 	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
 	samplerLayoutBinding.descriptorCount = 1;
 	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -159,7 +167,7 @@ void FirstPassPipeline::createDescriptorSetLayout(TextureManager textures) {
 	// Texture bindings
 
 	std::vector<VkDescriptorSetLayoutBinding> textureBindings{};
-	uint32_t currentTextureBinding = 2;
+	uint32_t currentTextureBinding = 3;
 
 	if (textures.getTextureTypesUsed() & TEXTURE_TYPE_ALBEDO_BIT) {
 		textureBindings.push_back(getTextureDescriptorLayoutBinding(currentTextureBinding++));
@@ -178,7 +186,9 @@ void FirstPassPipeline::createDescriptorSetLayout(TextureManager textures) {
 
 	//----------------------------------------------------
 	// CREATE DESCRIPTOR SET
-	std::vector<VkDescriptorSetLayoutBinding> bindings = { uboLayoutBinding, samplerLayoutBinding };
+	std::vector<VkDescriptorSetLayoutBinding> bindings = {
+		uboLayoutBinding, lightUboLayoutBinding, samplerLayoutBinding
+	};
 	bindings.insert(bindings.end(), textureBindings.begin(), textureBindings.end());
 
 	VkDescriptorSetLayoutCreateInfo layoutInfo{};

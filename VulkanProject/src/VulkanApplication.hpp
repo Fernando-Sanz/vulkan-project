@@ -235,7 +235,7 @@ private:
 		model.loadModel(device, commandManager, params.modelPath);
 		postProcessingQuad.loadModel(device, commandManager, POST_PROCESSING_QUAD_PATH);
 
-		uniformManager.createBuffers(device, MAX_FRAMES_IN_FLIGHT);
+		uniformManager.createBuffers(device, 1);
 
 		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(), textureManager,
 			params.firstRenderPassVertShaderPath, params.firstRenderPassFragShaderPath);
@@ -728,12 +728,13 @@ private:
 	// DESCRIPTOR POOL AND DESCRIPTOR SETS CREATION
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	// TODO: parameterize the pool size
 	void createDescriptorPool() {
 		// Sizes
 		std::array<VkDescriptorPoolSize, 4> poolSizes{};
 		// uniform buffer (for first pass)
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		poolSizes[0].descriptorCount = 1;
+		poolSizes[0].descriptorCount = 2;
 		// sampler (for first pass)
 		poolSizes[1].type = VK_DESCRIPTOR_TYPE_SAMPLER;
 		poolSizes[1].descriptorCount = 1;
@@ -777,6 +778,12 @@ private:
 		bufferInfo.offset = 0;
 		bufferInfo.range = sizeof(UniformBufferObject);
 
+		// LIGHT UNIFORM BUFFER INFO
+		VkDescriptorBufferInfo lightBufferInfo{};
+		lightBufferInfo.buffer = uniformManager.getLightBuffer();
+		lightBufferInfo.offset = 0;
+		lightBufferInfo.range = sizeof(LightUBO);
+
 		// TEXTURE SAMPLER INFO
 		VkDescriptorImageInfo samplerInfo{};
 		samplerInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -793,7 +800,7 @@ private:
 		normalTextureInfo.imageView = textureManager.getNormal().view;
 
 		// DESCRIPTOR WRITES
-		std::array<VkWriteDescriptorSet, 4> descriptorWrites{};
+		std::array<VkWriteDescriptorSet, 5> descriptorWrites{};
 
 		// buffer
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -806,32 +813,41 @@ private:
 		descriptorWrites[0].pImageInfo = nullptr; // Not used
 		descriptorWrites[0].pTexelBufferView = nullptr; // Not used
 
-		// texture sampler
+		// light buffer
 		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[1].dstSet = firstPassDescriptorSet;
 		descriptorWrites[1].dstBinding = 1;
 		descriptorWrites[1].dstArrayElement = 0;
-		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		descriptorWrites[1].descriptorCount = 1;
-		descriptorWrites[1].pImageInfo = &samplerInfo;
+		descriptorWrites[1].pBufferInfo = &lightBufferInfo;
 
-		// color texture
+		// texture sampler
 		descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[2].dstSet = firstPassDescriptorSet;
 		descriptorWrites[2].dstBinding = 2;
 		descriptorWrites[2].dstArrayElement = 0;
-		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
 		descriptorWrites[2].descriptorCount = 1;
-		descriptorWrites[2].pImageInfo = &colorTextureInfo;
+		descriptorWrites[2].pImageInfo = &samplerInfo;
 
-		// normal texture
+		// color texture
 		descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[3].dstSet = firstPassDescriptorSet;
 		descriptorWrites[3].dstBinding = 3;
 		descriptorWrites[3].dstArrayElement = 0;
 		descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 		descriptorWrites[3].descriptorCount = 1;
-		descriptorWrites[3].pImageInfo = &normalTextureInfo;
+		descriptorWrites[3].pImageInfo = &colorTextureInfo;
+
+		// normal texture
+		descriptorWrites[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[4].dstSet = firstPassDescriptorSet;
+		descriptorWrites[4].dstBinding = 4;
+		descriptorWrites[4].dstArrayElement = 0;
+		descriptorWrites[4].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		descriptorWrites[4].descriptorCount = 1;
+		descriptorWrites[4].pImageInfo = &normalTextureInfo;
 
 		// UPDATE
 		vkUpdateDescriptorSets(device.get(), static_cast<uint32_t>(descriptorWrites.size()),
@@ -961,7 +977,7 @@ private:
 		// UPDATE
 		AppTime::updateDeltaTime();
 		model.update();
-		uniformManager.upateBuffer(currentFrame, swapChain.getExtent().width, swapChain.getExtent().height, model.getModelMatrix());
+		uniformManager.upateBuffer(0, swapChain.getExtent().width, swapChain.getExtent().height, model.getModelMatrix());
 
 		vkResetFences(device.get(), 1, &inFlightFences[currentFrame]);
 
