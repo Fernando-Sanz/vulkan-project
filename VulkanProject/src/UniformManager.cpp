@@ -42,7 +42,7 @@ void UniformManager::createBuffers(Device device, int count) {
 	vkMapMemory(device.get(), lightUBOMemory, 0, bufferSize, 0, &lightUBOMapped);
 }
 
-void UniformManager::upateBuffer(uint32_t index, uint32_t screenWidth, uint32_t screenHeight, glm::mat4 model) {
+void UniformManager::upateBuffer(uint32_t index, glm::mat4 model, Camera camera) {
 	//--------------------------------------------------------
 	// UNIFORM VALUES
 
@@ -52,15 +52,9 @@ void UniformManager::upateBuffer(uint32_t index, uint32_t screenWidth, uint32_t 
 	// MODEL
 	ubo.model = model;
 	//-------------------------
-	// VIEW
-	glm::vec3 cameraPos = glm::vec3(3.0f, 0.0f, 2.0f);
-	ubo.view = glm::lookAt(
-		cameraPos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	//-------------------------
-	// PROJECTION
-	ubo.proj = glm::perspective(
-		glm::radians(45.0f), screenWidth / (float)screenHeight, 0.1f, 10.0f);
-	ubo.proj[1][1] *= -1; // non-OpenGL GLM usage adjustment
+	// CAMERA VARIABLES
+	ubo.view = camera.getView();
+	ubo.proj = camera.getProjection();
 
 	//-------------------------
 	// LIGHT VARIABLES

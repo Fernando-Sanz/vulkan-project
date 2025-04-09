@@ -28,6 +28,7 @@
 #include "TextureManager.hpp"
 #include "AppTime.hpp"
 #include "eventManagement.hpp"
+#include "Camera.hpp"
 
 
 const uint32_t WIDTH = 800;
@@ -147,6 +148,9 @@ private:
 	// Commands
 	CommandManager commandManager;
 
+	// Camera
+	Camera camera;
+
 	// Texture
 	TextureManager textureManager;
 
@@ -230,6 +234,8 @@ private:
 		createDepthResources();
 		createFirstPassOutputResources();
 		
+		camera.init(swapChain);
+
 		createTextures(params);
 
 		model.loadModel(device, commandManager, params.modelPath);
@@ -970,7 +976,8 @@ private:
 		// UPDATE
 		AppTime::updateDeltaTime();
 		model.update();
-		uniformManager.upateBuffer(0, swapChain.getExtent().width, swapChain.getExtent().height, model.getModelMatrix());
+		camera.update();
+		uniformManager.upateBuffer(0, model.getModelMatrix(), camera);
 
 		vkResetFences(device.get(), 1, &inFlightFences[currentFrame]);
 

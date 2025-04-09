@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "Device.hpp"
+#include "Camera.hpp"
 
 
 // See alignment requirements in specification
@@ -40,7 +41,7 @@ public:
     void createBuffers(Device device, int count);
 
     // Update uniform values
-    void upateBuffer(uint32_t currentImage, uint32_t screenWidth, uint32_t screenHeight, glm::mat4 model);
+    void upateBuffer(uint32_t currentImage, glm::mat4 model, Camera camera);
 
     // Destroy Vulkan an other objects
     void cleanup();
