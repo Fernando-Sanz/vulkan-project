@@ -11,8 +11,7 @@ layout(set = 0, binding = 1) uniform LightUBO {
 } light;
 
 layout(set = 0, binding = 2) uniform sampler texSampler;
-layout(set = 0, binding = 3) uniform texture2D colorTex;
-layout(set = 0, binding = 4) uniform texture2D normalTex;
+layout(set = 0, binding = 3) uniform texture2D textures[2];
 
 layout(location = 0) out vec4 outColor;
 
@@ -21,7 +20,7 @@ float SHININESS = 20.0f;
 
 void main() {
 
-    vec3 color = texture(sampler2D(colorTex, texSampler), fragTexCoord).rgb;
+    vec3 color = texture(sampler2D(textures[0], texSampler), fragTexCoord).rgb;
     vec3 normal = normalize(fragNormal);
     vec3 lightDir = normalize(light.pos - fragPosition);
     vec3 viewDir = normalize(-fragPosition); // cameraPos - pos -> cameraPos = center of the space

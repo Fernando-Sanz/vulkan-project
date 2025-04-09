@@ -36,6 +36,7 @@ void TextureManager::addTexture(TextureType type, ImageObjects texture) {
 
 	// Store the type
 	usedTypes |= type;
+	textureCount++;
 }
 
 void TextureManager::createTexture(TextureType type, std::string texturePath) {
@@ -48,18 +49,23 @@ void TextureManager::createTexture(TextureType type, std::string texturePath) {
 	addTexture(type, newTexture);
 }
 
+void TextureManager::destroyTexture(ImageObjects texture) {
+	destroyImageObjects(device, texture);
+	textureCount--;
+}
+
 void TextureManager::destroyTexture(TextureType type) {
 	switch (type) {
 	case TEXTURE_TYPE_ALBEDO_BIT:
-		destroyImageObjects(device, albedo);
+		destroyTexture(albedo);
 		usedTypes -= TEXTURE_TYPE_ALBEDO_BIT;
 		break;
 	case TEXTURE_TYPE_SPECULAR_BIT:
-		destroyImageObjects(device, specular);
+		destroyTexture(specular);
 		usedTypes -= TEXTURE_TYPE_SPECULAR_BIT;
 		break;
 	case TEXTURE_TYPE_NORMAL_BIT:
-		destroyImageObjects(device, normal);
+		destroyTexture(normal);
 		usedTypes -= TEXTURE_TYPE_NORMAL_BIT;
 		break;
 	case TEXTURE_TYPE_CUSTOM_BIT:
@@ -72,7 +78,7 @@ void TextureManager::destroyTexture(TextureType type) {
 
 void TextureManager::destroyCustomTexture(size_t index) {
 	ImageObjects oldTexture = customTextures[index];
-	destroyImageObjects(device, oldTexture);
+	destroyTexture(customTextures[index]);
 	customTextures.erase(customTextures.begin() + index);
 
 	if (customTextures.size() == 0) usedTypes -= TEXTURE_TYPE_CUSTOM_BIT;
