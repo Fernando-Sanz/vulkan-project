@@ -26,6 +26,7 @@ set(SOURCES
     ${SOURCE_CODE_PATH}/eventManagement.cpp
     ${SOURCE_CODE_PATH}/FirstPassPipeline.cpp
     ${SOURCE_CODE_PATH}/imageUtils.cpp
+    ${SOURCE_CODE_PATH}/Light.cpp
     ${SOURCE_CODE_PATH}/Model.cpp
     ${SOURCE_CODE_PATH}/pipelineUtils.cpp
     ${SOURCE_CODE_PATH}/SecondPassPipeline.cpp

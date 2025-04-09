@@ -42,7 +42,7 @@ void UniformManager::createBuffers(Device device, int count) {
 	vkMapMemory(device.get(), lightUBOMemory, 0, bufferSize, 0, &lightUBOMapped);
 }
 
-void UniformManager::upateBuffer(uint32_t index, glm::mat4 model, Camera camera) {
+void UniformManager::upateBuffer(uint32_t index, glm::mat4 model, Camera camera, Light light) {
 	//--------------------------------------------------------
 	// UNIFORM VALUES
 
@@ -61,10 +61,10 @@ void UniformManager::upateBuffer(uint32_t index, glm::mat4 model, Camera camera)
 	LightUBO fragUBO{};
 
 	// Light pos and dir in camera coordinates
-	glm::vec4 lightPos = ubo.view * glm::vec4(0.0f, 2.0f, 3.0f, 1.0f);
-	glm::vec4 lightDirection = ubo.view * glm::vec4(1.0f, -1.0f, 0.0f, 0.0f);
+	glm::vec4 lightPos = ubo.view * glm::vec4(light.getPosition(), 0.0f);
+	glm::vec4 lightDirection = ubo.view * glm::vec4(light.getDirection(), 0.0f);
 	fragUBO.lightPos = glm::vec3(lightPos);
-	fragUBO.lightColor = glm::vec3(0.5f, 0.437f, 0.365f);
+	fragUBO.lightColor = light.getColor();
 	fragUBO.lightDirection = glm::vec3(lightDirection);
 
 	//--------------------------------------------------------

@@ -29,6 +29,7 @@
 #include "AppTime.hpp"
 #include "eventManagement.hpp"
 #include "Camera.hpp"
+#include "Light.hpp"
 
 
 const uint32_t WIDTH = 800;
@@ -148,8 +149,9 @@ private:
 	// Commands
 	CommandManager commandManager;
 
-	// Camera
+	// Camera and lights
 	Camera camera;
+	Light spotlight;
 
 	// Texture
 	TextureManager textureManager;
@@ -972,12 +974,11 @@ private:
 			throw std::runtime_error("failed to acquire swap chain image");
 		}
 
-		// TODO: change this way and use push constants
 		// UPDATE
 		AppTime::updateDeltaTime();
 		model.update();
 		camera.update();
-		uniformManager.upateBuffer(0, model.getModelMatrix(), camera);
+		uniformManager.upateBuffer(0, model.getModelMatrix(), camera, spotlight);
 
 		vkResetFences(device.get(), 1, &inFlightFences[currentFrame]);
 
