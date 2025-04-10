@@ -10,11 +10,9 @@
 
 // See alignment requirements in specification
 // (https://docs.vulkan.org/spec/latest/chapters/interfaces.html#interfaces-resources-layout)
-// TODO: improve organization: create Camera class
-// TODO: improve organization: give modelView and proj matrices (avoiding unnecessary operations in shader)
 struct UniformBufferObject {
-    alignas(16) glm::mat4 model;
-    alignas(16) glm::mat4 view;
+    alignas(16) glm::mat4 modelView;
+    alignas(16) glm::mat4 invTrans_modelView;
     alignas(16) glm::mat4 proj;
 };
 

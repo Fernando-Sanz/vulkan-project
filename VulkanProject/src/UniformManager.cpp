@@ -49,11 +49,13 @@ void UniformManager::upateBuffer(uint32_t index, glm::mat4 model, Camera camera,
 	UniformBufferObject ubo{};
 
 	//-------------------------
-	// MODEL
-	ubo.model = model;
+	// CAMERA VIEW
+	glm::mat4 view = camera.getView();
+
 	//-------------------------
-	// CAMERA VARIABLES
-	ubo.view = camera.getView();
+	// COMPUTE MATRICES
+	ubo.modelView = view * model;
+	ubo.invTrans_modelView = glm::inverse(glm::transpose(ubo.modelView));
 	ubo.proj = camera.getProjection();
 
 	//-------------------------
@@ -61,8 +63,8 @@ void UniformManager::upateBuffer(uint32_t index, glm::mat4 model, Camera camera,
 	LightUBO fragUBO{};
 
 	// Light pos and dir in camera coordinates
-	glm::vec4 lightPos = ubo.view * glm::vec4(light.getPosition(), 0.0f);
-	glm::vec4 lightDirection = ubo.view * glm::vec4(light.getDirection(), 0.0f);
+	glm::vec4 lightPos = view * glm::vec4(light.getPosition(), 1.0f);
+	glm::vec4 lightDirection = view * glm::vec4(light.getDirection(), 0.0f);
 	fragUBO.lightPos = glm::vec3(lightPos);
 	fragUBO.lightColor = light.getColor();
 	fragUBO.lightDirection = glm::vec3(lightDirection);

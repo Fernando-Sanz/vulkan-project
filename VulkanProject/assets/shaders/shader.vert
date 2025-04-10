@@ -1,8 +1,8 @@
 #version 450
 
 layout(binding = 0) uniform UniformBufferObject {
-    mat4 model;
-    mat4 view;
+    mat4 modelView;
+    mat4 invTrans_modelView;
     mat4 proj;
 } ubo;
 
@@ -15,9 +15,9 @@ layout(location = 1) out vec3 fragNormal;
 layout(location = 2) out vec2 fragTexCoord;
 
 void main() {
-    vec4 positionTemp = ubo.view * ubo.model * vec4(inPosition, 1.0);
+    vec4 positionTemp = ubo.modelView * vec4(inPosition, 1.0);
     fragPosition = positionTemp.xyz;
-    fragNormal = inNormal;
+    fragNormal = (ubo.invTrans_modelView * vec4(inNormal, 0.0f)).xyz;
     fragTexCoord = inTexCoord;
     gl_Position = ubo.proj * positionTemp;
 }
