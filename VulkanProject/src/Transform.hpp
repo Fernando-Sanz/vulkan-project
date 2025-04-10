@@ -8,4 +8,18 @@ struct Transform {
 	glm::vec3 lookAt;
 	glm::vec3 up;
 	glm::vec3 right;
+
+	static const glm::vec3 RIGHT;
+	static const glm::vec3 FORWARD;
+	static const glm::vec3 UP;
+
+	Transform() :
+		position(glm::vec3(0.0f)),
+		lookAt(glm::vec3(0.0f, 1.0f, 0.0f)),
+		up(glm::vec3(0.0f, 0.0f, 1.0f)),
+		right(glm::cross(lookAt, up))
+	{}
+
+	void changeOrientation(glm::mat3 transformation);
+	void changeOrientation(glm::vec3 newLookAt);
 };
