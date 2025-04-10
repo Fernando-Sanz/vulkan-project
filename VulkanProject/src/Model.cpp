@@ -3,8 +3,6 @@
 #include <iostream>
 #include <tiny_obj_loader.h>
 
-#include "AppTime.hpp"
-
 
 void Model::loadModel(Device device, CommandManager commandManager, std::string modelPath) {
 
@@ -88,6 +86,15 @@ void Model::loadModel(Device device, CommandManager commandManager, std::string 
 		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertexBuffer, vertexBufferMemory);
 	createModelBuffer(commandManager, sizeof(indices[0]) * indices.size(), indices.data(),
 		VK_BUFFER_USAGE_INDEX_BUFFER_BIT, indexBuffer, indexBufferMemory);
+
+	//--------------------------------------------------------
+	// TRANSFORM AND MODEL
+	// the up vector is in the Z axis
+	model = glm::mat4(1.0f);
+	model[0] = glm::vec4(transform.right, 0.0f);
+	model[1] = glm::vec4(transform.lookAt, 0.0f);
+	model[2] = glm::vec4(transform.up, 0.0f);
+	model[3] = glm::vec4(transform.position, 1.0f);
 }
 
 // TODO: allocate more than one resource from a single call
@@ -123,10 +130,7 @@ void Model::createModelBuffer(CommandManager commandManager, VkDeviceSize buffer
 }
 
 void Model::update() {
-	static float angle = 0.0f;
-	angle += AppTime::deltaTime() * glm::radians(90.0f);
-	model = glm::rotate(
-		glm::mat4(1.0f), angle * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+
 }
 
 void Model::cleanup() {

@@ -22,24 +22,36 @@ void Camera::init(SwapChain swapChain) {
 }
 
 void Camera::update() {
-
 	updateMatrices();
 }
 
 void Camera::keyboardReaction(SDL_Event event) {
 	float speed = 0.25f;
+	float angleSpeed = 0.25f;
 	switch (event.key.key) {
 	case SDLK_W:
 		transform.position += transform.lookAt * speed;
 		break;
-	case SDLK_A:
-		transform.position += -transform.right * speed;
-		break;
 	case SDLK_S:
-		transform.position += -transform.lookAt * speed;
+		transform.position -= transform.lookAt * speed;
+		break;
+	case SDLK_A:
+		transform.position -= transform.right * speed;
 		break;
 	case SDLK_D:
 		transform.position += transform.right * speed;
+		break;
+	case SDLK_UP:
+		transform.changeOrientation(glm::rotate(glm::mat4(1.0f), angleSpeed, transform.right));
+		break;
+	case SDLK_DOWN:
+		transform.changeOrientation(glm::rotate(glm::mat4(1.0f), -angleSpeed, transform.right));
+		break;
+	case SDLK_LEFT:
+		transform.changeOrientation(glm::rotate(glm::mat4(1.0f), angleSpeed, Transform::UP));
+		break;
+	case SDLK_RIGHT:
+		transform.changeOrientation(glm::rotate(glm::mat4(1.0f), -angleSpeed, Transform::UP));
 		break;
 	}
 }
