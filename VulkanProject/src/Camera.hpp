@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <SDL3/SDL.h>
 
 #include "Transform.hpp"
 #include "SwapChain.hpp"
@@ -16,6 +17,7 @@ public:
 	void init(SwapChain swapChain);
 
 	void update();
+	void keyboardReaction(SDL_Event event);
 
 private:
 	SwapChain swapChain;

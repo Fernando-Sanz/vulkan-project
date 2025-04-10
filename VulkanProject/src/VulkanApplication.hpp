@@ -236,14 +236,7 @@ private:
 		createDepthResources();
 		createFirstPassOutputResources();
 		
-		camera.init(swapChain);
-
-		createTextures(params);
-
-		model.loadModel(device, commandManager, params.modelPath);
-		postProcessingQuad.loadModel(device, commandManager, POST_PROCESSING_QUAD_PATH);
-
-		uniformManager.createBuffers(device, 1);
+		createWorldObjects(params);
 
 		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(), textureManager,
 			params.firstRenderPassVertShaderPath, params.firstRenderPassFragShaderPath);
@@ -516,6 +509,25 @@ private:
 		// CREATE THE TEXTURE
 		firstPassOutputManager.create(device, commandManager);
 		firstPassOutputManager.addTexture(TEXTURE_TYPE_CUSTOM_BIT, texture);
+	}
+
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// WORLD OBJECTS
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	void createWorldObjects(VulkanAppParams params) {
+		camera.init(swapChain);
+
+		createTextures(params);
+
+		model.loadModel(device, commandManager, params.modelPath);
+		postProcessingQuad.loadModel(device, commandManager, POST_PROCESSING_QUAD_PATH);
+
+		uniformManager.createBuffers(device, 1);
+
+		// KEYBOARD EVENTS
+		addEventSubscriber(SDL_EVENT_KEY_DOWN, [this](SDL_Event e) {keyboardEventCallback(e); });
 	}
 
 
@@ -939,11 +951,28 @@ private:
 			// PROCESS INPUT
 			pollEvents();
 
+			// UPDATE
+			updateWorld();
+
 			// DRAW
 			drawFrame();
 		}
 
 		vkDeviceWaitIdle(device.get());
+	}
+
+	void updateWorld() {
+		AppTime::updateDeltaTime();
+
+		camera.update();
+		model.update();
+		spotlight.update();
+	}
+
+	void keyboardEventCallback(SDL_Event event) {
+		// TODO: create an interface to handle all keyboard event reactions
+		camera.keyboardReaction(event);
+		spotlight.keyboardReaction(event);
 	}
 
 	void drawFrame() {
@@ -974,10 +1003,7 @@ private:
 			throw std::runtime_error("failed to acquire swap chain image");
 		}
 
-		// UPDATE
-		AppTime::updateDeltaTime();
-		model.update();
-		camera.update();
+		// UPDATE UNIFORMS
 		uniformManager.upateBuffer(0, model.getModelMatrix(), camera, spotlight);
 
 		vkResetFences(device.get(), 1, &inFlightFences[currentFrame]);
