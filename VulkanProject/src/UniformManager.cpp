@@ -33,31 +33,47 @@ void UniformManager::createBuffers(Device device, int count) {
 
 		vkMapMemory(device.get(), buffersMemory[i], 0, bufferSize, 0, &buffersMapped[i]);
 	}
+
+	bufferSize = sizeof(LightUBO);
+	device.createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		lightUBOBuffer, lightUBOMemory);
+
+	vkMapMemory(device.get(), lightUBOMemory, 0, bufferSize, 0, &lightUBOMapped);
 }
 
-void UniformManager::upateBuffer(uint32_t index, uint32_t screenWidth, uint32_t screenHeight, glm::mat4 model) {
+void UniformManager::upateBuffer(uint32_t index, glm::mat4 model, Camera camera, Light light) {
 	//--------------------------------------------------------
 	// UNIFORM VALUES
 
 	UniformBufferObject ubo{};
 
 	//-------------------------
-	// MODEL
-	ubo.model = model;
+	// CAMERA VIEW
+	glm::mat4 view = camera.getView();
+
 	//-------------------------
-	// VIEW
-	ubo.view = glm::lookAt(
-		glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	// COMPUTE MATRICES
+	ubo.modelView = view * model;
+	ubo.invTrans_modelView = glm::inverse(glm::transpose(ubo.modelView));
+	ubo.proj = camera.getProjection();
+
 	//-------------------------
-	// PROJECTION
-	ubo.proj = glm::perspective(
-		glm::radians(45.0f), screenWidth / (float)screenHeight, 0.1f, 10.0f);
-	ubo.proj[1][1] *= -1; // non-OpenGL GLM usage adjustment
+	// LIGHT VARIABLES
+	LightUBO lightUBO{};
+
+	// Light pos and dir in camera coordinates
+	glm::vec4 lightPos = view * glm::vec4(light.getPosition(), 1.0f);
+	glm::vec4 lightDirection = view * glm::vec4(light.getDirection(), 0.0f);
+	lightUBO.pos = glm::vec3(lightPos);
+	lightUBO.color = light.getColor();
+	lightUBO.direction = glm::vec3(lightDirection);
 
 	//--------------------------------------------------------
 	// UPDATE BUFFER
 
 	memcpy(buffersMapped[index], &ubo, sizeof(ubo));
+	memcpy(lightUBOMapped, &lightUBO, sizeof(LightUBO));
 }
 
 void UniformManager::cleanup() {
@@ -66,4 +82,6 @@ void UniformManager::cleanup() {
 		vkDestroyBuffer(device.get(), buffers[i], nullptr);
 		vkFreeMemory(device.get(), buffersMemory[i], nullptr);
 	}
+	vkDestroyBuffer(device.get(), lightUBOBuffer, nullptr);
+	vkFreeMemory(device.get(), lightUBOMemory, nullptr);
 }

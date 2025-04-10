@@ -20,11 +20,13 @@ endif()
 set(SOURCES
     ${TEST_FILES}
     ${SOURCE_CODE_PATH}/AppTime.cpp
+    ${SOURCE_CODE_PATH}/Camera.cpp
     ${SOURCE_CODE_PATH}/CommandManager.cpp
     ${SOURCE_CODE_PATH}/Device.cpp
     ${SOURCE_CODE_PATH}/eventManagement.cpp
     ${SOURCE_CODE_PATH}/FirstPassPipeline.cpp
     ${SOURCE_CODE_PATH}/imageUtils.cpp
+    ${SOURCE_CODE_PATH}/Light.cpp
     ${SOURCE_CODE_PATH}/Model.cpp
     ${SOURCE_CODE_PATH}/pipelineUtils.cpp
     ${SOURCE_CODE_PATH}/SecondPassPipeline.cpp

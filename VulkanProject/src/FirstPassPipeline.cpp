@@ -11,18 +11,6 @@
 #include "Vertex.hpp"
 
 
-namespace {
-	VkDescriptorSetLayoutBinding getTextureDescriptorLayoutBinding(uint32_t binding) {
-		VkDescriptorSetLayoutBinding textureLayoutBinding{};
-		textureLayoutBinding.binding = binding;
-		textureLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-		textureLayoutBinding.descriptorCount = 1;
-		textureLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-		return textureLayoutBinding;
-	}
-}
-
 void FirstPassPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat, TextureManager textures,
 	std::string vertShaderLocation, std::string fragShaderLocation) {
 
@@ -138,48 +126,46 @@ void FirstPassPipeline::createDescriptorSetLayout(TextureManager textures) {
 	//----------------------------------------------------
 	// BINDINGS
 
+	uint32_t binding = 0;
+
 	//---------------------
 	// ubo binding
 	VkDescriptorSetLayoutBinding uboLayoutBinding{};
-	uboLayoutBinding.binding = 0;
+	uboLayoutBinding.binding = binding++;
 	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	uboLayoutBinding.descriptorCount = 1;
 	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
 	//---------------------
+	// ligth ubo binding
+	VkDescriptorSetLayoutBinding lightUboLayoutBinding{};
+	lightUboLayoutBinding.binding = binding++;
+	lightUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	lightUboLayoutBinding.descriptorCount = 1;
+	lightUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	//---------------------
 	// sampler binding
 	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-	samplerLayoutBinding.binding = 1;
+	samplerLayoutBinding.binding = binding++;
 	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
 	samplerLayoutBinding.descriptorCount = 1;
 	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 	samplerLayoutBinding.pImmutableSamplers = nullptr; // Optional
 
 	//---------------------
-	// Texture bindings
-
-	std::vector<VkDescriptorSetLayoutBinding> textureBindings{};
-	uint32_t currentTextureBinding = 2;
-
-	if (textures.getTextureTypesUsed() & TEXTURE_TYPE_ALBEDO_BIT) {
-		textureBindings.push_back(getTextureDescriptorLayoutBinding(currentTextureBinding++));
-	}
-	if (textures.getTextureTypesUsed() & TEXTURE_TYPE_SPECULAR_BIT) {
-		textureBindings.push_back(getTextureDescriptorLayoutBinding(currentTextureBinding++));
-	}
-	if (textures.getTextureTypesUsed() & TEXTURE_TYPE_NORMAL_BIT) {
-		textureBindings.push_back(getTextureDescriptorLayoutBinding(currentTextureBinding++));
-	}
-	if (textures.getTextureTypesUsed() & TEXTURE_TYPE_CUSTOM_BIT) {
-		for (size_t i = 0; i < textures.getCustomTextures().size(); i++) {
-			textureBindings.push_back(getTextureDescriptorLayoutBinding(currentTextureBinding++));
-		}
-	}
+	// textures binding
+	VkDescriptorSetLayoutBinding texturesLayoutBinding{};
+	texturesLayoutBinding.binding = binding;
+	texturesLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+	texturesLayoutBinding.descriptorCount = textures.getTextureCount();
+	texturesLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
 	//----------------------------------------------------
 	// CREATE DESCRIPTOR SET
-	std::vector<VkDescriptorSetLayoutBinding> bindings = { uboLayoutBinding, samplerLayoutBinding };
-	bindings.insert(bindings.end(), textureBindings.begin(), textureBindings.end());
+	std::vector<VkDescriptorSetLayoutBinding> bindings = {
+		uboLayoutBinding, lightUboLayoutBinding, samplerLayoutBinding, texturesLayoutBinding
+	};
 
 	VkDescriptorSetLayoutCreateInfo layoutInfo{};
 	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;

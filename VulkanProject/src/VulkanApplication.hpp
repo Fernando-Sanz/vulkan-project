@@ -28,6 +28,8 @@
 #include "TextureManager.hpp"
 #include "AppTime.hpp"
 #include "eventManagement.hpp"
+#include "Camera.hpp"
+#include "Light.hpp"
 
 
 const uint32_t WIDTH = 800;
@@ -147,6 +149,10 @@ private:
 	// Commands
 	CommandManager commandManager;
 
+	// Camera and lights
+	Camera camera;
+	Light spotlight;
+
 	// Texture
 	TextureManager textureManager;
 
@@ -230,12 +236,14 @@ private:
 		createDepthResources();
 		createFirstPassOutputResources();
 		
+		camera.init(swapChain);
+
 		createTextures(params);
 
 		model.loadModel(device, commandManager, params.modelPath);
 		postProcessingQuad.loadModel(device, commandManager, POST_PROCESSING_QUAD_PATH);
 
-		uniformManager.createBuffers(device, MAX_FRAMES_IN_FLIGHT);
+		uniformManager.createBuffers(device, 1);
 
 		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(), textureManager,
 			params.firstRenderPassVertShaderPath, params.firstRenderPassFragShaderPath);
@@ -728,12 +736,13 @@ private:
 	// DESCRIPTOR POOL AND DESCRIPTOR SETS CREATION
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	// TODO: parameterize the pool size
 	void createDescriptorPool() {
 		// Sizes
 		std::array<VkDescriptorPoolSize, 4> poolSizes{};
 		// uniform buffer (for first pass)
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		poolSizes[0].descriptorCount = 1;
+		poolSizes[0].descriptorCount = 2;
 		// sampler (for first pass)
 		poolSizes[1].type = VK_DESCRIPTOR_TYPE_SAMPLER;
 		poolSizes[1].descriptorCount = 1;
@@ -777,20 +786,28 @@ private:
 		bufferInfo.offset = 0;
 		bufferInfo.range = sizeof(UniformBufferObject);
 
+		// LIGHT UNIFORM BUFFER INFO
+		VkDescriptorBufferInfo lightBufferInfo{};
+		lightBufferInfo.buffer = uniformManager.getLightBuffer();
+		lightBufferInfo.offset = 0;
+		lightBufferInfo.range = sizeof(LightUBO);
+
 		// TEXTURE SAMPLER INFO
 		VkDescriptorImageInfo samplerInfo{};
 		samplerInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		samplerInfo.sampler = textureManager.getSampler();
 
-		// COLOR TEXTURE INFO
-		VkDescriptorImageInfo colorTextureInfo{};
-		colorTextureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		colorTextureInfo.imageView = textureManager.getAlbedo().view;
+		// TEXTURES
+		std::vector<VkDescriptorImageInfo> textureInfos(
+			textureManager.getTextureCount(), VkDescriptorImageInfo{});
 
-		// NORMAL TEXTURE INFO
-		VkDescriptorImageInfo normalTextureInfo{};
-		normalTextureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		normalTextureInfo.imageView = textureManager.getNormal().view;
+		// color
+		textureInfos[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		textureInfos[0].imageView = textureManager.getAlbedo().view;
+
+		// normal
+		textureInfos[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		textureInfos[1].imageView = textureManager.getNormal().view;
 
 		// DESCRIPTOR WRITES
 		std::array<VkWriteDescriptorSet, 4> descriptorWrites{};
@@ -806,32 +823,32 @@ private:
 		descriptorWrites[0].pImageInfo = nullptr; // Not used
 		descriptorWrites[0].pTexelBufferView = nullptr; // Not used
 
-		// texture sampler
+		// light buffer
 		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[1].dstSet = firstPassDescriptorSet;
 		descriptorWrites[1].dstBinding = 1;
 		descriptorWrites[1].dstArrayElement = 0;
-		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		descriptorWrites[1].descriptorCount = 1;
-		descriptorWrites[1].pImageInfo = &samplerInfo;
+		descriptorWrites[1].pBufferInfo = &lightBufferInfo;
 
-		// color texture
+		// texture sampler
 		descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[2].dstSet = firstPassDescriptorSet;
 		descriptorWrites[2].dstBinding = 2;
 		descriptorWrites[2].dstArrayElement = 0;
-		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
 		descriptorWrites[2].descriptorCount = 1;
-		descriptorWrites[2].pImageInfo = &colorTextureInfo;
+		descriptorWrites[2].pImageInfo = &samplerInfo;
 
-		// normal texture
+		// textures
 		descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[3].dstSet = firstPassDescriptorSet;
 		descriptorWrites[3].dstBinding = 3;
 		descriptorWrites[3].dstArrayElement = 0;
 		descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-		descriptorWrites[3].descriptorCount = 1;
-		descriptorWrites[3].pImageInfo = &normalTextureInfo;
+		descriptorWrites[3].descriptorCount = 2;
+		descriptorWrites[3].pImageInfo = textureInfos.data();
 
 		// UPDATE
 		vkUpdateDescriptorSets(device.get(), static_cast<uint32_t>(descriptorWrites.size()),
@@ -957,11 +974,11 @@ private:
 			throw std::runtime_error("failed to acquire swap chain image");
 		}
 
-		// TODO: change this way and use push constants
 		// UPDATE
 		AppTime::updateDeltaTime();
 		model.update();
-		uniformManager.upateBuffer(currentFrame, swapChain.getExtent().width, swapChain.getExtent().height, model.getModelMatrix());
+		camera.update();
+		uniformManager.upateBuffer(0, model.getModelMatrix(), camera, spotlight);
 
 		vkResetFences(device.get(), 1, &inFlightFences[currentFrame]);
 

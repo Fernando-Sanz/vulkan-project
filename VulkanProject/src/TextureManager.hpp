@@ -31,6 +31,8 @@ public:
 	ImageObjects getCustomTexture(size_t index) { return customTextures[index]; }
 	std::vector<ImageObjects> getCustomTextures() { return customTextures; }
 
+	uint32_t getTextureCount() { return textureCount; }
+
 	VkSampler getSampler() { return sampler; }
 
 
@@ -63,6 +65,7 @@ private:
 	Device device;
 	CommandManager commandManager;
 
+	uint32_t textureCount = 0;
 	int usedTypes = 0;
 	ImageObjects albedo;
 	ImageObjects specular;
@@ -79,6 +82,9 @@ private:
 	
 	// Create sampler for the textures
 	void createSampler(uint32_t mipLevels);
+
+	// Destroy the texture
+	void destroyTexture(ImageObjects texture);
 };
 
 
