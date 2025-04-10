@@ -16,11 +16,10 @@ struct UniformBufferObject {
     alignas(16) glm::mat4 proj;
 };
 
-// TODO: improve organization: create Light class
 struct LightUBO {
-    alignas(16) glm::vec3 lightPos;
-    alignas(16) glm::vec3 lightColor;
-    alignas(16) glm::vec3 lightDirection;
+    alignas(16) glm::vec3 pos;
+    alignas(16) glm::vec3 color;
+    alignas(16) glm::vec3 direction;
 };
 
 

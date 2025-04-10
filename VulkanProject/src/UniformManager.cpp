@@ -60,20 +60,20 @@ void UniformManager::upateBuffer(uint32_t index, glm::mat4 model, Camera camera,
 
 	//-------------------------
 	// LIGHT VARIABLES
-	LightUBO fragUBO{};
+	LightUBO lightUBO{};
 
 	// Light pos and dir in camera coordinates
 	glm::vec4 lightPos = view * glm::vec4(light.getPosition(), 1.0f);
 	glm::vec4 lightDirection = view * glm::vec4(light.getDirection(), 0.0f);
-	fragUBO.lightPos = glm::vec3(lightPos);
-	fragUBO.lightColor = light.getColor();
-	fragUBO.lightDirection = glm::vec3(lightDirection);
+	lightUBO.pos = glm::vec3(lightPos);
+	lightUBO.color = light.getColor();
+	lightUBO.direction = glm::vec3(lightDirection);
 
 	//--------------------------------------------------------
 	// UPDATE BUFFER
 
 	memcpy(buffersMapped[index], &ubo, sizeof(ubo));
-	memcpy(lightUBOMapped, &fragUBO, sizeof(LightUBO));
+	memcpy(lightUBOMapped, &lightUBO, sizeof(LightUBO));
 }
 
 void UniformManager::cleanup() {
