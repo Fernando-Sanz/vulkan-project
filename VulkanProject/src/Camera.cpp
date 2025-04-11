@@ -75,6 +75,7 @@ void Camera::keyboardReaction(SDL_Event event) {
 		movingDirection = glm::normalize(movingDirection);
 }
 
+// TODO: cap the angle (do not allow the 180 degrees rotation)
 void Camera::mouseReaction(SDL_Event event) {
 	SDL_MouseMotionEvent mouse = event.motion;
 	

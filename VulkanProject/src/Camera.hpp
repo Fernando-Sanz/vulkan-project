@@ -42,6 +42,6 @@ private:
 	MovementState moving;
 	glm::vec3 movingDirection = glm::vec3(0.0f);
 	float speed = 1.5f;
-	float angleSpeed = glm::radians(90.0f);
-	float sensitivity = 5.0f;
+	float angleSpeed = glm::radians(10.0f);
+	float sensitivity = 3.0f;
 };

@@ -14,6 +14,7 @@
 //#include <cstdint> // uint32_t
 #include <limits> // std::numeric_limits
 #include <fstream>
+#include <chrono>
 
 #include "Window.hpp"
 #include "Device.hpp"
@@ -34,6 +35,9 @@
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
+
+const uint32_t FPS = 144;
+const uint32_t UPDATE_RATE = 120;
 
 const std::string POST_PROCESSING_QUAD_PATH = "C:/development/cpp/VulkanProject/assets/models/post_processing/post_processing_quad.obj";
 
@@ -954,15 +958,42 @@ private:
 
 	void mainLoop() {
 
+		// TIME MANAGEMENT
+		const auto MIN_TIME_BETWEEN_FRAMES = std::chrono::nanoseconds(1000000000/FPS);
+		const auto MIN_TIME_BETWEEN_UPDATES = std::chrono::nanoseconds(1000000000/UPDATE_RATE);
+		auto timeSinceLastFrame = std::chrono::nanoseconds(0);
+		auto timeSinceLastUpdate = std::chrono::nanoseconds(0);
+		auto lastTime = std::chrono::high_resolution_clock::now();
+
 		while (!window.shouldClose()) {
-			// PROCESS INPUT
-			pollEvents();
 
-			// UPDATE
-			updateWorld();
+			// UPDATE TIMES
+			auto currentTime = std::chrono::high_resolution_clock::now();
+			auto deltaTime = std::chrono::duration_cast<std::chrono::nanoseconds>(currentTime - lastTime);
+			timeSinceLastFrame += deltaTime;
+			timeSinceLastUpdate += deltaTime;
+			lastTime = currentTime;
 
-			// DRAW
-			drawFrame();
+			// GAME LOOP
+			if (timeSinceLastFrame >= MIN_TIME_BETWEEN_FRAMES) {
+
+				// PROCESS INPUT
+				pollEvents();
+
+				// UPDATE
+				while (timeSinceLastUpdate >= MIN_TIME_BETWEEN_UPDATES) {
+					updateWorld();
+					timeSinceLastUpdate -= MIN_TIME_BETWEEN_UPDATES;
+				}
+
+				// DRAW
+				drawFrame();
+
+				timeSinceLastFrame -= MIN_TIME_BETWEEN_FRAMES;
+			}
+
+			// CPU IDLE TIME
+
 		}
 
 		vkDeviceWaitIdle(device.get());
