@@ -441,6 +441,8 @@ private:
 		configureSecondPassDescriptorSets();
 		createSwapChainFramebuffers();
 		createFirstPassFramebuffer();
+
+		camera.updateProjection(swapChain.getExtent());
 	}
 
 
@@ -517,7 +519,7 @@ private:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	void createWorldObjects(VulkanAppParams params) {
-		camera.init(swapChain);
+		camera.init(swapChain.getExtent());
 
 		createTextures(params);
 

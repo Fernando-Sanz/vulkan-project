@@ -18,16 +18,15 @@ Camera::Camera() {
 	projection = glm::mat4();
 }
 
-void Camera::init(SwapChain swapChain) {
-	this->swapChain = swapChain;
-	updateMatrices();
+void Camera::init(VkExtent2D extent) {
+	computeView();
+	updateProjection(extent);
 }
 
-#include <iostream>
 void Camera::update() {
 	transform.position += movingDirection * speed * AppTime::deltaTime();
 	transform.changeOrientation(rotation);
-	updateMatrices();
+	computeView();
 }
 
 void Camera::keyboardReaction(SDL_Event event) {
@@ -113,18 +112,13 @@ void Camera::keyboardReaction(SDL_Event event) {
 	rotation = glm::mat3(rot);
 }
 
-void Camera::updateMatrices() {
-	computeView();
-	computeProjection();
-}
-
 void Camera::computeView() {
 	view = glm::lookAt(
 		transform.position, transform.position + transform.lookAt, transform.up);
 }
 
 void Camera::computeProjection() {
-	float aspectRatio = swapChain.getExtent().width / (float)swapChain.getExtent().height;
+	float aspectRatio = extent.width / (float)extent.height;
 	projection = glm::perspective(
 		glm::radians(45.0f), aspectRatio, 0.1f, 10.0f);
 	projection[1][1] *= -1; // non-OpenGL GLM usage adjustment

@@ -26,15 +26,17 @@ public:
 	glm::mat4 getView() { return view; }
 	glm::mat4 getProjection() { return projection; }
 
+	void updateProjection(VkExtent2D extent) { this->extent = extent; computeProjection(); }
+
 	Camera();
 
-	void init(SwapChain swapChain);
+	void init(VkExtent2D extent);
 
 	void update();
 	void keyboardReaction(SDL_Event event);
 
 private:
-	SwapChain swapChain;
+	VkExtent2D extent;
 
 	Transform transform;
 	glm::mat4 view;
