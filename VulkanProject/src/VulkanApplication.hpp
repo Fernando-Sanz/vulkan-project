@@ -528,6 +528,7 @@ private:
 
 		// KEYBOARD EVENTS
 		addEventSubscriber(SDL_EVENT_KEY_DOWN, [this](SDL_Event e) {keyboardEventCallback(e); });
+		addEventSubscriber(SDL_EVENT_KEY_UP, [this](SDL_Event e) {keyboardEventCallback(e); });
 	}
 
 

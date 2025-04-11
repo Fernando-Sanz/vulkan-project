@@ -7,6 +7,20 @@
 #include "SwapChain.hpp"
 
 
+struct MovementState {
+	bool forward = 0;
+	bool backward = 0;
+	bool toRight = 0;
+	bool toLeft = 0;
+};
+
+struct RotationState {
+	bool up = 0;
+	bool down = 0;
+	bool toRight = 0;
+	bool toLeft = 0;
+};
+
 class Camera{
 public:
 	glm::mat4 getView() { return view; }
@@ -30,4 +44,10 @@ private:
 	void computeProjection();
 	void updateMatrices();
 
+	MovementState moving;
+	RotationState rotating;
+	glm::vec3 movingDirection = glm::vec3(0.0f);
+	glm::mat3 rotation = glm::mat3(1.0f);
+	float speed = 1.5f;
+	float angleSpeed = 90.0f;
 };
