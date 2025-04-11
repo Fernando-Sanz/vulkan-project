@@ -25,7 +25,6 @@ void Camera::init(VkExtent2D extent) {
 
 void Camera::update() {
 	transform.position += movingDirection * speed * AppTime::deltaTime();
-	transform.changeOrientation(rotation);
 	computeView();
 }
 
@@ -34,11 +33,6 @@ void Camera::keyboardReaction(SDL_Event event) {
 	float yFactor = glm::dot(transform.lookAt, Transform::FORWARD);
 	glm::vec3 forwardDirection = xFactor * Transform::RIGHT + yFactor * Transform::FORWARD;
 	forwardDirection = glm::normalize(forwardDirection);
-
-	xFactor = glm::dot(transform.right, Transform::RIGHT);
-	yFactor = glm::dot(transform.right, Transform::FORWARD);
-	glm::vec3 rightDirection = xFactor * Transform::RIGHT + yFactor * Transform::FORWARD;
-	rightDirection = glm::normalize(rightDirection);
 
 	if (event.type == SDL_EVENT_KEY_DOWN) {
 		switch (event.key.key) {
@@ -53,18 +47,6 @@ void Camera::keyboardReaction(SDL_Event event) {
 			break;
 		case SDLK_D:
 			moving.toRight = 1;
-			break;
-		case SDLK_UP:
-			rotating.up = 1;
-			break;
-		case SDLK_DOWN:
-			rotating.down = 1;
-			break;
-		case SDLK_LEFT:
-			rotating.toLeft = 1;
-			break;
-		case SDLK_RIGHT:
-			rotating.toRight = 1;
 			break;
 		}
 	}
@@ -82,18 +64,6 @@ void Camera::keyboardReaction(SDL_Event event) {
 		case SDLK_D:
 			moving.toRight = 0;
 			break;
-		case SDLK_UP:
-			rotating.up = 0;
-			break;
-		case SDLK_DOWN:
-			rotating.down = 0;
-			break;
-		case SDLK_LEFT:
-			rotating.toLeft = 0;
-			break;
-		case SDLK_RIGHT:
-			rotating.toRight = 0;
-			break;
 		}
 	}
 	movingDirection = glm::vec3(0.0f);
@@ -103,13 +73,25 @@ void Camera::keyboardReaction(SDL_Event event) {
 	movingDirection -= transform.right * (float)moving.toLeft;
 	if (movingDirection != glm::vec3(0.0f))
 		movingDirection = glm::normalize(movingDirection);
+}
 
+void Camera::mouseReaction(SDL_Event event) {
+	SDL_MouseMotionEvent mouse = event.motion;
+	
 	glm::mat4 rot = glm::mat4(1.0f);
-	rot = glm::rotate(rot, glm::radians(angleSpeed * AppTime::deltaTime()) * (float)rotating.toLeft, Transform::UP);
-	rot = glm::rotate(rot, glm::radians(-angleSpeed * AppTime::deltaTime()) * (float)rotating.toRight, Transform::UP);
-	rot = glm::rotate(rot, glm::radians(angleSpeed * AppTime::deltaTime()) * (float)rotating.up, transform.right);
-	rot = glm::rotate(rot, glm::radians(-angleSpeed * AppTime::deltaTime()) * (float)rotating.down, transform.right);
-	rotation = glm::mat3(rot);
+	if (mouse.yrel != 0) {
+		float factor = 0.0f;
+		factor = (mouse.yrel < 0) ? 1.0f : -1.0f;
+		float verticalAngle = angleSpeed * AppTime::deltaTime() * sensitivity * factor;
+		rot = glm::rotate(rot, verticalAngle, transform.right);
+	}
+	if (mouse.xrel != 0) {
+		float factor = 0.0f;
+		factor = (mouse.xrel < 0) ? 1.0f : -1.0f;
+		float horizontalAngle = angleSpeed * AppTime::deltaTime() * sensitivity * factor;
+		rot = glm::rotate(glm::mat4(1.0f), horizontalAngle, Transform::UP) * rot;
+	}
+	transform.changeOrientation(glm::mat3(rot));
 }
 
 void Camera::computeView() {

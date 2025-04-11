@@ -14,13 +14,6 @@ struct MovementState {
 	bool toLeft = 0;
 };
 
-struct RotationState {
-	bool up = 0;
-	bool down = 0;
-	bool toRight = 0;
-	bool toLeft = 0;
-};
-
 class Camera{
 public:
 	glm::mat4 getView() { return view; }
@@ -34,6 +27,7 @@ public:
 
 	void update();
 	void keyboardReaction(SDL_Event event);
+	void mouseReaction(SDL_Event event);
 
 private:
 	VkExtent2D extent;
@@ -44,12 +38,10 @@ private:
 
 	void computeView();
 	void computeProjection();
-	void updateMatrices();
 
 	MovementState moving;
-	RotationState rotating;
 	glm::vec3 movingDirection = glm::vec3(0.0f);
-	glm::mat3 rotation = glm::mat3(1.0f);
 	float speed = 1.5f;
-	float angleSpeed = 90.0f;
+	float angleSpeed = glm::radians(90.0f);
+	float sensitivity = 5.0f;
 };

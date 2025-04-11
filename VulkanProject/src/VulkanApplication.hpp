@@ -211,6 +211,9 @@ private:
 		addEventSubscriber(SDL_EVENT_WINDOW_MINIMIZED, [this](SDL_Event e) {
 			windowResizedEvent = e.type;
 			});
+
+		// Hide the cursor and constrait it to the window (for easier input handling)
+		SDL_SetWindowRelativeMouseMode(window.get(), true);
 	}
 
 
@@ -531,6 +534,7 @@ private:
 		// KEYBOARD EVENTS
 		addEventSubscriber(SDL_EVENT_KEY_DOWN, [this](SDL_Event e) {keyboardEventCallback(e); });
 		addEventSubscriber(SDL_EVENT_KEY_UP, [this](SDL_Event e) {keyboardEventCallback(e); });
+		addEventSubscriber(SDL_EVENT_MOUSE_MOTION, [this](SDL_Event e) {mouseEventCallback(e); });
 	}
 
 
@@ -976,6 +980,10 @@ private:
 		// TODO: create an interface to handle all keyboard event reactions
 		camera.keyboardReaction(event);
 		spotlight.keyboardReaction(event);
+	}
+
+	void mouseEventCallback(SDL_Event event) {
+		camera.mouseReaction(event);
 	}
 
 	void drawFrame() {

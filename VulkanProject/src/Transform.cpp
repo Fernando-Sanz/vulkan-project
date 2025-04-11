@@ -11,7 +11,7 @@ const glm::vec3 Transform::UP = glm::vec3(0.0f, 0.0f, 1.0f);
 void Transform::changeOrientation(glm::mat3 transformation) {
 	lookAt = glm::normalize(transformation * lookAt);
 	up = glm::normalize(transformation * up);
-	right = glm::cross(lookAt, up);
+	right = glm::normalize(glm::cross(lookAt, up));
 }
 
 void Transform::changeOrientation(glm::vec3 newLookAt) {
