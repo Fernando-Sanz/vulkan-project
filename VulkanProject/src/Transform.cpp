@@ -4,9 +4,9 @@
 #include <glm/gtx/quaternion.hpp>
 
 
-const glm::vec3 Transform::RIGHT = glm::vec3(1.0f, 0.0f, 0.0f);
-const glm::vec3 Transform::FORWARD = glm::vec3(0.0f, 1.0f, 0.0f);
-const glm::vec3 Transform::UP = glm::vec3(0.0f, 0.0f, 1.0f);
+const glm::vec3 Transform::X = glm::vec3(1.0f, 0.0f, 0.0f);
+const glm::vec3 Transform::Y = glm::vec3(0.0f, 1.0f, 0.0f);
+const glm::vec3 Transform::Z = glm::vec3(0.0f, 0.0f, 1.0f);
 
 void Transform::changeOrientation(glm::mat3 transformation) {
 	lookAt = glm::normalize(transformation * lookAt);

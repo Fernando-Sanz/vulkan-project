@@ -29,9 +29,9 @@ void Camera::update() {
 }
 
 void Camera::keyboardReaction(SDL_Event event) {
-	float xFactor = glm::dot(transform.lookAt, Transform::RIGHT);
-	float yFactor = glm::dot(transform.lookAt, Transform::FORWARD);
-	glm::vec3 forwardDirection = xFactor * Transform::RIGHT + yFactor * Transform::FORWARD;
+	float xFactor = glm::dot(transform.lookAt, Transform::X);
+	float yFactor = glm::dot(transform.lookAt, Transform::Y);
+	glm::vec3 forwardDirection = xFactor * Transform::X + yFactor * Transform::Y;
 	forwardDirection = glm::normalize(forwardDirection);
 
 	if (event.type == SDL_EVENT_KEY_DOWN) {
@@ -90,7 +90,7 @@ void Camera::mouseReaction(SDL_Event event) {
 		float factor = 0.0f;
 		factor = (mouse.xrel < 0) ? 1.0f : -1.0f;
 		float horizontalAngle = angleSpeed * AppTime::deltaTime() * sensitivity * factor;
-		rot = glm::rotate(glm::mat4(1.0f), horizontalAngle, Transform::UP) * rot;
+		rot = glm::rotate(glm::mat4(1.0f), horizontalAngle, Transform::Z) * rot;
 	}
 	transform.changeOrientation(glm::mat3(rot));
 }

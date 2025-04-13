@@ -9,9 +9,9 @@ struct Transform {
 	glm::vec3 up;
 	glm::vec3 right;
 
-	static const glm::vec3 RIGHT;
-	static const glm::vec3 FORWARD;
-	static const glm::vec3 UP;
+	static const glm::vec3 X;
+	static const glm::vec3 Y;
+	static const glm::vec3 Z;
 
 	Transform() :
 		position(glm::vec3(0.0f)),
