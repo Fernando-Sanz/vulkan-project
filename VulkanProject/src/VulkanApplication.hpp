@@ -957,6 +957,8 @@ private:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	void mainLoop(uint32_t fps, uint32_t updateRate) {
+		if (fps <= 0 || updateRate <= 0)
+			throw std::runtime_error("invalid fps or update rate, they must be grater than 0");
 
 		// TIME MANAGEMENT
 		const auto MIN_TIME_BETWEEN_FRAMES = std::chrono::nanoseconds(1000000000/fps);
