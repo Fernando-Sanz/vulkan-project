@@ -36,9 +36,6 @@
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
-const uint32_t FPS = 144;
-const uint32_t UPDATE_RATE = 120;
-
 const std::string POST_PROCESSING_QUAD_PATH = "C:/development/cpp/VulkanProject/assets/models/post_processing/post_processing_quad.obj";
 
 
@@ -66,6 +63,9 @@ struct VulkanAppParams {
 	std::string firstRenderPassFragShaderPath;
 	std::string secondRenderPassVertShaderPath;
 	std::string secondRenderPassFragShaderPath;
+
+	uint32_t fps = 144;
+	uint32_t updateRate = 60;
 };
 
 
@@ -105,7 +105,7 @@ public:
 	void run(VulkanAppParams params) {
 		initWindow();
 		initVulkan(params);
-		mainLoop();
+		mainLoop(params.fps, params.updateRate);
 		cleanup();
 	}
 
@@ -244,6 +244,8 @@ private:
 		createFirstPassOutputResources();
 		
 		createWorldObjects(params);
+
+		uniformManager.createBuffers(device, 1);
 
 		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(), textureManager,
 			params.firstRenderPassVertShaderPath, params.firstRenderPassFragShaderPath);
@@ -532,8 +534,6 @@ private:
 
 		model.loadModel(device, commandManager, params.modelPath);
 		postProcessingQuad.loadModel(device, commandManager, POST_PROCESSING_QUAD_PATH);
-
-		uniformManager.createBuffers(device, 1);
 
 		// KEYBOARD EVENTS
 		addEventSubscriber(SDL_EVENT_KEY_DOWN, [this](SDL_Event e) {keyboardEventCallback(e); });
@@ -956,11 +956,11 @@ private:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	void mainLoop() {
+	void mainLoop(uint32_t fps, uint32_t updateRate) {
 
 		// TIME MANAGEMENT
-		const auto MIN_TIME_BETWEEN_FRAMES = std::chrono::nanoseconds(1000000000/FPS);
-		const auto MIN_TIME_BETWEEN_UPDATES = std::chrono::nanoseconds(1000000000/UPDATE_RATE);
+		const auto MIN_TIME_BETWEEN_FRAMES = std::chrono::nanoseconds(1000000000/fps);
+		const auto MIN_TIME_BETWEEN_UPDATES = std::chrono::nanoseconds(1000000000/updateRate);
 		auto timeSinceLastFrame = std::chrono::nanoseconds(0);
 		auto timeSinceLastUpdate = std::chrono::nanoseconds(0);
 		auto lastTime = std::chrono::high_resolution_clock::now();
