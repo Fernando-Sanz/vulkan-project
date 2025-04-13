@@ -15,9 +15,9 @@ struct Transform {
 
 	Transform() :
 		position(glm::vec3(0.0f)),
-		lookAt(glm::vec3(0.0f, 1.0f, 0.0f)),
-		up(glm::vec3(0.0f, 0.0f, 1.0f)),
-		right(glm::cross(lookAt, up))
+		lookAt(Transform::Y),
+		up(Transform::Z),
+		right(Transform::X)
 	{}
 
 	void changeOrientation(glm::mat3 transformation);
