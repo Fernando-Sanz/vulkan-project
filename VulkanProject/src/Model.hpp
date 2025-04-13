@@ -3,6 +3,7 @@
 #include "Device.hpp"
 #include "CommandManager.hpp"
 #include "Vertex.hpp"
+#include "Transform.hpp"
 
 
 class Model {
@@ -42,6 +43,7 @@ private:
 	VkBuffer indexBuffer;
 	VkDeviceMemory indexBufferMemory;
 
+	Transform transform;
 	glm::mat4 model;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

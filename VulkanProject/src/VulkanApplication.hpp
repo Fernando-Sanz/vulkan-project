@@ -14,6 +14,7 @@
 //#include <cstdint> // uint32_t
 #include <limits> // std::numeric_limits
 #include <fstream>
+#include <chrono>
 
 #include "Window.hpp"
 #include "Device.hpp"
@@ -62,6 +63,9 @@ struct VulkanAppParams {
 	std::string firstRenderPassFragShaderPath;
 	std::string secondRenderPassVertShaderPath;
 	std::string secondRenderPassFragShaderPath;
+
+	uint32_t fps = 144;
+	uint32_t updateRate = 60;
 };
 
 
@@ -101,7 +105,7 @@ public:
 	void run(VulkanAppParams params) {
 		initWindow();
 		initVulkan(params);
-		mainLoop();
+		mainLoop(params.fps, params.updateRate);
 		cleanup();
 	}
 
@@ -211,6 +215,9 @@ private:
 		addEventSubscriber(SDL_EVENT_WINDOW_MINIMIZED, [this](SDL_Event e) {
 			windowResizedEvent = e.type;
 			});
+
+		// Hide the cursor and constrait it to the window (for easier input handling)
+		SDL_SetWindowRelativeMouseMode(window.get(), true);
 	}
 
 
@@ -236,12 +243,7 @@ private:
 		createDepthResources();
 		createFirstPassOutputResources();
 		
-		camera.init(swapChain);
-
-		createTextures(params);
-
-		model.loadModel(device, commandManager, params.modelPath);
-		postProcessingQuad.loadModel(device, commandManager, POST_PROCESSING_QUAD_PATH);
+		createWorldObjects(params);
 
 		uniformManager.createBuffers(device, 1);
 
@@ -448,6 +450,8 @@ private:
 		configureSecondPassDescriptorSets();
 		createSwapChainFramebuffers();
 		createFirstPassFramebuffer();
+
+		camera.updateProjection(swapChain.getExtent());
 	}
 
 
@@ -516,6 +520,25 @@ private:
 		// CREATE THE TEXTURE
 		firstPassOutputManager.create(device, commandManager);
 		firstPassOutputManager.addTexture(TEXTURE_TYPE_CUSTOM_BIT, texture);
+	}
+
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// WORLD OBJECTS
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	void createWorldObjects(VulkanAppParams params) {
+		camera.init(swapChain.getExtent());
+
+		createTextures(params);
+
+		model.loadModel(device, commandManager, params.modelPath);
+		postProcessingQuad.loadModel(device, commandManager, POST_PROCESSING_QUAD_PATH);
+
+		// KEYBOARD EVENTS
+		addEventSubscriber(SDL_EVENT_KEY_DOWN, [this](SDL_Event e) {keyboardEventCallback(e); });
+		addEventSubscriber(SDL_EVENT_KEY_UP, [this](SDL_Event e) {keyboardEventCallback(e); });
+		addEventSubscriber(SDL_EVENT_MOUSE_MOTION, [this](SDL_Event e) {mouseEventCallback(e); });
 	}
 
 
@@ -933,17 +956,67 @@ private:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	void mainLoop() {
+	void mainLoop(uint32_t fps, uint32_t updateRate) {
+		if (fps <= 0 || updateRate <= 0)
+			throw std::runtime_error("invalid fps or update rate, they must be grater than 0");
+
+		// TIME MANAGEMENT
+		const auto MIN_TIME_BETWEEN_FRAMES = std::chrono::nanoseconds(1000000000/fps);
+		const auto MIN_TIME_BETWEEN_UPDATES = std::chrono::nanoseconds(1000000000/updateRate);
+		auto timeSinceLastFrame = std::chrono::nanoseconds(0);
+		auto timeSinceLastUpdate = std::chrono::nanoseconds(0);
+		auto lastTime = std::chrono::high_resolution_clock::now();
 
 		while (!window.shouldClose()) {
-			// PROCESS INPUT
-			pollEvents();
 
-			// DRAW
-			drawFrame();
+			// UPDATE TIMES
+			auto currentTime = std::chrono::high_resolution_clock::now();
+			auto deltaTime = std::chrono::duration_cast<std::chrono::nanoseconds>(currentTime - lastTime);
+			timeSinceLastFrame += deltaTime;
+			timeSinceLastUpdate += deltaTime;
+			lastTime = currentTime;
+
+			// GAME LOOP
+			if (timeSinceLastFrame >= MIN_TIME_BETWEEN_FRAMES) {
+
+				// PROCESS INPUT
+				pollEvents();
+
+				// UPDATE
+				while (timeSinceLastUpdate >= MIN_TIME_BETWEEN_UPDATES) {
+					updateWorld();
+					timeSinceLastUpdate -= MIN_TIME_BETWEEN_UPDATES;
+				}
+
+				// DRAW
+				drawFrame();
+
+				timeSinceLastFrame -= MIN_TIME_BETWEEN_FRAMES;
+			}
+
+			// CPU IDLE TIME
+
 		}
 
 		vkDeviceWaitIdle(device.get());
+	}
+
+	void updateWorld() {
+		AppTime::updateDeltaTime();
+
+		camera.update();
+		model.update();
+		spotlight.update();
+	}
+
+	void keyboardEventCallback(SDL_Event event) {
+		// TODO: create an interface to handle all keyboard event reactions
+		camera.keyboardReaction(event);
+		spotlight.keyboardReaction(event);
+	}
+
+	void mouseEventCallback(SDL_Event event) {
+		camera.mouseReaction(event);
 	}
 
 	void drawFrame() {
@@ -974,10 +1047,7 @@ private:
 			throw std::runtime_error("failed to acquire swap chain image");
 		}
 
-		// UPDATE
-		AppTime::updateDeltaTime();
-		model.update();
-		camera.update();
+		// UPDATE UNIFORMS
 		uniformManager.upateBuffer(0, model.getModelMatrix(), camera, spotlight);
 
 		vkResetFences(device.get(), 1, &inFlightFences[currentFrame]);
