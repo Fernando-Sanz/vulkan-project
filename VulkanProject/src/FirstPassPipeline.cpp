@@ -8,20 +8,9 @@
 #include <string>
 
 #include "PipelineUtils.hpp"
-#include "Vertex.hpp"
 
 
-void FirstPassPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat, TextureManager textures,
-	std::string vertShaderLocation, std::string fragShaderLocation) {
-
-	this->device = device;
-
-	createRenderPass(imageFormat, depthFormat);
-	createDescriptorSetLayout(textures);
-	createGraphicsPipeline(vertShaderLocation, fragShaderLocation);
-}
-
-void FirstPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFormat) {
+void FirstPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFormat)  {
 
 	// ATTACHMENTS (description and reference)
 
@@ -121,7 +110,7 @@ void FirstPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFor
 	}
 }
 
-void FirstPassPipeline::createDescriptorSetLayout(TextureManager textures) {
+void FirstPassPipeline::createDescriptorSetLayout(uint32_t textureCount) {
 
 	//----------------------------------------------------
 	// BINDINGS
@@ -158,7 +147,7 @@ void FirstPassPipeline::createDescriptorSetLayout(TextureManager textures) {
 	VkDescriptorSetLayoutBinding texturesLayoutBinding{};
 	texturesLayoutBinding.binding = binding;
 	texturesLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-	texturesLayoutBinding.descriptorCount = textures.getTextureCount();
+	texturesLayoutBinding.descriptorCount = textureCount;
 	texturesLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
 	//----------------------------------------------------
@@ -372,11 +361,4 @@ void FirstPassPipeline::createGraphicsPipeline(std::string vertShaderLocation, s
 	// in pipeline creation
 	vkDestroyShaderModule(device.get(), fragShaderModule, nullptr);
 	vkDestroyShaderModule(device.get(), vertShaderModule, nullptr);
-}
-
-void FirstPassPipeline::cleanup() {
-	vkDestroyDescriptorSetLayout(device.get(), descriptorSetLayout, nullptr);
-	vkDestroyPipeline(device.get(), pipeline, nullptr);
-	vkDestroyPipelineLayout(device.get(), pipelineLayout, nullptr);
-	vkDestroyRenderPass(device.get(), renderPass, nullptr);
 }

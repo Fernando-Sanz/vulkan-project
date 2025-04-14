@@ -25,6 +25,7 @@ set(SOURCES
     ${SOURCE_CODE_PATH}/Device.cpp
     ${SOURCE_CODE_PATH}/eventManagement.cpp
     ${SOURCE_CODE_PATH}/FirstPassPipeline.cpp
+    ${SOURCE_CODE_PATH}/GraphicsPipeline.cpp
     ${SOURCE_CODE_PATH}/imageUtils.cpp
     ${SOURCE_CODE_PATH}/Light.cpp
     ${SOURCE_CODE_PATH}/Model.cpp
