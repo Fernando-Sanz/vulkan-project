@@ -4,6 +4,7 @@
 #include "CommandManager.hpp"
 #include "Vertex.hpp"
 #include "Transform.hpp"
+#include "TextureManager.hpp"
 
 
 class Model {
@@ -15,15 +16,14 @@ public:
 	std::vector<uint32_t> getIndices() { return indices; }
 	VkBuffer getVertexBuffer() { return vertexBuffer; }
 	VkBuffer getIndexBuffer() { return indexBuffer; }
+	TextureManager& getTextures() { return textures; }
 	glm::mat4 getModelMatrix() { return model; }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// METHODS
 
-	// Load a model and create vertex and index buffer
-	void loadModel(Device device, CommandManager commandManager, std::string modelPath);
-
-	void update();
+	// Load a model, create its vertex and index buffer and its textures
+	void create(Device device, CommandManager commandManager, std::string modelPath, TextureManager textures);
 
 	// Destroy Vulkan and other objects
 	void cleanup();
@@ -46,8 +46,13 @@ private:
 	Transform transform;
 	glm::mat4 model;
 
+	TextureManager textures;
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// METHODS
+
+	// Load a model from file
+	void loadModel(std::string modelPath);
 
 	// Create a buffer in GPU memory and fill it with the received data
 	void createModelBuffer(CommandManager commandManager, VkDeviceSize bufferSize, void* bufferData,

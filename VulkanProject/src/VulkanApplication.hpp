@@ -55,10 +55,7 @@ const std::vector<const char*> validationLayers = {
 
 struct VulkanAppParams {
 	std::string modelPath;
-	std::string albedoTexturePath;
-	std::string specularTexturePath;
-	std::string normalTexturePath;
-	std::vector<std::string> customTexturePaths;
+	std::vector<TexturePaths> texturePaths;
 	std::string firstRenderPassVertShaderPath;
 	std::string firstRenderPassFragShaderPath;
 	std::string secondRenderPassVertShaderPath;
@@ -140,7 +137,6 @@ private:
 	// Images for framebuffers
 	ImageObjects colorImage; // multisampling
 	ImageObjects depthImage;
-	TextureManager firstPassOutputManager;
 
 	// Pipeline
 	FirstPassPipeline firstPassPipeline;
@@ -156,9 +152,6 @@ private:
 	// Camera and lights
 	Camera camera;
 	Light spotlight;
-
-	// Texture
-	TextureManager textureManager;
 
 	// Geometry
 	Model model;
@@ -241,23 +234,24 @@ private:
 
 		createColorResources();
 		createDepthResources();
-		createFirstPassOutputResources();
 		
 		createWorldObjects(params);
 
 		uniformManager.createBuffers(device, 1);
 
-		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(), 1, 1, textureManager,
+		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(),
+			model, model.getTextures(), 1,
 			params.firstRenderPassVertShaderPath, params.firstRenderPassFragShaderPath);
-		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(), 0, 0, firstPassOutputManager,
+		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(),
+			std::nullopt, postProcessingQuad.getTextures(), 0,
 			params.secondRenderPassVertShaderPath, params.secondRenderPassFragShaderPath);
 
 		createFirstPassFramebuffer();
 		createSwapChainFramebuffers();
 
 		createDescriptorPool();
-		allocateFirstPassDescriptorSets();
-		allocateSecondPassDescriptorSets();
+		createFirstPassDescriptorSets();
+		createSecondPassDescriptorSets();
 
 		createSyncObjects();
 	}
@@ -446,7 +440,8 @@ private:
 		swapChain.create(device, window, surface);
 		createColorResources();
 		createDepthResources();
-		createFirstPassOutputResources();
+		postProcessingQuad.getTextures().addTexture(TEXTURE_TYPE_CUSTOM_BIT, createFirstPassOutputResources());
+		
 		configureSecondPassDescriptorSets();
 		createSwapChainFramebuffers();
 		createFirstPassFramebuffer();
@@ -506,9 +501,9 @@ private:
 	// CREATE FIRST PASS OUTPUT RESOURCES
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	void createFirstPassOutputResources() {
-		VkFormat colorFormat = swapChain.getImageFormat();
+	ImageObjects createFirstPassOutputResources() {
 		ImageObjects texture{};
+		VkFormat colorFormat = swapChain.getImageFormat();
 
 		createImage(device, swapChain.getExtent().width, swapChain.getExtent().height, 1, VK_SAMPLE_COUNT_1_BIT,
 			colorFormat, VK_IMAGE_TILING_OPTIMAL,
@@ -516,10 +511,8 @@ private:
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			texture.image, texture.memory);
 		texture.view = createImageView(device, texture.image, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
-
-		// CREATE THE TEXTURE
-		firstPassOutputManager.create(device, commandManager);
-		firstPassOutputManager.addTexture(TEXTURE_TYPE_CUSTOM_BIT, texture);
+		
+		return texture;
 	}
 
 
@@ -530,10 +523,17 @@ private:
 	void createWorldObjects(VulkanAppParams params) {
 		camera.init(swapChain.getExtent());
 
-		createTextures(params);
+		// MODEL
+		TextureManager modelTextures;
+		modelTextures.create(device, commandManager);
+		modelTextures.createTextures(params.texturePaths[0]);
+		model.create(device, commandManager, params.modelPath, modelTextures);
 
-		model.loadModel(device, commandManager, params.modelPath);
-		postProcessingQuad.loadModel(device, commandManager, POST_PROCESSING_QUAD_PATH);
+		// POST PROCESSING QUAD
+		TextureManager firstPassOutput;
+		firstPassOutput.create(device, commandManager);
+		firstPassOutput.addTexture(TEXTURE_TYPE_CUSTOM_BIT, createFirstPassOutputResources());
+		postProcessingQuad.create(device, commandManager, POST_PROCESSING_QUAD_PATH, firstPassOutput);
 
 		// KEYBOARD EVENTS
 		addEventSubscriber(SDL_EVENT_KEY_DOWN, [this](SDL_Event e) {keyboardEventCallback(e); });
@@ -552,7 +552,7 @@ private:
 		std::array<VkImageView, 3> attachments = {
 			colorImage.view,
 			depthImage.view,
-			firstPassOutputManager.getCustomTexture(0).view
+			postProcessingQuad.getTextures().getCustomTexture(0).view
 		};
 
 		VkFramebufferCreateInfo framebufferInfo{};
@@ -633,25 +633,6 @@ private:
 		}
 	}
 
-	
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// TEXTURES
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	void createTextures(VulkanAppParams params) {
-		textureManager.create(device, commandManager);
-		if(!params.albedoTexturePath.empty())
-			textureManager.createTexture(TEXTURE_TYPE_ALBEDO_BIT, params.albedoTexturePath);
-		if(!params.specularTexturePath.empty())
-			textureManager.createTexture(TEXTURE_TYPE_SPECULAR_BIT, params.specularTexturePath);
-		if(!params.normalTexturePath.empty())
-			textureManager.createTexture(TEXTURE_TYPE_NORMAL_BIT, params.normalTexturePath);
-
-		for (auto& texturePath : params.customTexturePaths) {
-			textureManager.createTexture(TEXTURE_TYPE_CUSTOM_BIT, texturePath);
-		}
-	}
-
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// DESCRIPTOR POOL AND DESCRIPTOR SETS CREATION
@@ -683,13 +664,13 @@ private:
 		}
 	}
 
-	void allocateFirstPassDescriptorSets() {
-		firstPassPipeline.allocateDescriptorSets(descriptorPool, firstPassDescriptorSet);
-		firstPassPipeline.updateDescriptorSets(uniformManager, textureManager, firstPassDescriptorSet);
+	void createFirstPassDescriptorSets() {
+		firstPassPipeline.allocateDescriptorSet(descriptorPool, firstPassDescriptorSet);
+		firstPassPipeline.updateDescriptorSet(uniformManager, model.getTextures(), firstPassDescriptorSet);
 	}
 
 
-	void allocateSecondPassDescriptorSets() {
+	void createSecondPassDescriptorSets() {
 		std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, secondPassPipeline.getDescriptorSetLayout());
 
 		// DESCRIPTOR SETS ALLOCATION
@@ -711,27 +692,7 @@ private:
 	void configureSecondPassDescriptorSets(){
 		// DESCRIPTOR SETS CONFIGURATION
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-			secondPassPipeline.updateDescriptorSets(std::nullopt, firstPassOutputManager, descriptorSets[i]);
-			/**
-			// TEXTURE IMAGE SAMPLER INFO
-			VkDescriptorImageInfo imageInfo{};
-			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			imageInfo.imageView = firstPassOutputManager.getCustomTexture(0).view;
-			imageInfo.sampler = firstPassOutputManager.getSampler();
-
-			// DESCRIPTOR WRITES
-			VkWriteDescriptorSet descriptorWrite{};
-			descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			descriptorWrite.dstSet = descriptorSets[i];
-			descriptorWrite.dstBinding = 0;
-			descriptorWrite.dstArrayElement = 0;
-			descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			descriptorWrite.descriptorCount = 1;
-			descriptorWrite.pImageInfo = &imageInfo;
-
-			// UPDATE
-			vkUpdateDescriptorSets(device.get(), 1, &descriptorWrite, 0, nullptr);
-			//*/
+			secondPassPipeline.updateDescriptorSet(std::nullopt, postProcessingQuad.getTextures(), descriptorSets[i]);
 		}
 	}
 
@@ -817,7 +778,6 @@ private:
 		AppTime::updateDeltaTime();
 
 		camera.update();
-		model.update();
 		spotlight.update();
 	}
 
@@ -930,19 +890,15 @@ private:
 		// Swap chain objects
 		cleanupRenderImages();
 
-		// Textures
-		firstPassOutputManager.cleanup();
-		textureManager.cleanup();
+		// Model
+		model.cleanup();
+		postProcessingQuad.cleanup();
 
 		// Uniform
 		uniformManager.cleanup();
 
 		// Descriptor pool and set layout
 		vkDestroyDescriptorPool(device.get(), descriptorPool, nullptr);
-
-		// Model
-		model.cleanup();
-		postProcessingQuad.cleanup();
 
 		// Sync objects
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -980,7 +936,7 @@ private:
 		destroyImageObjects(device, depthImage);
 
 		// first pass output image
-		firstPassOutputManager.destroyCustomTexture(0);
+		postProcessingQuad.getTextures().destroyCustomTexture(0);
 
 		// color attachments
 		vkDestroyFramebuffer(device.get(), firstPassFramebuffer, nullptr);

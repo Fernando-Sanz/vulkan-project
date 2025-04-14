@@ -1,19 +1,29 @@
 #version 450
 
+//================================
+// INPUT
+
 layout(location = 0) in vec3 fragPosition;
 layout(location = 1) in vec3 fragNormal;
 layout(location = 2) in vec2 fragTexCoord;
 
-layout(set = 0, binding = 1) uniform LightUBO {
+//================================
+// UNIFORM
+
+layout(set = 0, binding = 1) uniform sampler texSampler;
+layout(set = 0, binding = 2) uniform texture2D textures[2];
+
+layout(set = 0, binding = 3) uniform LightUBO {
     vec3 pos;
     vec3 color;
     vec3 direction;
 } light;
 
-layout(set = 0, binding = 2) uniform sampler texSampler;
-layout(set = 0, binding = 3) uniform texture2D textures[2];
+//================================
+// OUTPUT
 
 layout(location = 0) out vec4 outColor;
+
 
 vec3 AMBIENT_COLOR = vec3(0.15);
 float SHININESS = 20.0f;

@@ -49,6 +49,18 @@ void TextureManager::createTexture(TextureType type, std::string texturePath) {
 	addTexture(type, newTexture);
 }
 
+void TextureManager::createTextures(TexturePaths texturePaths) {
+
+	if (texturePaths.albedoPath.has_value())
+		createTexture(TEXTURE_TYPE_ALBEDO_BIT, texturePaths.albedoPath.value());
+	if (texturePaths.specularPath.has_value())
+		createTexture(TEXTURE_TYPE_SPECULAR_BIT, texturePaths.specularPath.value());
+	if (texturePaths.normalPath.has_value())
+		createTexture(TEXTURE_TYPE_NORMAL_BIT, texturePaths.normalPath.value());
+	for (auto& texturePath : texturePaths.customPaths)
+		createTexture(TEXTURE_TYPE_CUSTOM_BIT, texturePath);
+}
+
 void TextureManager::destroyTexture(ImageObjects texture) {
 	destroyImageObjects(device, texture);
 	textureCount--;
@@ -188,10 +200,8 @@ void TextureManager::cleanup() {
 	if (TEXTURE_TYPE_NORMAL_BIT & usedTypes)
 		destroyImageObjects(device, normal);
 
-	if (customTextures.size() == 0) {
-		for (auto& texture : customTextures) {
-			destroyImageObjects(device, texture);
-		}
+	for (auto& texture : customTextures) {
+		destroyImageObjects(device, texture);
 	}
 
 	usedTypes = 0b0000;

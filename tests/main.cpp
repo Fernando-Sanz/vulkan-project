@@ -20,8 +20,10 @@ int main() {
 	params.secondRenderPassVertShaderPath = SECOND_PASS_VERT_SHADER_PATH;
 	params.secondRenderPassFragShaderPath = SECOND_PASS_FRAG_SHADER_PATH;
 	params.modelPath = MODEL_PATH;
-	params.albedoTexturePath = TEXTURE_PATH;
-	params.normalTexturePath = TEXTURE2_PATH;
+	std::vector<TexturePaths> textures(1);
+	textures[0].albedoPath = TEXTURE_PATH;
+	textures[0].normalPath = TEXTURE2_PATH;
+	params.texturePaths = textures;
 
 	try {
 		app.run(params);

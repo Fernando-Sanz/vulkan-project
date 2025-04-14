@@ -9,6 +9,13 @@
 #include "imageUtils.hpp"
 
 
+struct TexturePaths {
+	std::optional<std::string> albedoPath;
+	std::optional<std::string> specularPath;
+	std::optional<std::string> normalPath;
+	std::vector<std::string> customPaths;
+};
+
 enum TextureType {
 	TEXTURE_TYPE_ALBEDO_BIT = 0b0001,
 	TEXTURE_TYPE_SPECULAR_BIT = 0b0010,
@@ -47,6 +54,9 @@ public:
 
 	// Create all the resources involved in texture usage and add it to the texture list
 	void createTexture(TextureType type, std::string texturePath);
+
+	// Create all textures with a defined path in the struct texturePaths
+	void TextureManager::createTextures(TexturePaths texturePaths);
 
 	// Destroy the specified texture, if type = TEXTURE_TYPE_CUSTOM_BIT only first custom texture is destroyed
 	void destroyTexture(TextureType type);

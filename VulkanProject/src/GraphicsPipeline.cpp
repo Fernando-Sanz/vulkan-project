@@ -3,18 +3,20 @@
 
 // TODO: receive a vector of Model and iterate over them to get their textures
 void GraphicsPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat,
-	uint32_t modelCount, uint32_t lightCount, TextureManager textures,
+	std::optional<Model> model, std::optional<TextureManager> textures, uint32_t lightCount,
 	std::string vertShaderLocation, std::string fragShaderLocation) {
 
 	this->device = device;
 
 	createRenderPass(imageFormat, depthFormat);
-	createDescriptorSetLayout(modelCount, lightCount, textures.getTextureCount());
+	createDescriptorSetLayout(
+		model.has_value(), textures.has_value() ? textures.value().getTextureCount() : 0, lightCount);
 	createGraphicsPipeline(vertShaderLocation, fragShaderLocation);
 }
 
 
-void GraphicsPipeline::createDescriptorSetLayout(uint32_t modelCount, uint32_t lightCount, uint32_t textureCount) {
+void GraphicsPipeline::createDescriptorSetLayout(bool renderModel, uint32_t textureCount,
+	uint32_t lightCount) {
 
 	//----------------------------------------------------
 	// BINDINGS
@@ -24,25 +26,13 @@ void GraphicsPipeline::createDescriptorSetLayout(uint32_t modelCount, uint32_t l
 	//---------------------
 	// model UBO binding
 	VkDescriptorSetLayoutBinding modelUboLayoutBinding{};
-	if (modelCount > 0) {
+	if (renderModel) {
 		modelUboLayoutBinding.binding = static_cast<uint32_t>(bindings.size());
 		modelUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		modelUboLayoutBinding.descriptorCount = 1;
+		modelUboLayoutBinding.descriptorCount = 1; // only 1 model per render pass
 		modelUboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 		
 		bindings.push_back(modelUboLayoutBinding);
-	}
-
-	//---------------------
-	// ligth UBO binding
-	VkDescriptorSetLayoutBinding lightUboLayoutBinding{};
-	if (lightCount > 0) {
-		lightUboLayoutBinding.binding = static_cast<uint32_t>(bindings.size());
-		lightUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		lightUboLayoutBinding.descriptorCount = 1;
-		lightUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-		bindings.push_back(lightUboLayoutBinding);
 	}
 
 	//---------------------
@@ -64,6 +54,18 @@ void GraphicsPipeline::createDescriptorSetLayout(uint32_t modelCount, uint32_t l
 		texturesLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
 		bindings.push_back(texturesLayoutBinding);
+	}
+
+	//---------------------
+	// ligth UBO binding
+	VkDescriptorSetLayoutBinding lightUboLayoutBinding{};
+	if (lightCount > 0) {
+		lightUboLayoutBinding.binding = static_cast<uint32_t>(bindings.size());
+		lightUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		lightUboLayoutBinding.descriptorCount = lightCount;
+		lightUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+		bindings.push_back(lightUboLayoutBinding);
 	}
 
 	//----------------------------------------------------
@@ -140,7 +142,7 @@ void GraphicsPipeline::recordDrawing(VkCommandBuffer commandBuffer, VkFramebuffe
 }
 
 // TODO: store inside a 'DescriptorPool' class all allocation requests and do all of them with one call to Vulkan
-void GraphicsPipeline::allocateDescriptorSets(VkDescriptorPool pool, VkDescriptorSet& descriptorSet) {
+void GraphicsPipeline::allocateDescriptorSet(VkDescriptorPool pool, VkDescriptorSet& descriptorSet) {
 
 	VkDescriptorSetAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -153,7 +155,8 @@ void GraphicsPipeline::allocateDescriptorSets(VkDescriptorPool pool, VkDescripto
 	}
 }
 
-void GraphicsPipeline::updateDescriptorSets(std::optional<UniformManager> uniformManager, std::optional<TextureManager> textures,
+// TODO: move this to a Renderer class
+void GraphicsPipeline::updateDescriptorSet(std::optional<UniformManager> uniformManager, std::optional<TextureManager> textures,
 	VkDescriptorSet& descriptorSet) {
 
 	// DESCRIPTOR WRITES
@@ -184,28 +187,6 @@ void GraphicsPipeline::updateDescriptorSets(std::optional<UniformManager> unifor
 		descriptorWrites.push_back(modelsBufferWrite);
 	}
 
-	// LIGHTS BUFFER
-	VkDescriptorBufferInfo lightBufferInfo{};
-	VkWriteDescriptorSet lightsBufferWrite{};
-	if (uniformManager.has_value()) {
-
-		// INFO
-		lightBufferInfo.buffer = uniformManager.value().getLightBuffer();
-		lightBufferInfo.offset = 0;
-		lightBufferInfo.range = sizeof(LightUBO);
-
-		// WRITE
-		lightsBufferWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		lightsBufferWrite.dstSet = descriptorSet;
-		lightsBufferWrite.dstBinding = binding++;
-		lightsBufferWrite.dstArrayElement = 0;
-		lightsBufferWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		lightsBufferWrite.descriptorCount = 1;
-		lightsBufferWrite.pBufferInfo = &lightBufferInfo;
-
-		descriptorWrites.push_back(lightsBufferWrite);
-	}
-
 	// SAMPLER AND TEXTURES
 	VkDescriptorImageInfo samplerInfo{};
 	std::vector<VkDescriptorImageInfo> textureInfos;
@@ -222,25 +203,25 @@ void GraphicsPipeline::updateDescriptorSets(std::optional<UniformManager> unifor
 		textureInfos.resize(textures.value().getTextureCount());
 		auto usedTypes = textures.value().getTextureTypesUsed();
 		int index = 0;
-		if (usedTypes & TextureType::TEXTURE_TYPE_ALBEDO_BIT) {
+		if (usedTypes & TEXTURE_TYPE_ALBEDO_BIT) {
 			// color
 			textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			textureInfos[index].imageView = textures.value().getAlbedo().view;
 			index++;
 		}
-		if (usedTypes & TextureType::TEXTURE_TYPE_SPECULAR_BIT) {
+		if (usedTypes & TEXTURE_TYPE_SPECULAR_BIT) {
 			// specular
 			textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			textureInfos[index].imageView = textures.value().getSpecular().view;
 			index++;
 		}
-		if (usedTypes & TextureType::TEXTURE_TYPE_NORMAL_BIT) {
+		if (usedTypes & TEXTURE_TYPE_NORMAL_BIT) {
 			// normal
 			textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			textureInfos[index].imageView = textures.value().getNormal().view;
 			index++;
 		}
-		if (usedTypes & TextureType::TEXTURE_TYPE_CUSTOM_BIT) {
+		if (usedTypes & TEXTURE_TYPE_CUSTOM_BIT) {
 			// custom
 			for (auto& texture : textures.value().getCustomTextures()) {
 				textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -274,6 +255,28 @@ void GraphicsPipeline::updateDescriptorSets(std::optional<UniformManager> unifor
 		descriptorWrites.push_back(texturesWrite);
 	}
 
+	// LIGHTS BUFFER
+	VkDescriptorBufferInfo lightBufferInfo{};
+	VkWriteDescriptorSet lightsBufferWrite{};
+	if (uniformManager.has_value()) {
+
+		// INFO
+		lightBufferInfo.buffer = uniformManager.value().getLightBuffer();
+		lightBufferInfo.offset = 0;
+		lightBufferInfo.range = sizeof(LightUBO);
+
+		// WRITE
+		lightsBufferWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		lightsBufferWrite.dstSet = descriptorSet;
+		lightsBufferWrite.dstBinding = binding++;
+		lightsBufferWrite.dstArrayElement = 0;
+		lightsBufferWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		lightsBufferWrite.descriptorCount = 1;
+		lightsBufferWrite.pBufferInfo = &lightBufferInfo;
+
+		descriptorWrites.push_back(lightsBufferWrite);
+	}
+	
 	// UPDATE
 	vkUpdateDescriptorSets(device.get(), static_cast<uint32_t>(descriptorWrites.size()),
 		descriptorWrites.data(), 0, nullptr);

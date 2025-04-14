@@ -4,9 +4,35 @@
 #include <tiny_obj_loader.h>
 
 
-void Model::loadModel(Device device, CommandManager commandManager, std::string modelPath) {
+void Model::create(Device device, CommandManager commandManager, std::string modelPath, TextureManager textures) {
 
 	this->device = device;
+	this->textures = textures;
+
+	//--------------------------------------------------------
+	// LOAD THE GEOMETRY
+	loadModel(modelPath);
+
+	//--------------------------------------------------------
+	// CREATE VERTEX AND INDEX BUFFERS
+	createModelBuffer(commandManager, sizeof(vertices[0]) * vertices.size(), vertices.data(),
+		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertexBuffer, vertexBufferMemory);
+	createModelBuffer(commandManager, sizeof(indices[0]) * indices.size(), indices.data(),
+		VK_BUFFER_USAGE_INDEX_BUFFER_BIT, indexBuffer, indexBufferMemory);
+
+	//--------------------------------------------------------
+	// TRANSFORM AND MODEL MATRICES
+	transform.position = glm::vec3(0.0f, 0.0f, -0.15);
+	model = glm::mat4(1.0f);
+	// the up vector is in the Z axis
+	model[0] = glm::vec4(transform.right, 0.0f);
+	model[1] = glm::vec4(transform.lookAt, 0.0f);
+	model[2] = glm::vec4(transform.up, 0.0f);
+	model[3] = glm::vec4(transform.position, 1.0f);
+	model = glm::scale(model, glm::vec3(1.2f));
+}
+
+void Model::loadModel(std::string modelPath) {
 
 	//--------------------------------------------------------
 	// Load obj file
@@ -79,24 +105,6 @@ void Model::loadModel(Device device, CommandManager commandManager, std::string 
 	}
 
 	std::cout << "Model loaded: " << vertices.size() << " vertices" << std::endl;
-
-	//--------------------------------------------------------
-	// CREATE VERTEX AND INDEX BUFFERS
-	createModelBuffer(commandManager, sizeof(vertices[0]) * vertices.size(), vertices.data(),
-		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertexBuffer, vertexBufferMemory);
-	createModelBuffer(commandManager, sizeof(indices[0]) * indices.size(), indices.data(),
-		VK_BUFFER_USAGE_INDEX_BUFFER_BIT, indexBuffer, indexBufferMemory);
-
-	//--------------------------------------------------------
-	// TRANSFORM AND MODEL
-	transform.position = glm::vec3(0.0f, 0.0f, -0.15);
-	model = glm::mat4(1.0f);
-	// the up vector is in the Z axis
-	model[0] = glm::vec4(transform.right, 0.0f);
-	model[1] = glm::vec4(transform.lookAt, 0.0f);
-	model[2] = glm::vec4(transform.up, 0.0f);
-	model[3] = glm::vec4(transform.position, 1.0f);
-	model = glm::scale(model, glm::vec3(1.2f));
 }
 
 // TODO: allocate more than one resource from a single call
@@ -131,13 +139,10 @@ void Model::createModelBuffer(CommandManager commandManager, VkDeviceSize buffer
 	vkFreeMemory(device.get(), stagingBufferMemory, nullptr);
 }
 
-void Model::update() {
-
-}
-
 void Model::cleanup() {
 	vkDestroyBuffer(device.get(), vertexBuffer, nullptr);
 	vkFreeMemory(device.get(), vertexBufferMemory, nullptr);
 	vkDestroyBuffer(device.get(), indexBuffer, nullptr);
 	vkFreeMemory(device.get(), indexBufferMemory, nullptr);
+	textures.cleanup();
 }
