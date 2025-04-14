@@ -142,15 +142,16 @@ void GraphicsPipeline::recordDrawing(VkCommandBuffer commandBuffer, VkFramebuffe
 }
 
 // TODO: store inside a 'DescriptorPool' class all allocation requests and do all of them with one call to Vulkan
-void GraphicsPipeline::allocateDescriptorSet(VkDescriptorPool pool, VkDescriptorSet& descriptorSet) {
+void GraphicsPipeline::allocateDescriptorSets(VkDescriptorPool pool, uint32_t count, VkDescriptorSet* descriptorSets) {
+	std::vector<VkDescriptorSetLayout> layouts(count, descriptorSetLayout);
 
 	VkDescriptorSetAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	allocInfo.descriptorPool = pool;
-	allocInfo.descriptorSetCount = 1;
-	allocInfo.pSetLayouts = &descriptorSetLayout;
+	allocInfo.descriptorSetCount = count;
+	allocInfo.pSetLayouts = layouts.data();
 
-	if (vkAllocateDescriptorSets(device.get(), &allocInfo, &descriptorSet) != VK_SUCCESS) {
+	if (vkAllocateDescriptorSets(device.get(), &allocInfo, descriptorSets) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate first pass descriptor set");
 	}
 }

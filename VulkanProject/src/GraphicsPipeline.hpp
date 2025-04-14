@@ -24,8 +24,8 @@ public:
 		std::optional<Model> model, std::optional<TextureManager> textures, uint32_t lightCount,
 		std::string vertShaderLocation, std::string fragShaderLocation);
 
-	// Allocate a descriptor set with the layout of the pipeline
-	void allocateDescriptorSet(VkDescriptorPool pool, VkDescriptorSet& descriptorSet);
+	// Allocate descriptor sets with the layout of the pipeline
+	void allocateDescriptorSets(VkDescriptorPool pool, uint32_t count, VkDescriptorSet* descriptorSets);
 
 	// Write a descriptor set with the corresponding data
 	void updateDescriptorSet(std::optional<UniformManager> uniformManager, std::optional<TextureManager> textures,

@@ -665,27 +665,13 @@ private:
 	}
 
 	void createFirstPassDescriptorSets() {
-		firstPassPipeline.allocateDescriptorSet(descriptorPool, firstPassDescriptorSet);
+		firstPassPipeline.allocateDescriptorSets(descriptorPool, 1, &firstPassDescriptorSet);
 		firstPassPipeline.updateDescriptorSet(uniformManager, model.getTextures(), firstPassDescriptorSet);
 	}
 
-
 	void createSecondPassDescriptorSets() {
-		std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, secondPassPipeline.getDescriptorSetLayout());
-
-		// DESCRIPTOR SETS ALLOCATION
-		VkDescriptorSetAllocateInfo allocInfo{};
-		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-		allocInfo.descriptorPool = descriptorPool;
-		allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-		allocInfo.pSetLayouts = layouts.data();
-
 		descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-		if (vkAllocateDescriptorSets(device.get(), &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
-			throw std::runtime_error("failed to allocate second pass descriptor sets");
-		}
-
-		// Configure the allocated sets
+		secondPassPipeline.allocateDescriptorSets(descriptorPool, MAX_FRAMES_IN_FLIGHT, descriptorSets.data());
 		configureSecondPassDescriptorSets();
 	}
 
