@@ -1,14 +1,83 @@
 #include "GraphicsPipeline.hpp"
 
 
-void GraphicsPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat, TextureManager textures,
+// TODO: receive a vector of Model and iterate over them to get their textures
+void GraphicsPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat,
+	uint32_t modelCount, uint32_t lightCount, TextureManager textures,
 	std::string vertShaderLocation, std::string fragShaderLocation) {
 
 	this->device = device;
 
 	createRenderPass(imageFormat, depthFormat);
-	createDescriptorSetLayout(textures.getTextureCount());
+	createDescriptorSetLayout(modelCount, lightCount, textures.getTextureCount());
 	createGraphicsPipeline(vertShaderLocation, fragShaderLocation);
+}
+
+
+void GraphicsPipeline::createDescriptorSetLayout(uint32_t modelCount, uint32_t lightCount, uint32_t textureCount) {
+
+	//----------------------------------------------------
+	// BINDINGS
+
+	std::vector<VkDescriptorSetLayoutBinding> bindings;
+
+	//---------------------
+	// model UBO binding
+	VkDescriptorSetLayoutBinding modelUboLayoutBinding{};
+	if (modelCount > 0) {
+		modelUboLayoutBinding.binding = static_cast<uint32_t>(bindings.size());
+		modelUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		modelUboLayoutBinding.descriptorCount = 1;
+		modelUboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+		
+		bindings.push_back(modelUboLayoutBinding);
+	}
+
+	//---------------------
+	// ligth UBO binding
+	VkDescriptorSetLayoutBinding lightUboLayoutBinding{};
+	if (lightCount > 0) {
+		lightUboLayoutBinding.binding = static_cast<uint32_t>(bindings.size());
+		lightUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		lightUboLayoutBinding.descriptorCount = 1;
+		lightUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+		bindings.push_back(lightUboLayoutBinding);
+	}
+
+	//---------------------
+	// sampler and textures bindings
+	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+	VkDescriptorSetLayoutBinding texturesLayoutBinding{};
+	if (textureCount > 0) {
+		samplerLayoutBinding.binding = static_cast<uint32_t>(bindings.size());
+		samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+		samplerLayoutBinding.descriptorCount = 1;
+		samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		samplerLayoutBinding.pImmutableSamplers = nullptr; // Optional
+
+		bindings.push_back(samplerLayoutBinding);
+
+		texturesLayoutBinding.binding = static_cast<uint32_t>(bindings.size());
+		texturesLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		texturesLayoutBinding.descriptorCount = textureCount;
+		texturesLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+		bindings.push_back(texturesLayoutBinding);
+	}
+
+	//----------------------------------------------------
+	// CREATE DESCRIPTOR SET
+
+	VkDescriptorSetLayoutCreateInfo layoutInfo{};
+	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+	layoutInfo.pBindings = bindings.data();
+
+	// CREATION
+	if (vkCreateDescriptorSetLayout(device.get(), &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create descriptor set layout");
+	}
 }
 
 void GraphicsPipeline::recordDrawing(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer, VkExtent2D extent,

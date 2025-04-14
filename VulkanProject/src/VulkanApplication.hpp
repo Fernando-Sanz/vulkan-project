@@ -247,9 +247,9 @@ private:
 
 		uniformManager.createBuffers(device, 1);
 
-		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(), textureManager,
+		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(), 1, 1, textureManager,
 			params.firstRenderPassVertShaderPath, params.firstRenderPassFragShaderPath);
-		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(), firstPassOutputManager,
+		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(), 0, 0, firstPassOutputManager,
 			params.secondRenderPassVertShaderPath, params.secondRenderPassFragShaderPath);
 
 		createFirstPassFramebuffer();

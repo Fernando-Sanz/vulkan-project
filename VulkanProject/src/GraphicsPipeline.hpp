@@ -20,7 +20,8 @@ public:
 	// METHODS
 	
 	// Create the graphics pipeline with the specified formats
-	void create(Device device, VkFormat imageFormat, VkFormat depthFormat, TextureManager textures,
+	void create(Device device, VkFormat imageFormat, VkFormat depthFormat,
+		uint32_t modelCount, uint32_t lightCount, TextureManager textures,
 		std::string vertShaderLocation, std::string fragShaderLocation);
 
 	void allocateDescriptorSets(VkDescriptorPool pool, VkDescriptorSet& descriptorSet);
@@ -53,7 +54,7 @@ protected:
 	virtual void createRenderPass(VkFormat imageFormat, VkFormat depthFormat) = 0;
 
 	// Defines the Descriptor Set Layout of the pipeline
-	virtual void createDescriptorSetLayout(uint32_t textureCount) = 0;
+	void createDescriptorSetLayout(uint32_t modelCount, uint32_t lightCount, uint32_t textureCount);
 
 	// Create a GraphicsPipeline with all the stages and a PipelineLayout
 	virtual void createGraphicsPipeline(std::string vertexShaderLocation, std::string fragmentShaderLocation) = 0;

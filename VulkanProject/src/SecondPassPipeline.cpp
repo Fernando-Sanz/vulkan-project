@@ -110,45 +110,6 @@ void SecondPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFo
 	}
 }
 
-void SecondPassPipeline::createDescriptorSetLayout(uint32_t textureCount) {
-
-	//----------------------------------------------------
-	// BINDINGS
-
-	//---------------------
-	// sampler binding
-	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-	samplerLayoutBinding.binding = 0;
-	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-	samplerLayoutBinding.descriptorCount = 1;
-	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	samplerLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-	//---------------------
-	// textures binding
-	VkDescriptorSetLayoutBinding texturesLayoutBinding{};
-	texturesLayoutBinding.binding = 1;
-	texturesLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-	texturesLayoutBinding.descriptorCount = textureCount;
-	texturesLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	//----------------------------------------------------
-	// CREATE DESCRIPTOR SET
-	std::vector<VkDescriptorSetLayoutBinding> bindings = {
-		samplerLayoutBinding, texturesLayoutBinding
-	};
-
-	VkDescriptorSetLayoutCreateInfo layoutInfo{};
-	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-	layoutInfo.pBindings = bindings.data();
-
-	// CREATION
-	if (vkCreateDescriptorSetLayout(device.get(), &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create descriptor set layout");
-	}
-}
-
 void SecondPassPipeline::createGraphicsPipeline(std::string vertShaderLocation, std::string fragShaderLocation) {
 
 	//--------------------------------------------------------
