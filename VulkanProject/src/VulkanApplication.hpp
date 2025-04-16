@@ -24,7 +24,8 @@
 #include "StandardPipeline.hpp"
 #include "FirstPassPipeline.hpp"
 #include "SecondPassPipeline.hpp"
-#include "UniformManager.hpp"
+#include "ModelUboManager.hpp"
+#include "LightUboManager.hpp"
 #include "Model.hpp"
 #include "TextureManager.hpp"
 #include "AppTime.hpp"
@@ -151,19 +152,20 @@ private:
 
 	// Camera and lights
 	Camera camera;
-	Light spotlight;
+	Light pointlight;
 
 	// Geometry
 	Model model;
 	Model postProcessingQuad;
 
 	// Uniform
-	UniformManager uniformManager;
+	ModelUboManager modelUniforms;
+	LightUboManager lightUniforms;
 
 	// Descriptor pool and sets
 	VkDescriptorPool descriptorPool;
 	VkDescriptorSet firstPassDescriptorSet;
-	std::vector<VkDescriptorSet> descriptorSets; // destroyed with descriptorPool
+	std::vector<VkDescriptorSet> secondPassDescriptorSets; // destroyed with descriptorPool
 
 	// Sync objects
 	std::vector<VkSemaphore> imageAvailableSemaphores;
@@ -237,13 +239,15 @@ private:
 		
 		createWorldObjects(params);
 
-		uniformManager.createBuffers(device, 1);
+		// TODO: use a vector of models and lights
+		modelUniforms.createBuffers(device, 1);
+		lightUniforms.createBuffers(device, 1, 1);
 
 		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(),
-			model, model.getTextures(), 1,
+			true, model.getTextures().getTextureCount(), 1,
 			params.firstRenderPassVertShaderPath, params.firstRenderPassFragShaderPath);
 		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(),
-			std::nullopt, postProcessingQuad.getTextures(), 0,
+			false, postProcessingQuad.getTextures().getTextureCount(), 0,
 			params.secondRenderPassVertShaderPath, params.secondRenderPassFragShaderPath);
 
 		createFirstPassFramebuffer();
@@ -437,15 +441,21 @@ private:
 
 		cleanupRenderImages();
 
+		// Recreate images
 		swapChain.create(device, window, surface);
 		createColorResources();
 		createDepthResources();
+		// Post-processing texture (first pass framebuffer image)
 		postProcessingQuad.getTextures().addTexture(TEXTURE_TYPE_CUSTOM_BIT, createFirstPassOutputResources());
-		
+
+		// Reset descriptor in second pass (they use the destroyed texture)
 		configureSecondPassDescriptorSets();
+
+		// Recreate framebuffers
 		createSwapChainFramebuffers();
 		createFirstPassFramebuffer();
 
+		// Update camera with aspect ratio
 		camera.updateProjection(swapChain.getExtent());
 	}
 
@@ -623,7 +633,7 @@ private:
 		//--------------------------------------------------------
 		// SECOND PASS
 		secondPassPipeline.recordDrawing(commandBuffer, swapChainFramebuffers[imageIndex], swapChain.getExtent(),
-			postProcessingQuad, descriptorSets[imageIndex]);
+			postProcessingQuad, secondPassDescriptorSets[imageIndex]);
 
 		//--------------------------------------------------------
 		// FINISH COMMAND
@@ -666,19 +676,19 @@ private:
 
 	void createFirstPassDescriptorSets() {
 		firstPassPipeline.allocateDescriptorSets(descriptorPool, 1, &firstPassDescriptorSet);
-		firstPassPipeline.updateDescriptorSet(uniformManager, model.getTextures(), firstPassDescriptorSet);
+		firstPassPipeline.updateDescriptorSet(modelUniforms, lightUniforms, model.getTextures(), firstPassDescriptorSet);
 	}
 
 	void createSecondPassDescriptorSets() {
-		descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-		secondPassPipeline.allocateDescriptorSets(descriptorPool, MAX_FRAMES_IN_FLIGHT, descriptorSets.data());
+		secondPassDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+		secondPassPipeline.allocateDescriptorSets(descriptorPool, MAX_FRAMES_IN_FLIGHT, secondPassDescriptorSets.data());
 		configureSecondPassDescriptorSets();
 	}
 
 	void configureSecondPassDescriptorSets(){
 		// DESCRIPTOR SETS CONFIGURATION
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-			secondPassPipeline.updateDescriptorSet(std::nullopt, postProcessingQuad.getTextures(), descriptorSets[i]);
+			secondPassPipeline.updateDescriptorSet({}, {}, postProcessingQuad.getTextures(), secondPassDescriptorSets[i]);
 		}
 	}
 
@@ -764,13 +774,13 @@ private:
 		AppTime::updateDeltaTime();
 
 		camera.update();
-		spotlight.update();
+		pointlight.update();
 	}
 
 	void keyboardEventCallback(SDL_Event event) {
 		// TODO: create an interface to handle all keyboard event reactions
 		camera.keyboardReaction(event);
-		spotlight.keyboardReaction(event);
+		pointlight.keyboardReaction(event);
 	}
 
 	void mouseEventCallback(SDL_Event event) {
@@ -806,7 +816,8 @@ private:
 		}
 
 		// UPDATE UNIFORMS
-		uniformManager.upateBuffer(0, model.getModelMatrix(), camera, spotlight);
+		modelUniforms.upateBuffer(0, model.getModelMatrix(), camera);
+		lightUniforms.upateBuffers(0, {pointlight}, camera);
 
 		vkResetFences(device.get(), 1, &inFlightFences[currentFrame]);
 
@@ -881,7 +892,8 @@ private:
 		postProcessingQuad.cleanup();
 
 		// Uniform
-		uniformManager.cleanup();
+		modelUniforms.cleanup();
+		lightUniforms.cleanup();
 
 		// Descriptor pool and set layout
 		vkDestroyDescriptorPool(device.get(), descriptorPool, nullptr);

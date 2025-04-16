@@ -8,14 +8,6 @@
 #include "Light.hpp"
 
 
-// See alignment requirements in specification
-// (https://docs.vulkan.org/spec/latest/chapters/interfaces.html#interfaces-resources-layout)
-struct UniformBufferObject {
-    alignas(16) glm::mat4 modelView;
-    alignas(16) glm::mat4 invTrans_modelView;
-    alignas(16) glm::mat4 proj;
-};
-
 struct LightUBO {
     alignas(16) glm::vec3 pos;
     alignas(16) glm::vec3 color;
@@ -23,40 +15,46 @@ struct LightUBO {
 };
 
 
-class UniformManager {
+class LightUboManager {
 public:
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // GETTERS AND SETTERS
 
-    VkBuffer getBuffer(size_t index) { return buffers[index]; }
-    VkBuffer getLightBuffer() { return lightUBOBuffer; }
+    bool hasLights() { return !buffers.empty() && !buffers[0].buffers.empty(); }
+    std::vector<VkBuffer> getBuffers(size_t index) { return buffers[index].buffers; }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // METHODS
 
     // Create as many uniform buffers as count
-    void createBuffers(Device device, int count);
+    void createBuffers(Device device, size_t count, size_t lightCount);
 
     // Update uniform values
-    void upateBuffer(uint32_t currentImage, glm::mat4 model, Camera camera, Light light);
+    void upateBuffers(uint32_t currentImage, std::vector<Light> lights, Camera camera);
 
     // Destroy Vulkan an other objects
     void cleanup();
 
 private:
 
+    struct UBOResources {
+        // a vector of resources per light
+        std::vector<VkBuffer> buffers;
+        std::vector<VkDeviceMemory> memory;
+        std::vector<void*> mapped;
+    };
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // CLASS MEMBERS
 
     Device device;
 
-    std::vector<VkBuffer> buffers;
-    std::vector<VkDeviceMemory> buffersMemory;
-    std::vector<void*> buffersMapped;
+    // A vector uniform buffers per frame
+    std::vector<UBOResources> buffers;
 
-    VkBuffer lightUBOBuffer;
-    VkDeviceMemory lightUBOMemory;
-    void* lightUBOMapped;
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // METHODS
 
+    void updateBuffer(void* mapped, Light light, glm::mat4 view);
 };

@@ -3,14 +3,14 @@
 
 // TODO: receive a vector of Model and iterate over them to get their textures
 void GraphicsPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat,
-	std::optional<Model> model, std::optional<TextureManager> textures, uint32_t lightCount,
+	bool renderModel, uint32_t textureCount, uint32_t lightCount,
 	std::string vertShaderLocation, std::string fragShaderLocation) {
 
 	this->device = device;
 
 	createRenderPass(imageFormat, depthFormat);
 	createDescriptorSetLayout(
-		model.has_value(), textures.has_value() ? textures.value().getTextureCount() : 0, lightCount);
+		renderModel, textureCount, lightCount);
 	createGraphicsPipeline(vertShaderLocation, fragShaderLocation);
 }
 
@@ -157,7 +157,7 @@ void GraphicsPipeline::allocateDescriptorSets(VkDescriptorPool pool, uint32_t co
 }
 
 // TODO: move this to a Renderer class
-void GraphicsPipeline::updateDescriptorSet(std::optional<UniformManager> uniformManager, std::optional<TextureManager> textures,
+void GraphicsPipeline::updateDescriptorSet(ModelUboManager modelUniforms, LightUboManager lightsUniforms, TextureManager textures,
 	VkDescriptorSet& descriptorSet) {
 
 	// DESCRIPTOR WRITES
@@ -165,27 +165,27 @@ void GraphicsPipeline::updateDescriptorSet(std::optional<UniformManager> uniform
 	int binding = 0;
 
 	// MODELS BUFFER
-	VkDescriptorBufferInfo modelsBufferInfo{};
-	VkWriteDescriptorSet modelsBufferWrite{};
-	if (uniformManager.has_value()) {
+	VkDescriptorBufferInfo modelBufferInfo{};
+	VkWriteDescriptorSet modelBufferWrite{};
+	if (modelUniforms.hasModel()) {
 
 		// INFO
-		modelsBufferInfo.buffer = uniformManager.value().getBuffer(0);
-		modelsBufferInfo.offset = 0;
-		modelsBufferInfo.range = sizeof(UniformBufferObject);
+		modelBufferInfo.buffer = modelUniforms.getBuffer(0); // TODO: RECEIVE AN ID WITH THE CORRECT MODEL
+		modelBufferInfo.offset = 0;
+		modelBufferInfo.range = sizeof(ModelUBO);
 
 		// WRITE
-		modelsBufferWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		modelsBufferWrite.dstSet = descriptorSet;
-		modelsBufferWrite.dstBinding = binding++;
-		modelsBufferWrite.dstArrayElement = 0;
-		modelsBufferWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		modelsBufferWrite.descriptorCount = 1;
-		modelsBufferWrite.pBufferInfo = &modelsBufferInfo;
-		modelsBufferWrite.pImageInfo = nullptr; // Not used
-		modelsBufferWrite.pTexelBufferView = nullptr; // Not used
+		modelBufferWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		modelBufferWrite.dstSet = descriptorSet;
+		modelBufferWrite.dstBinding = binding++;
+		modelBufferWrite.dstArrayElement = 0;
+		modelBufferWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		modelBufferWrite.descriptorCount = 1;
+		modelBufferWrite.pBufferInfo = &modelBufferInfo;
+		modelBufferWrite.pImageInfo = nullptr; // Not used
+		modelBufferWrite.pTexelBufferView = nullptr; // Not used
 
-		descriptorWrites.push_back(modelsBufferWrite);
+		descriptorWrites.push_back(modelBufferWrite);
 	}
 
 	// SAMPLER AND TEXTURES
@@ -193,38 +193,38 @@ void GraphicsPipeline::updateDescriptorSet(std::optional<UniformManager> uniform
 	std::vector<VkDescriptorImageInfo> textureInfos;
 	VkWriteDescriptorSet samplerWrite{};
 	VkWriteDescriptorSet texturesWrite{};
-	if (textures.has_value()) {
+	if (textures.getTextureCount() > 0) {
 
 		// TEXTURE SAMPLER INFO
 		samplerInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		samplerInfo.sampler = textures.value().getSampler();
+		samplerInfo.sampler = textures.getSampler();
 
 		// TEXTURE INFOS
 
-		textureInfos.resize(textures.value().getTextureCount());
-		auto usedTypes = textures.value().getTextureTypesUsed();
+		textureInfos.resize(textures.getTextureCount());
+		auto usedTypes = textures.getTextureTypesUsed();
 		int index = 0;
 		if (usedTypes & TEXTURE_TYPE_ALBEDO_BIT) {
 			// color
 			textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			textureInfos[index].imageView = textures.value().getAlbedo().view;
+			textureInfos[index].imageView = textures.getAlbedo().view;
 			index++;
 		}
 		if (usedTypes & TEXTURE_TYPE_SPECULAR_BIT) {
 			// specular
 			textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			textureInfos[index].imageView = textures.value().getSpecular().view;
+			textureInfos[index].imageView = textures.getSpecular().view;
 			index++;
 		}
 		if (usedTypes & TEXTURE_TYPE_NORMAL_BIT) {
 			// normal
 			textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			textureInfos[index].imageView = textures.value().getNormal().view;
+			textureInfos[index].imageView = textures.getNormal().view;
 			index++;
 		}
 		if (usedTypes & TEXTURE_TYPE_CUSTOM_BIT) {
 			// custom
-			for (auto& texture : textures.value().getCustomTextures()) {
+			for (auto& texture : textures.getCustomTextures()) {
 				textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 				textureInfos[index].imageView = texture.view;
 				index++;
@@ -257,14 +257,14 @@ void GraphicsPipeline::updateDescriptorSet(std::optional<UniformManager> uniform
 	}
 
 	// LIGHTS BUFFER
-	VkDescriptorBufferInfo lightBufferInfo{};
+	VkDescriptorBufferInfo lightsBufferInfo{};
 	VkWriteDescriptorSet lightsBufferWrite{};
-	if (uniformManager.has_value()) {
+	if (lightsUniforms.hasLights()) {
 
 		// INFO
-		lightBufferInfo.buffer = uniformManager.value().getLightBuffer();
-		lightBufferInfo.offset = 0;
-		lightBufferInfo.range = sizeof(LightUBO);
+		lightsBufferInfo.buffer = lightsUniforms.getBuffers(0)[0]; // TODO: PARAMETERIZE THIS WITH A LOOP
+		lightsBufferInfo.offset = 0;
+		lightsBufferInfo.range = sizeof(LightUBO);
 
 		// WRITE
 		lightsBufferWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -272,8 +272,8 @@ void GraphicsPipeline::updateDescriptorSet(std::optional<UniformManager> uniform
 		lightsBufferWrite.dstBinding = binding++;
 		lightsBufferWrite.dstArrayElement = 0;
 		lightsBufferWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		lightsBufferWrite.descriptorCount = 1;
-		lightsBufferWrite.pBufferInfo = &lightBufferInfo;
+		lightsBufferWrite.descriptorCount = static_cast<uint32_t>(lightsUniforms.getBuffers(0).size());
+		lightsBufferWrite.pBufferInfo = &lightsBufferInfo;
 
 		descriptorWrites.push_back(lightsBufferWrite);
 	}

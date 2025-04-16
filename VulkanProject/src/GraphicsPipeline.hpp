@@ -4,7 +4,8 @@
 
 #include "Model.hpp"
 #include "TextureManager.hpp"
-#include "UniformManager.hpp"
+#include "ModelUboManager.hpp"
+#include "LightUboManager.hpp"
 
 
 class GraphicsPipeline {
@@ -21,14 +22,14 @@ public:
 	
 	// Create the graphics pipeline with the specified formats
 	void create(Device device, VkFormat imageFormat, VkFormat depthFormat,
-		std::optional<Model> model, std::optional<TextureManager> textures, uint32_t lightCount,
+		bool renderModel, uint32_t textureCount, uint32_t lightCount,
 		std::string vertShaderLocation, std::string fragShaderLocation);
 
 	// Allocate descriptor sets with the layout of the pipeline
 	void allocateDescriptorSets(VkDescriptorPool pool, uint32_t count, VkDescriptorSet* descriptorSets);
 
 	// Write a descriptor set with the corresponding data
-	void updateDescriptorSet(std::optional<UniformManager> uniformManager, std::optional<TextureManager> textures,
+	void updateDescriptorSet(ModelUboManager modelUniforms, LightUboManager lightsUniforms, TextureManager textures,
 		VkDescriptorSet& descriptorSet);
 
 	// Record a command buffer with the necessary operations to use the pipeline
