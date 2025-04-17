@@ -32,6 +32,7 @@
 #include "eventManagement.hpp"
 #include "Camera.hpp"
 #include "Light.hpp"
+#include <FramebufferResources.hpp>
 
 
 const uint32_t WIDTH = 800;
@@ -135,17 +136,14 @@ private:
 	// Swap chain stuff
 	SwapChain swapChain;
 
-	// Images for framebuffers
-	ImageObjects colorImage; // multisampling
-	ImageObjects depthImage;
 
 	// Pipeline
 	FirstPassPipeline firstPassPipeline;
 	SecondPassPipeline secondPassPipeline;
 
 	// Framebuffers
-	VkFramebuffer firstPassFramebuffer;
-	std::vector<VkFramebuffer> swapChainFramebuffers;
+	FramebufferResources firstPassFramebuffer;
+	std::vector<FramebufferResources> secondPassFramebuffers;
 
 	// Commands
 	CommandManager commandManager;
@@ -233,9 +231,6 @@ private:
 		swapChain.create(device, window, surface);
 
 		commandManager.createPoolAndBuffers(device, MAX_FRAMES_IN_FLIGHT);
-
-		createColorResources();
-		createDepthResources();
 		
 		createWorldObjects(params);
 
@@ -243,15 +238,20 @@ private:
 		modelUniforms.createBuffers(device, 1);
 		lightUniforms.createBuffers(device, 1, 1);
 
-		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(),
+		// the pipeline needs the texture count (models already loaded)
+		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(device),
 			true, model.getTextures().getTextureCount(), 1,
 			params.firstRenderPassVertShaderPath, params.firstRenderPassFragShaderPath);
-		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(),
+
+		// framebuffer needs post-processing texture image view
+		createFirstPassResources();
+
+		// second pipeline needs post-processing texture count
+		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(device),
 			false, postProcessingQuad.getTextures().getTextureCount(), 0,
 			params.secondRenderPassVertShaderPath, params.secondRenderPassFragShaderPath);
-
-		createFirstPassFramebuffer();
-		createSwapChainFramebuffers();
+		
+		createSecondPassFramebuffers();
 
 		createDescriptorPool();
 		createFirstPassDescriptorSets();
@@ -441,88 +441,17 @@ private:
 
 		cleanupRenderImages();
 
-		// Recreate images
+		// Recreate swap chain
 		swapChain.create(device, window, surface);
-		createColorResources();
-		createDepthResources();
-		// Post-processing texture (first pass framebuffer image)
-		postProcessingQuad.getTextures().addTexture(TEXTURE_TYPE_CUSTOM_BIT, createFirstPassOutputResources());
+		// Recreate framebuffers
+		createFirstPassResources();
+		createSecondPassFramebuffers();
 
 		// Reset descriptor in second pass (they use the destroyed texture)
 		configureSecondPassDescriptorSets();
 
-		// Recreate framebuffers
-		createSwapChainFramebuffers();
-		createFirstPassFramebuffer();
-
 		// Update camera with aspect ratio
 		camera.updateProjection(swapChain.getExtent());
-	}
-
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// CREATE MULTISAMPLING RESOURCES
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	void createColorResources() {
-		VkSampleCountFlagBits msaaSamples = device.getMsaaSamples();
-		VkFormat colorFormat = swapChain.getImageFormat();
-
-		createImage(device, swapChain.getExtent().width, swapChain.getExtent().height, 1, msaaSamples,
-			colorFormat, VK_IMAGE_TILING_OPTIMAL,
-			VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			colorImage.image, colorImage.memory);
-		colorImage.view = createImageView(device, colorImage.image, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
-	}
-
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// CREATE DEPTH RESOURCES
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	void createDepthResources() {
-		VkSampleCountFlagBits msaaSamples = device.getMsaaSamples();
-		VkFormat depthFormat = findDepthFormat();
-
-		// Let the graphics pipeline change the layout of the image (implicit)
-		// from UNDEFINED to DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-		createImage(device, swapChain.getExtent().width, swapChain.getExtent().height, 1, msaaSamples,
-			depthFormat, VK_IMAGE_TILING_OPTIMAL,
-			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			depthImage.image, depthImage.memory);
-		depthImage.view = createImageView(device, depthImage.image, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
-	}
-
-	VkFormat findDepthFormat() {
-		return device.findSupportedFormat(
-			{ VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT },
-			VK_IMAGE_TILING_OPTIMAL,
-			VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
-		);
-	}
-
-	bool hasStencilComponent(VkFormat format) {
-		return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
-	}
-
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// CREATE FIRST PASS OUTPUT RESOURCES
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	ImageObjects createFirstPassOutputResources() {
-		ImageObjects texture{};
-		VkFormat colorFormat = swapChain.getImageFormat();
-
-		createImage(device, swapChain.getExtent().width, swapChain.getExtent().height, 1, VK_SAMPLE_COUNT_1_BIT,
-			colorFormat, VK_IMAGE_TILING_OPTIMAL,
-			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			texture.image, texture.memory);
-		texture.view = createImageView(device, texture.image, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
-		
-		return texture;
 	}
 
 
@@ -539,11 +468,8 @@ private:
 		modelTextures.createTextures(params.texturePaths[0]);
 		model.create(device, commandManager, params.modelPath, modelTextures);
 
-		// POST PROCESSING QUAD
-		TextureManager firstPassOutput;
-		firstPassOutput.create(device, commandManager);
-		firstPassOutput.addTexture(TEXTURE_TYPE_CUSTOM_BIT, createFirstPassOutputResources());
-		postProcessingQuad.create(device, commandManager, POST_PROCESSING_QUAD_PATH, firstPassOutput);
+		// POST-PROCESSING QUAD (the texture is set later)
+		postProcessingQuad.create(device, commandManager, POST_PROCESSING_QUAD_PATH, {});
 
 		// KEYBOARD EVENTS
 		addEventSubscriber(SDL_EVENT_KEY_DOWN, [this](SDL_Event e) {keyboardEventCallback(e); });
@@ -553,56 +479,27 @@ private:
 
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// FRAMEBUFFERS CREATION
+	// FRAMEBUFFERS AND POST-PROCESSING RESOURCES
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	void createFirstPassFramebuffer() {
+	void createFirstPassResources() {
+		// FRAMEBUFFER
+		firstPassFramebuffer.createEmpty(device, swapChain.getExtent(), firstPassPipeline.getRenderPass(),
+			swapChain.getImageFormat());
 
-		// Create framebuffer
-		std::array<VkImageView, 3> attachments = {
-			colorImage.view,
-			depthImage.view,
-			postProcessingQuad.getTextures().getCustomTexture(0).view
-		};
-
-		VkFramebufferCreateInfo framebufferInfo{};
-		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebufferInfo.renderPass = firstPassPipeline.getRenderPass();
-		framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-		framebufferInfo.pAttachments = attachments.data();
-		framebufferInfo.width = swapChain.getExtent().width;
-		framebufferInfo.height = swapChain.getExtent().height;
-		framebufferInfo.layers = 1;
-
-		if (vkCreateFramebuffer(device.get(), &framebufferInfo, nullptr, &firstPassFramebuffer) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create first pass framebuffer");
-		}
+		// POST PROCESSING QUAD
+		ImageObjects firstPassOutputImage = firstPassFramebuffer.getResolveImage();
+		firstPassOutputImage.image = VK_NULL_HANDLE;
+		TextureManager firstPassOutput;
+		firstPassOutput.create(device, commandManager);
+		firstPassOutput.addTexture(TEXTURE_TYPE_CUSTOM_BIT, firstPassOutputImage);
+		postProcessingQuad.setTextures(firstPassOutput);
 	}
 
-	void createSwapChainFramebuffers() {
-		// Resize framebuffer
-		swapChainFramebuffers.resize(swapChain.getImageCount());
-
-		// Create framebuffers
-		for (size_t i = 0; i < swapChain.getImageCount(); i++) {
-			std::array<VkImageView, 3> attachments = {
-				colorImage.view,
-				depthImage.view,
-				swapChain.getImageView(i)
-			};
-
-			VkFramebufferCreateInfo framebufferInfo{};
-			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-			framebufferInfo.renderPass = secondPassPipeline.getRenderPass();
-			framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-			framebufferInfo.pAttachments = attachments.data();
-			framebufferInfo.width = swapChain.getExtent().width;
-			framebufferInfo.height = swapChain.getExtent().height;
-			framebufferInfo.layers = 1;
-
-			if (vkCreateFramebuffer(device.get(), &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) {
-				throw std::runtime_error("failed to create swap chain framebuffer");
-			}
+	void createSecondPassFramebuffers() {
+		secondPassFramebuffers.resize(MAX_FRAMES_IN_FLIGHT);
+		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+			secondPassFramebuffers[i].createFromSwapChain(device, swapChain, i, secondPassPipeline.getRenderPass());
 		}
 	}
 
@@ -627,12 +524,12 @@ private:
 
 		//--------------------------------------------------------
 		// FIRST PASS
-		firstPassPipeline.recordDrawing(commandBuffer, firstPassFramebuffer, swapChain.getExtent(),
+		firstPassPipeline.recordDrawing(commandBuffer, firstPassFramebuffer.get(), swapChain.getExtent(),
 			model, firstPassDescriptorSet);
 
 		//--------------------------------------------------------
 		// SECOND PASS
-		secondPassPipeline.recordDrawing(commandBuffer, swapChainFramebuffers[imageIndex], swapChain.getExtent(),
+		secondPassPipeline.recordDrawing(commandBuffer, secondPassFramebuffers[imageIndex].get(), swapChain.getExtent(),
 			postProcessingQuad, secondPassDescriptorSets[imageIndex]);
 
 		//--------------------------------------------------------
@@ -927,19 +824,13 @@ private:
 	}
 
 	void cleanupRenderImages() {
-		// Color resources
-		destroyImageObjects(device, colorImage);
-
-		// depth resources
-		destroyImageObjects(device, depthImage);
-
 		// first pass output image
-		postProcessingQuad.getTextures().destroyCustomTexture(0);
+		postProcessingQuad.getTextures().cleanup();
 
 		// color attachments
-		vkDestroyFramebuffer(device.get(), firstPassFramebuffer, nullptr);
-		for (auto framebuffer : swapChainFramebuffers) {
-			vkDestroyFramebuffer(device.get(), framebuffer, nullptr);
+		firstPassFramebuffer.cleanup();
+		for (auto& framebuffer : secondPassFramebuffers) {
+			framebuffer.cleanup();
 		}
 
 		swapChain.cleanup();

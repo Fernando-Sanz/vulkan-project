@@ -8,9 +8,9 @@
 
 // TODO: use the struct in other classes (Texture.hpp)
 struct ImageObjects {
-	VkImage image;
-	VkDeviceMemory memory;
-	VkImageView view;
+	VkImage image = VK_NULL_HANDLE;
+	VkDeviceMemory memory = VK_NULL_HANDLE;
+	VkImageView view = VK_NULL_HANDLE;
 };
 	
 // Create an image with the specified properties and bind it with the memory
@@ -32,6 +32,12 @@ void transitionImageLayout(CommandManager commandManager, VkImage image, VkForma
 // Generate 'mipLevels' mipmaps of the image
 void generateMipmaps(Device device, CommandManager commandManager,
 	VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
+
+// Find a suitable depth format given a device
+VkFormat findDepthFormat(Device device);
+
+// Return true if the format supports stencil
+bool hasStencilComponent(VkFormat format);
 
 // Destroy ImageObjects fields
 void destroyImageObjects(Device device, ImageObjects imageObjects);

@@ -19,6 +19,8 @@ public:
 	TextureManager& getTextures() { return textures; }
 	glm::mat4 getModelMatrix() { return model; }
 
+	void setTextures(TextureManager& textures) { this->textures = std::move(textures); }
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// METHODS
 
@@ -55,6 +57,6 @@ private:
 	void loadModel(std::string modelPath);
 
 	// Create a buffer in GPU memory and fill it with the received data
-	void createModelBuffer(CommandManager commandManager, VkDeviceSize bufferSize, void* bufferData,
+	void createBuffer(CommandManager commandManager, VkDeviceSize bufferSize, void* bufferData,
 		VkBufferUsageFlagBits bufferUsage, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 };

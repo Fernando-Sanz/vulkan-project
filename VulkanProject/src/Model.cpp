@@ -15,9 +15,9 @@ void Model::create(Device device, CommandManager commandManager, std::string mod
 
 	//--------------------------------------------------------
 	// CREATE VERTEX AND INDEX BUFFERS
-	createModelBuffer(commandManager, sizeof(vertices[0]) * vertices.size(), vertices.data(),
+	createBuffer(commandManager, sizeof(vertices[0]) * vertices.size(), vertices.data(),
 		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertexBuffer, vertexBufferMemory);
-	createModelBuffer(commandManager, sizeof(indices[0]) * indices.size(), indices.data(),
+	createBuffer(commandManager, sizeof(indices[0]) * indices.size(), indices.data(),
 		VK_BUFFER_USAGE_INDEX_BUFFER_BIT, indexBuffer, indexBufferMemory);
 
 	//--------------------------------------------------------
@@ -109,7 +109,7 @@ void Model::loadModel(std::string modelPath) {
 
 // TODO: allocate more than one resource from a single call
 // TODO: store all the data in a single buffer and use offsets in calls with them
-void Model::createModelBuffer(CommandManager commandManager, VkDeviceSize bufferSize, void* bufferData,
+void Model::createBuffer(CommandManager commandManager, VkDeviceSize bufferSize, void* bufferData,
 	VkBufferUsageFlagBits usage, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
 
 	//--------------------------------------------

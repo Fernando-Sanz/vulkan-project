@@ -36,16 +36,16 @@ void SecondPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFo
 	//----------------------------------------------------
 	// DEPTH ATTACHMENT
 
-	// Load the image, undefined initial layout
+	// Clear the image, undefined initial layout
 	// Dont care store op, depth attch as final layout
 	VkAttachmentDescription depthAttachment{};
 	depthAttachment.format = depthFormat;
 	depthAttachment.samples = device.getMsaaSamples();
-	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	depthAttachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentReference depthAttachmentRef{};

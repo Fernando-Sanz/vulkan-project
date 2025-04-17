@@ -58,12 +58,6 @@ public:
 	// Create all textures with a defined path in the struct texturePaths
 	void TextureManager::createTextures(TexturePaths texturePaths);
 
-	// Destroy the specified texture, if type = TEXTURE_TYPE_CUSTOM_BIT only first custom texture is destroyed
-	void destroyTexture(TextureType type);
-
-	// Destroy the specified custom texture
-	void destroyCustomTexture(size_t index);
-
 	// Destroy Vulkan and other objects
 	void cleanup();
 
@@ -81,7 +75,7 @@ private:
 	ImageObjects specular;
 	ImageObjects normal;
 	std::vector<ImageObjects> customTextures;
-	uint32_t mipLevels = 1;
+	uint32_t mipLevels = 1; // computed in createTexture() since them depend on the texture size
 	VkSampler sampler = VK_NULL_HANDLE;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -92,9 +86,6 @@ private:
 	
 	// Create sampler for the textures
 	void createSampler(uint32_t mipLevels);
-
-	// Destroy the texture
-	void destroyTexture(ImageObjects texture);
 };
 
 
