@@ -155,25 +155,28 @@ void TextureManager::createSampler(uint32_t mipLevels) {
 	}
 }
 
-void TextureManager::cleanup() {
-	if (sampler != VK_NULL_HANDLE) {
-		vkDestroySampler(device.get(), sampler, nullptr);
-		sampler = VK_NULL_HANDLE;
-	}
+void TextureManager::destroyTextures(bool destroyVulkanImages) {
 
-	if (TEXTURE_TYPE_ALBEDO_BIT & usedTypes)
-		destroyImageObjects(device, albedo);
-	if (TEXTURE_TYPE_SPECULAR_BIT & usedTypes)
-		destroyImageObjects(device, specular);
-	if (TEXTURE_TYPE_NORMAL_BIT & usedTypes)
-		destroyImageObjects(device, normal);
+	if (destroyVulkanImages) {
+		if (TEXTURE_TYPE_ALBEDO_BIT & usedTypes)
+			destroyImageObjects(device, albedo);
+		if (TEXTURE_TYPE_SPECULAR_BIT & usedTypes)
+			destroyImageObjects(device, specular);
+		if (TEXTURE_TYPE_NORMAL_BIT & usedTypes)
+			destroyImageObjects(device, normal);
 
-	for (auto& texture : customTextures) {
-		if (texture.image != VK_NULL_HANDLE) {
+		for (auto& texture : customTextures) {
 			destroyImageObjects(device, texture);
-			texture.image = VK_NULL_HANDLE;
 		}
 	}
+	customTextures.clear();
 
+	textureCount = 0;
 	usedTypes = 0b0000;
+}
+
+void TextureManager::cleanup(bool destroyVulkanImages) {
+	vkDestroySampler(device.get(), sampler, nullptr);
+
+	destroyTextures(destroyVulkanImages);
 }

@@ -59,7 +59,10 @@ public:
 	void TextureManager::createTextures(TexturePaths texturePaths);
 
 	// Destroy Vulkan and other objects
-	void cleanup();
+	void cleanup(bool destroyVulkanImages = true);
+
+	// Erase the texture handlers and destroy the Vulkan objects associated if it is specified
+	void destroyTextures(bool destroyVulkanImages = true);
 
 private:
 

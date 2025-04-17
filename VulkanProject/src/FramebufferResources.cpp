@@ -90,7 +90,7 @@ void FramebufferResources::cleanup() {
 	destroyImageObjects(device, colorImage);
 	destroyImageObjects(device, depthImage);
 	if(resolveImage.image != VK_NULL_HANDLE)
-	destroyImageObjects(device, resolveImage);
+		destroyImageObjects(device, resolveImage);
 
 	vkDestroyFramebuffer(device.get(), framebuffer, nullptr);
 }

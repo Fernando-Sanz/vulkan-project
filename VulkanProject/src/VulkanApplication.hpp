@@ -463,7 +463,9 @@ private:
 		model.create(device, commandManager, params.modelPath, modelTextures);
 
 		// POST-PROCESSING QUAD (the texture is set later)
-		postProcessingQuad.create(device, commandManager, POST_PROCESSING_QUAD_PATH, {});
+		TextureManager postProcTextures;
+		postProcTextures.create(device, commandManager);
+		postProcessingQuad.create(device, commandManager, POST_PROCESSING_QUAD_PATH, postProcTextures);
 
 		// KEYBOARD EVENTS
 		addEventSubscriber(SDL_EVENT_KEY_DOWN, [this](SDL_Event e) {keyboardEventCallback(e); });
@@ -483,11 +485,7 @@ private:
 
 		// POST PROCESSING QUAD TEXTURES
 		ImageObjects firstPassOutputImage = firstPassFramebuffer.getResolveImage();
-		firstPassOutputImage.image = VK_NULL_HANDLE;
-		TextureManager firstPassOutput;
-		firstPassOutput.create(device, commandManager);
-		firstPassOutput.addTexture(TEXTURE_TYPE_CUSTOM_BIT, firstPassOutputImage);
-		postProcessingQuad.setTextures(firstPassOutput);
+		postProcessingQuad.getTextures().addTexture(TEXTURE_TYPE_CUSTOM_BIT, firstPassOutputImage);
 	}
 
 	void createSecondPassFramebuffers() {
@@ -819,7 +817,7 @@ private:
 
 	void cleanupRenderImages() {
 		// first pass output image
-		postProcessingQuad.getTextures().cleanup();
+		postProcessingQuad.getTextures().destroyTextures(false);
 
 		// color attachments
 		firstPassFramebuffer.cleanup();
