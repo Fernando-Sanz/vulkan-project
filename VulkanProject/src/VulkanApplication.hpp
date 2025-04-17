@@ -129,7 +129,7 @@ private:
 	// Resize handled manually
 	int windowResizedEvent = -1;
 
-	// TODO: check if could be in Window class
+	// TODO: check if could be in Window class (VkInstance is necessary to create it)
 	// Surface
 	VkSurfaceKHR surface;
 
@@ -193,7 +193,7 @@ private:
 
 	void initWindow() {
 
-		SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO);
+		SDL_Init(SDL_INIT_VIDEO);
 
 		window.create("Vulkan Render Engine", WIDTH, HEIGHT);
 		addEventSubscriber(SDL_EVENT_WINDOW_RESIZED, [this](SDL_Event e) {
@@ -222,9 +222,9 @@ private:
 		window.createSurface(instance, &surface);
 
 		device.pickDevice();
-		swapChain.create(device, window, surface);
-
 		commandManager.createPoolAndBuffers(device, MAX_FRAMES_IN_FLIGHT);
+
+		swapChain.create(device, window, surface);
 		
 		createWorldObjects(params);
 
@@ -481,7 +481,7 @@ private:
 		firstPassFramebuffer.createEmpty(device, swapChain.getExtent(), firstPassPipeline.getRenderPass(),
 			swapChain.getImageFormat());
 
-		// POST PROCESSING QUAD
+		// POST PROCESSING QUAD TEXTURES
 		ImageObjects firstPassOutputImage = firstPassFramebuffer.getResolveImage();
 		firstPassOutputImage.image = VK_NULL_HANDLE;
 		TextureManager firstPassOutput;
