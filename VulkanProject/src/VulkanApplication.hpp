@@ -126,27 +126,18 @@ private:
 	Window window;
 	VkInstance instance;
 	VkDebugUtilsMessengerEXT debugMessenger;
+	// Resize handled manually
+	int windowResizedEvent = -1;
 
 	// TODO: check if could be in Window class
 	// Surface
 	VkSurfaceKHR surface;
 
 	Device device;
+	CommandManager commandManager;
 
 	// Swap chain stuff
 	SwapChain swapChain;
-
-
-	// Pipeline
-	FirstPassPipeline firstPassPipeline;
-	SecondPassPipeline secondPassPipeline;
-
-	// Framebuffers
-	FramebufferResources firstPassFramebuffer;
-	std::vector<FramebufferResources> secondPassFramebuffers;
-
-	// Commands
-	CommandManager commandManager;
 
 	// Camera and lights
 	Camera camera;
@@ -156,22 +147,25 @@ private:
 	Model model;
 	Model postProcessingQuad;
 
-	// Uniform
+	// Descriptor pool and sets
+	VkDescriptorPool descriptorPool;
+
+	// FIRST PASS OBJECTS
+	FirstPassPipeline firstPassPipeline;
+	FramebufferResources firstPassFramebuffer;
+	VkDescriptorSet firstPassDescriptorSet;
 	ModelUboManager modelUniforms;
 	LightUboManager lightUniforms;
 
-	// Descriptor pool and sets
-	VkDescriptorPool descriptorPool;
-	VkDescriptorSet firstPassDescriptorSet;
-	std::vector<VkDescriptorSet> secondPassDescriptorSets; // destroyed with descriptorPool
+	// SECOND PASS OBJECTS
+	SecondPassPipeline secondPassPipeline;
+	std::vector<FramebufferResources> secondPassFramebuffers;
+	std::vector<VkDescriptorSet> secondPassDescriptorSets;
 
 	// Sync objects
 	std::vector<VkSemaphore> imageAvailableSemaphores;
 	std::vector<VkSemaphore> renderFinishedSemaphores;
 	std::vector<VkFence> inFlightFences;
-
-	// Resize handled manually
-	int windowResizedEvent = -1;
 
 	// Frame tracking
 	uint32_t currentFrame = 0;
