@@ -234,7 +234,7 @@ private:
 
 		// the pipeline needs the texture count (models already loaded)
 		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(device),
-			true, model.getTextures().getTextureCount(), 2,
+			true, model.getTextures().getTextureCount(), lights.size(),
 			params.firstRenderPassVertShaderPath, params.firstRenderPassFragShaderPath);
 
 		// framebuffer needs post-processing texture image view
