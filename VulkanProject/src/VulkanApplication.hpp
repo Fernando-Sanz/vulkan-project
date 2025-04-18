@@ -141,7 +141,7 @@ private:
 
 	// Camera and lights
 	Camera camera;
-	Light pointlight;
+	std::array<Light, 2> lights;
 
 	// Geometry
 	Model model;
@@ -230,11 +230,11 @@ private:
 
 		// TODO: use a vector of models and lights
 		modelUniforms.createBuffers(device, 1);
-		lightUniforms.createBuffers(device, 1, 1);
+		lightUniforms.createBuffers(device, 1, lights.size());
 
 		// the pipeline needs the texture count (models already loaded)
 		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(device),
-			true, model.getTextures().getTextureCount(), 1,
+			true, model.getTextures().getTextureCount(), 2,
 			params.firstRenderPassVertShaderPath, params.firstRenderPassFragShaderPath);
 
 		// framebuffer needs post-processing texture image view
@@ -467,6 +467,8 @@ private:
 		postProcTextures.create(device, commandManager);
 		postProcessingQuad.create(device, commandManager, POST_PROCESSING_QUAD_PATH, postProcTextures);
 
+		lights[0].setColor(glm::vec3(1.0f, 0.0f, 0.0f));
+
 		// KEYBOARD EVENTS
 		addEventSubscriber(SDL_EVENT_KEY_DOWN, [this](SDL_Event e) {keyboardEventCallback(e); });
 		addEventSubscriber(SDL_EVENT_KEY_UP, [this](SDL_Event e) {keyboardEventCallback(e); });
@@ -543,7 +545,7 @@ private:
 		std::array<VkDescriptorPoolSize, 3> poolSizes{};
 		// uniform buffer (for first pass)
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		poolSizes[0].descriptorCount = 2;
+		poolSizes[0].descriptorCount = 3;
 		// sampler (for each pass)
 		poolSizes[1].type = VK_DESCRIPTOR_TYPE_SAMPLER;
 		poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) + 1;
@@ -663,13 +665,12 @@ private:
 		AppTime::updateDeltaTime();
 
 		camera.update();
-		pointlight.update();
+		lights[1].update();
 	}
 
 	void keyboardEventCallback(SDL_Event event) {
 		// TODO: create an interface to handle all keyboard event reactions
 		camera.keyboardReaction(event);
-		pointlight.keyboardReaction(event);
 	}
 
 	void mouseEventCallback(SDL_Event event) {
@@ -706,7 +707,8 @@ private:
 
 		// UPDATE UNIFORMS
 		modelUniforms.upateBuffer(0, model.getModelMatrix(), camera);
-		lightUniforms.upateBuffers(0, {pointlight}, camera);
+		std::vector<Light> lightVec = std::vector<Light>(lights.begin(), lights.end());
+		lightUniforms.upateBuffer(0, lightVec, camera);
 
 		vkResetFences(device.get(), 1, &inFlightFences[currentFrame]);
 

@@ -259,12 +259,12 @@ void GraphicsPipeline::updateDescriptorSet(ModelUboManager modelUniforms, LightU
 	// LIGHTS BUFFER
 	VkDescriptorBufferInfo lightsBufferInfo{};
 	VkWriteDescriptorSet lightsBufferWrite{};
-	if (lightsUniforms.hasLights()) {
+	if (lightsUniforms.getLightCount() > 0) {
 
 		// INFO
-		lightsBufferInfo.buffer = lightsUniforms.getBuffers(0)[0]; // TODO: PARAMETERIZE THIS WITH A LOOP
+		lightsBufferInfo.buffer = lightsUniforms.getBuffer(0);
 		lightsBufferInfo.offset = 0;
-		lightsBufferInfo.range = sizeof(LightUBO);
+		lightsBufferInfo.range = sizeof(LightUBO) * lightsUniforms.getLightCount();
 
 		// WRITE
 		lightsBufferWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -272,7 +272,7 @@ void GraphicsPipeline::updateDescriptorSet(ModelUboManager modelUniforms, LightU
 		lightsBufferWrite.dstBinding = binding++;
 		lightsBufferWrite.dstArrayElement = 0;
 		lightsBufferWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		lightsBufferWrite.descriptorCount = static_cast<uint32_t>(lightsUniforms.getBuffers(0).size());
+		lightsBufferWrite.descriptorCount = 1;
 		lightsBufferWrite.pBufferInfo = &lightsBufferInfo;
 
 		descriptorWrites.push_back(lightsBufferWrite);

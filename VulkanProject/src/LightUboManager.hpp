@@ -15,14 +15,17 @@ struct LightUBO {
 };
 
 
+// Manage a buffer with all lights for each FRAME_IN_FLIGHT
 class LightUboManager {
 public:
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // GETTERS AND SETTERS
 
-    bool hasLights() { return !buffers.empty() && !buffers[0].buffers.empty(); }
-    std::vector<VkBuffer> getBuffers(size_t index) { return buffers[index].buffers; }
+    size_t getLightCount() { return lightCount; }
+
+    // Return a buffer that references the memory with all the lights
+    VkBuffer getBuffer(size_t index) { return buffers[index]; }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // METHODS
@@ -31,30 +34,22 @@ public:
     void createBuffers(Device device, size_t count, size_t lightCount);
 
     // Update uniform values
-    void upateBuffers(uint32_t currentImage, std::vector<Light> lights, Camera camera);
+    void upateBuffer(uint32_t index, std::vector<Light> lights, Camera camera);
 
     // Destroy Vulkan an other objects
     void cleanup();
 
 private:
 
-    struct UBOResources {
-        // a vector of resources per light
-        std::vector<VkBuffer> buffers;
-        std::vector<VkDeviceMemory> memory;
-        std::vector<void*> mapped;
-    };
-
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // CLASS MEMBERS
 
     Device device;
 
-    // A vector uniform buffers per frame
-    std::vector<UBOResources> buffers;
+    size_t lightCount = 0;
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // METHODS
-
-    void updateBuffer(void* mapped, Light light, glm::mat4 view);
+    // a vector per frame
+    std::vector<VkBuffer> buffers;
+    std::vector<VkDeviceMemory> buffersMemory;
+    std::vector<void*> buffersMapped;
 };

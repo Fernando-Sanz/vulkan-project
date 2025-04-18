@@ -1,7 +1,5 @@
 #include "LightUboManager.hpp"
 
-#include <stdexcept>
-
 
 void LightUboManager::createBuffers(Device device, size_t count, size_t lightCount) {
 
@@ -9,72 +7,49 @@ void LightUboManager::createBuffers(Device device, size_t count, size_t lightCou
 	// SET CLASS MEMBERS
 
 	this->device = device;
+	this->lightCount = lightCount;
 
-	// uniforms per FRAME IN FLIGHT
 	buffers.resize(count);
-	for (auto& uboBuffers : buffers) {
-		// uniform resources per LIGHT
-		uboBuffers.buffers.resize(lightCount);
-		uboBuffers.memory.resize(lightCount);
-		uboBuffers.mapped.resize(lightCount);
-	}
+	buffersMemory.resize(count);
+	buffersMapped.resize(count);
 
 	//--------------------------------------------------------
 	// CREATE BUFFERS
 
-	VkDeviceSize bufferSize = sizeof(LightUBO);
+	VkDeviceSize bufferSize = sizeof(LightUBO) * lightCount;
+	for (size_t i = 0; i < count; i++) {
+		device.createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			buffers[i], buffersMemory[i]);
 
-	// uniforms per FRAME IN FLIGHT
-	for (auto& uboBuffers : buffers) {
-		// uniform resources per LIGHT
-		for (size_t i = 0; i < uboBuffers.buffers.size(); i++) {
-
-			device.createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-				uboBuffers.buffers[i], uboBuffers.memory[i]);
-
-			vkMapMemory(device.get(), uboBuffers.memory[i], 0, bufferSize, 0, &uboBuffers.mapped[i]);
-		}
+		vkMapMemory(device.get(), buffersMemory[i], 0, bufferSize, 0, &buffersMapped[i]);
 	}
 }
 
-void LightUboManager::upateBuffers(uint32_t index, std::vector<Light> lights, Camera camera) {
+void LightUboManager::upateBuffer(uint32_t index, std::vector<Light> lights, Camera camera) {
 	
-	UBOResources uniforms = buffers[index];
-	if (lights.size() != uniforms.buffers.size()) {
-		throw std::runtime_error("tried to update invalid light count");
-	}
-
-	LightUBO ubo{};
 	glm::mat4 view = camera.getView();
 
-	// uniform per LIGHT
-	for (size_t i = 0; i < uniforms.buffers.size(); i++) {
-		updateBuffer(uniforms.mapped[i], lights[index], view);
+	std::vector<LightUBO> lightUBOs(lights.size());
+	for (size_t i = 0; i < lights.size(); i++) {
+		LightUBO ubo{};
+
+		// Light pos and dir in camera coordinates
+		glm::vec4 lightPos = view * glm::vec4(lights[i].getPosition(), 1.0f);
+		glm::vec4 lightDirection = view * glm::vec4(lights[i].getDirection(), 0.0f);
+		ubo.pos = glm::vec3(lightPos);
+		ubo.color = lights[i].getColor();
+		ubo.direction = glm::vec3(lightDirection);
+
+		lightUBOs[i] = ubo;
 	}
-}
 
-void LightUboManager::updateBuffer(void* mapped, Light light, glm::mat4 view) {
-
-	LightUBO ubo{};
-
-	// Light pos and dir in camera coordinates
-	glm::vec4 lightPos = view * glm::vec4(light.getPosition(), 1.0f);
-	glm::vec4 lightDirection = view * glm::vec4(light.getDirection(), 0.0f);
-	ubo.pos = glm::vec3(lightPos);
-	ubo.color = light.getColor();
-	ubo.direction = glm::vec3(lightDirection);
-
-	memcpy(mapped, &ubo, sizeof(ubo));
+	memcpy(buffersMapped[index], lightUBOs.data(), sizeof(LightUBO) * lights.size());
 }
 
 void LightUboManager::cleanup() {
-	// uniforms per FRAME IN FLIGHT
-	for(auto& uboBuffers : buffers) {
-		// uniform resources per LIGHT
-		for (size_t i = 0; i < uboBuffers.buffers.size(); i++) {
-			vkDestroyBuffer(device.get(), uboBuffers.buffers[i], nullptr);
-			vkFreeMemory(device.get(), uboBuffers.memory[i], nullptr);
-		}
+	for (size_t i = 0; i < buffers.size(); i++) {
+		vkDestroyBuffer(device.get(), buffers[i], nullptr);
+		vkFreeMemory(device.get(), buffersMemory[i], nullptr);
 	}
 }

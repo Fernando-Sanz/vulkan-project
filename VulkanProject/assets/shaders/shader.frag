@@ -13,11 +13,16 @@ layout(location = 2) in vec2 fragTexCoord;
 layout(set = 0, binding = 1) uniform sampler texSampler;
 layout(set = 0, binding = 2) uniform texture2D textures[2];
 
-layout(set = 0, binding = 3) uniform LightUBO {
+struct Light{
     vec3 pos;
     vec3 color;
     vec3 direction;
-} light;
+};
+
+#define LIGHT_COUNT 2
+layout(set = 0, binding = 3) uniform LightUBO {
+    Light lights[LIGHT_COUNT];
+} lightUBO;
 
 //================================
 // OUTPUT
@@ -32,24 +37,30 @@ void main() {
 
     vec3 color = texture(sampler2D(textures[0], texSampler), fragTexCoord).rgb;
     vec3 normal = normalize(fragNormal);
-    vec3 lightDir = normalize(light.pos - fragPosition);
     vec3 viewDir = normalize(-fragPosition); // cameraPos - pos -> cameraPos = center of the space
-    
+
     // ambient
     vec3 ambient = AMBIENT_COLOR * color;
+
+    vec3 result = color * ambient;
+    for(int i = 0; i < LIGHT_COUNT; i++){
+        Light light = lightUBO.lights[i];
+
+        vec3 lightDir = normalize(light.pos - fragPosition);
     
-    // diffuse
-    float diff = max(dot(lightDir, normal), 0.0);
-    vec3 diffuse = diff * light.color;
+        // diffuse
+        float diff = max(dot(lightDir, normal), 0.0);
+        vec3 diffuse = diff * light.color;
 
-    // specular
-    vec3 reflectDir = reflect(-lightDir, normal);
+        // specular
+        vec3 reflectDir = reflect(-lightDir, normal);
 
-    vec3 halfwayDir = normalize(lightDir + viewDir);
+        vec3 halfwayDir = normalize(lightDir + viewDir);
 
-    float spec = pow(max(dot(normal, halfwayDir), 0.0), SHININESS);
-    vec3 specular = light.color * spec;
+        float spec = pow(max(dot(normal, halfwayDir), 0.0), SHININESS);
+        vec3 specular = light.color * spec;
 
-    vec3 result = (color * ambient) + (color * diffuse) + specular;
+        result += (color * diffuse) + specular;
+    }
     outColor = vec4(result, 1.0);
 }
