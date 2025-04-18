@@ -18,28 +18,33 @@ if(NOT BUILD_LIBRARY)
 endif()
 
 set(SOURCES
-    ${TEST_FILES}
-    ${SOURCE_CODE_PATH}/AppTime.cpp
-    ${SOURCE_CODE_PATH}/Camera.cpp
-    ${SOURCE_CODE_PATH}/CommandManager.cpp
-    ${SOURCE_CODE_PATH}/Device.cpp
-    ${SOURCE_CODE_PATH}/eventManagement.cpp
-    ${SOURCE_CODE_PATH}/FirstPassPipeline.cpp
-    ${SOURCE_CODE_PATH}/FramebufferResources.cpp
-    ${SOURCE_CODE_PATH}/GraphicsPipeline.cpp
-    ${SOURCE_CODE_PATH}/imageUtils.cpp
-    ${SOURCE_CODE_PATH}/Light.cpp
-    ${SOURCE_CODE_PATH}/LightUboManager.cpp
-    ${SOURCE_CODE_PATH}/Model.cpp
-    ${SOURCE_CODE_PATH}/ModelUboManager.cpp
-    ${SOURCE_CODE_PATH}/pipelineUtils.cpp
-    ${SOURCE_CODE_PATH}/SecondPassPipeline.cpp
-    ${SOURCE_CODE_PATH}/StandardPipeline.cpp
-    ${SOURCE_CODE_PATH}/SwapChain.cpp
-    ${SOURCE_CODE_PATH}/TextureManager.cpp
-    ${SOURCE_CODE_PATH}/Transform.cpp
-    ${SOURCE_CODE_PATH}/utils.cpp
-    ${SOURCE_CODE_PATH}/Window.cpp
+    "${TEST_FILES}"
+    "${SOURCE_CODE_PATH}/assets/pipelineUtils.cpp"
+    "${SOURCE_CODE_PATH}/assets/utils.cpp"
+
+    "${SOURCE_CODE_PATH}/context/CommandManager.cpp"
+    "${SOURCE_CODE_PATH}/context/Device.cpp"
+    "${SOURCE_CODE_PATH}/context/Window.cpp"
+
+    "${SOURCE_CODE_PATH}/render/image/imageUtils.cpp"
+    "${SOURCE_CODE_PATH}/render/pipeline/FirstPassPipeline.cpp"
+    "${SOURCE_CODE_PATH}/render/pipeline/GraphicsPipeline.cpp"
+    "${SOURCE_CODE_PATH}/render/pipeline/SecondPassPipeline.cpp"
+    "${SOURCE_CODE_PATH}/render/pipeline/StandardPipeline.cpp"
+    "${SOURCE_CODE_PATH}/render/target/FramebufferResources.cpp"
+    "${SOURCE_CODE_PATH}/render/target/SwapChain.cpp"
+    "${SOURCE_CODE_PATH}/render/uniform/LightUboManager.cpp"
+    "${SOURCE_CODE_PATH}/render/uniform/ModelUboManager.cpp"
+    "${SOURCE_CODE_PATH}/render/uniform/TextureManager.cpp"
+
+    "${SOURCE_CODE_PATH}/scene/Camera.cpp"
+    "${SOURCE_CODE_PATH}/scene/Light.cpp"
+    "${SOURCE_CODE_PATH}/scene/Model.cpp"
+    "${SOURCE_CODE_PATH}/scene/Transform.cpp"
+
+    "${SOURCE_CODE_PATH}/system/eventManagement.cpp"
+
+    "${SOURCE_CODE_PATH}/time/AppTime.cpp"
 )
 
 #------------------------------

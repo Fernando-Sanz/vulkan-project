@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <cstdlib>
 #include <vector>
+#include <array>
 #include <unordered_map>
 #include <optional>
 #include <set>
@@ -16,23 +17,22 @@
 #include <fstream>
 #include <chrono>
 
-#include "Window.hpp"
-#include "Device.hpp"
-#include "SwapChain.hpp"
-#include "imageUtils.hpp"
-#include "CommandManager.hpp"
-#include "StandardPipeline.hpp"
-#include "FirstPassPipeline.hpp"
-#include "SecondPassPipeline.hpp"
-#include "ModelUboManager.hpp"
-#include "LightUboManager.hpp"
-#include "Model.hpp"
-#include "TextureManager.hpp"
-#include "AppTime.hpp"
-#include "eventManagement.hpp"
-#include "Camera.hpp"
-#include "Light.hpp"
-#include <FramebufferResources.hpp>
+#include "context/Window.hpp"
+#include "context/Device.hpp"
+#include "context/CommandManager.hpp"
+#include "render/target/SwapChain.hpp"
+#include "render/target/FramebufferResources.hpp"
+#include "render/image/imageUtils.hpp"
+#include "render/pipeline/FirstPassPipeline.hpp"
+#include "render/pipeline/SecondPassPipeline.hpp"
+#include "render/uniform/LightUboManager.hpp"
+#include "render/uniform/ModelUboManager.hpp"
+#include "render/uniform/TextureManager.hpp"
+#include "scene/Model.hpp"
+#include "scene/Camera.hpp"
+#include "scene/Light.hpp"
+#include "system/eventManagement.hpp"
+#include "time/AppTime.hpp"
 
 
 const uint32_t WIDTH = 800;
