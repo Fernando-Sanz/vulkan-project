@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <stb_image.h>
 
+#include "asset/imageLoader.hpp"
 #include "render/image/imageUtils.hpp"
 
 
@@ -64,16 +65,12 @@ void TextureManager::createTextures(TexturePaths texturePaths) {
 void TextureManager::createTextureImage(std::string texturePath, ImageObjects& texture) {
 	//-----------------------------------------
 	// LOAD IMAGE
-	int texWidth, texHeight, texChannels;
-	stbi_uc* pixels = stbi_load(texturePath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-	if (!pixels) throw std::runtime_error("failed to load texture image");
-
-	// Compute image size and mip levels
-	VkDeviceSize imageSize = texWidth * texHeight * 4/*bytes per pixel*/;
-	mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
-
-	std::cout << "Loaded texture ";
-	std::cout << texWidth << "x" << texHeight << std::endl;
+	RawImage image = loadImageFromFile(texturePath);
+	VkDeviceSize imageSize = static_cast<VkDeviceSize>(image.size);
+	uint32_t texWidth = static_cast<uint32_t>(image.width);
+	uint32_t texHeight = static_cast<uint32_t>(image.height);
+	// Compute mip levels
+	mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(image.width, image.height)))) + 1;
 
 	//-----------------------------------------
 	// COPY IMAGE TO STAGING BUFFER
@@ -86,11 +83,11 @@ void TextureManager::createTextureImage(std::string texturePath, ImageObjects& t
 
 	void* data;
 	vkMapMemory(device.get(), stagingBufferMemory, 0, imageSize, 0, &data);
-	memcpy(data, pixels, static_cast<size_t>(imageSize));
+	memcpy(data, image.pixels, static_cast<size_t>(imageSize));
 	vkUnmapMemory(device.get(), stagingBufferMemory);
 
 	// cleanup old pixel array
-	stbi_image_free(pixels);
+	image.free();
 
 	//-----------------------------------------
 	// CREATE IMAGE

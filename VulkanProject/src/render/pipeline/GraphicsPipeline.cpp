@@ -310,6 +310,22 @@ void GraphicsPipeline::updateDescriptorSet(ModelUboManager modelUniforms, LightU
 		descriptorWrites.data(), 0, nullptr);
 }
 
+VkShaderModule GraphicsPipeline::createShaderModule(Device device, const std::vector<char>& code) {
+	// CREATE INFO
+	VkShaderModuleCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+	createInfo.codeSize = code.size(); // Size in bytes (char)
+	createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data()); // Vulkan uses uint32 pointer (not char)
+	// It is not necessary to check alignment, std::vector already does
+
+	// CREATE SHADER MODULE
+	VkShaderModule shaderModule;
+	if (vkCreateShaderModule(device.get(), &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create shader module");
+	}
+
+	return shaderModule;
+}
 
 void GraphicsPipeline::cleanup() {
 	vkDestroyDescriptorSetLayout(device.get(), descriptorSetLayout, nullptr);

@@ -20,8 +20,10 @@ endif()
 set(SOURCES
     "${TEST_FILES}"
 
-    "${SOURCE_CODE_PATH}/asset/pipelineUtils.cpp"
-    "${SOURCE_CODE_PATH}/asset/utils.cpp"
+    "${SOURCE_CODE_PATH}/asset/bytecodeFileReader.cpp"
+    "${SOURCE_CODE_PATH}/asset/external.cpp"
+    "${SOURCE_CODE_PATH}/asset/imageLoader.cpp"
+    "${SOURCE_CODE_PATH}/asset/modelLoader.cpp"
 
     "${SOURCE_CODE_PATH}/context/CommandManager.cpp"
     "${SOURCE_CODE_PATH}/context/Device.cpp"

@@ -63,4 +63,6 @@ protected:
 	// Create a GraphicsPipeline with all the stages and a PipelineLayout
 	virtual void createGraphicsPipeline(std::string vertexShaderLocation, std::string fragmentShaderLocation) = 0;
 
+	static VkShaderModule createShaderModule(Device device, const std::vector<char>& code);
+
 };

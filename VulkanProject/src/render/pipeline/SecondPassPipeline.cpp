@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <string>
 
-#include "asset/pipelineUtils.hpp"
+#include "asset/bytecodeFileReader.hpp"
 
 
 void SecondPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFormat) {
