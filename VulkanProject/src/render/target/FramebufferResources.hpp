@@ -1,7 +1,7 @@
 #pragma once
 
-#include "imageUtils.hpp"
-#include "SwapChain.hpp"
+#include "render/image/imageUtils.hpp"
+#include "render/target/SwapChain.hpp"
 
 
 class FramebufferResources {

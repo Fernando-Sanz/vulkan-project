@@ -1,4 +1,4 @@
-#include "VulkanApplication.hpp"
+#include "context/VulkanApplication.hpp"
 
 
 const std::string FIRST_PASS_VERT_SHADER_PATH = "../../VulkanProject/assets/shaders/vert.spv";

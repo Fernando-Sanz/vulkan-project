@@ -2,8 +2,8 @@
 
 #include <vulkan/vulkan.h>
 
-#include "Device.hpp"
-#include "CommandManager.hpp"
+#include "context/Device.hpp"
+#include "context/CommandManager.hpp"
 
 
 // TODO: use the struct in other classes (Texture.hpp)

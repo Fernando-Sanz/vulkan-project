@@ -1,11 +1,11 @@
-#include "Window.hpp"
+#include "context/Window.hpp"
 
 #include <SDL3/SDL_vulkan.h>
 
 #include <vector>
 #include <stdexcept>
 
-#include "eventManagement.hpp"
+#include "system/eventManagement.hpp"
 
 
 void Window::create(char* title, int width, int height) {

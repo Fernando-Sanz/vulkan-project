@@ -1,4 +1,4 @@
-#include "LightUboManager.hpp"
+#include "render/uniform/LightUboManager.hpp"
 
 
 void LightUboManager::createBuffers(Device device, size_t count, size_t lightCount) {

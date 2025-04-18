@@ -1,5 +1,7 @@
-#include "Light.hpp"
-#include "AppTime.hpp"
+#include "scene/Light.hpp"
+
+#include "time/AppTime.hpp"
+
 
 Light::Light() {
 	transform.position = glm::vec3(2.0);

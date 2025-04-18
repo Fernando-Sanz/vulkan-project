@@ -2,7 +2,7 @@
 
 #include <algorithm> // for std::clamp
 
-#include "imageUtils.hpp"
+#include "render/image/imageUtils.hpp"
 
 
 void SwapChain::create(Device device, Window window, VkSurfaceKHR surface) {

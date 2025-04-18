@@ -2,7 +2,7 @@
 
 #include <vulkan/vulkan.h>
 
-#include "GraphicsPipeline.hpp"
+#include "render/pipeline/GraphicsPIpeline.hpp"
 
 
 class  SecondPassPipeline : public GraphicsPipeline{

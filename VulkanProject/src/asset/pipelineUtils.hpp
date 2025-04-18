@@ -4,7 +4,8 @@
 
 #include <string>
 #include <vector>
-#include "Device.hpp"
+
+#include "context/Device.hpp"
 
 
 std::vector<char> readFile(const std::string& filename);

@@ -19,8 +19,9 @@ endif()
 
 set(SOURCES
     "${TEST_FILES}"
-    "${SOURCE_CODE_PATH}/assets/pipelineUtils.cpp"
-    "${SOURCE_CODE_PATH}/assets/utils.cpp"
+
+    "${SOURCE_CODE_PATH}/asset/pipelineUtils.cpp"
+    "${SOURCE_CODE_PATH}/asset/utils.cpp"
 
     "${SOURCE_CODE_PATH}/context/CommandManager.cpp"
     "${SOURCE_CODE_PATH}/context/Device.cpp"

@@ -1,4 +1,4 @@
-#include "GraphicsPipeline.hpp"
+#include "render/pipeline/GraphicsPIpeline.hpp"
 
 
 namespace Bindings {

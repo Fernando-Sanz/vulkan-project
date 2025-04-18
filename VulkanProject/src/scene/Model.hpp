@@ -1,10 +1,10 @@
 #pragma once
 
-#include "Device.hpp"
-#include "CommandManager.hpp"
-#include "Vertex.hpp"
+#include "context/Device.hpp"
+#include "context/CommandManager.hpp"
+#include "render/vertex/Vertex.hpp"
 #include "Transform.hpp"
-#include "TextureManager.hpp"
+#include "render/uniform/TextureManager.hpp"
 
 
 class Model {

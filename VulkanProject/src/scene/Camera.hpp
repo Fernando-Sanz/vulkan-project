@@ -3,8 +3,8 @@
 #include <glm/glm.hpp>
 #include <SDL3/SDL.h>
 
-#include "Transform.hpp"
-#include "SwapChain.hpp"
+#include "scene/Transform.hpp"
+#include "render/target/SwapChain.hpp"
 
 
 struct MovementState {

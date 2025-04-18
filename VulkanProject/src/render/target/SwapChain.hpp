@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Device.hpp"
-#include "Window.hpp"
+#include "context/Device.hpp"
+#include "context/Window.hpp"
 
 
 class SwapChain {

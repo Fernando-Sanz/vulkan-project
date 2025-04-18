@@ -2,10 +2,10 @@
 
 #include <vulkan/vulkan.h>
 
-#include "Model.hpp"
-#include "TextureManager.hpp"
-#include "ModelUboManager.hpp"
-#include "LightUboManager.hpp"
+#include "scene/Model.hpp"
+#include "render/uniform/TextureManager.hpp"
+#include "render/uniform/ModelUboManager.hpp"
+#include "render/uniform/LightUboManager.hpp"
 
 
 class GraphicsPipeline {

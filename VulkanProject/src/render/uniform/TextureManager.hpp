@@ -4,9 +4,9 @@
 
 #include <string>
 
-#include "Device.hpp"
-#include "CommandManager.hpp"
-#include "imageUtils.hpp"
+#include "context/Device.hpp"
+#include "context/CommandManager.hpp"
+#include "render/image/imageUtils.hpp"
 
 
 struct TexturePaths {

@@ -1,10 +1,10 @@
-#include "TextureManager.hpp"
+#include "render/uniform/TextureManager.hpp"
 
 #include <iostream>
 #include <stdexcept>
 #include <stb_image.h>
 
-#include "imageUtils.hpp"
+#include "render/image/imageUtils.hpp"
 
 
 void TextureManager::create(Device device, CommandManager commandManager) {

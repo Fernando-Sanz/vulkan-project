@@ -3,8 +3,7 @@
 #include <glm/glm.hpp>
 #include <SDL3/SDL.h>
 
-#include "Transform.hpp"
-#include "SwapChain.hpp"
+#include "scene/Transform.hpp"
 
 
 class Light {

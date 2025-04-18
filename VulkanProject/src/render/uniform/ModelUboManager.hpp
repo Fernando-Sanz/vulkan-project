@@ -3,8 +3,8 @@
 #include <glm/glm.hpp>
 #include <vector>
 
-#include "Device.hpp"
-#include "Camera.hpp"
+#include "context/Device.hpp"
+#include "scene/Camera.hpp"
 
 
 // See alignment requirements in specification

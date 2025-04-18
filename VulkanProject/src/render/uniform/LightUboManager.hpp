@@ -3,9 +3,9 @@
 #include <glm/glm.hpp>
 #include <vector>
 
-#include "Device.hpp"
-#include "Camera.hpp"
-#include "Light.hpp"
+#include "context/Device.hpp"
+#include "scene/Camera.hpp"
+#include "scene/Light.hpp"
 
 
 struct LightUBO {

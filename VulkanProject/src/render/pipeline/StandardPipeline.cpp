@@ -7,8 +7,8 @@
 #include <stdexcept>
 #include <string>
 
-#include "PipelineUtils.hpp"
-#include "Vertex.hpp"
+#include "asset/pipelineUtils.hpp"
+#include "render/vertex/Vertex.hpp"
 
 
 void StandardPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat,

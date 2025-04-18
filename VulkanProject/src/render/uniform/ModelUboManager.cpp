@@ -1,4 +1,4 @@
-#include "ModelUboManager.hpp"
+#include "render/uniform/ModelUboManager.hpp"
 
 
 void ModelUboManager::createBuffers(Device device, int count) {
