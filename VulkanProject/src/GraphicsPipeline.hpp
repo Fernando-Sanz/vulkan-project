@@ -30,7 +30,7 @@ public:
 
 	// Write a descriptor set with the corresponding data
 	void updateDescriptorSet(ModelUboManager modelUniforms, LightUboManager lightsUniforms, TextureManager textures,
-		VkDescriptorSet& descriptorSet);
+		VkDescriptorSet descriptorSet);
 
 	// Record a command buffer with the necessary operations to use the pipeline
 	void recordDrawing(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer, VkExtent2D extent,

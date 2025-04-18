@@ -22,10 +22,10 @@ public:
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // GETTERS AND SETTERS
 
-    size_t getLightCount() { return lightCount; }
+    size_t getLightCount() const { return lightCount; }
 
     // Return a buffer that references the memory with all the lights
-    VkBuffer getBuffer(size_t index) { return buffers[index]; }
+    VkBuffer getBuffer(size_t index) const { return buffers[index]; }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // METHODS

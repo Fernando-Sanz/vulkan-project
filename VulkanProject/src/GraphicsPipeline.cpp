@@ -1,6 +1,160 @@
 #include "GraphicsPipeline.hpp"
 
 
+namespace Bindings {
+	void addModelBinding(std::vector<VkDescriptorSetLayoutBinding>& bindings) {
+		VkDescriptorSetLayoutBinding modelUboLayoutBinding{};
+		modelUboLayoutBinding.binding = static_cast<uint32_t>(bindings.size());
+		modelUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		modelUboLayoutBinding.descriptorCount = 1; // only 1 model per render pass
+		modelUboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+		
+		bindings.push_back(modelUboLayoutBinding);
+	}
+
+	void addTextureBindings(std::vector<VkDescriptorSetLayoutBinding>& bindings, int textureCount) {
+		VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+		samplerLayoutBinding.binding = static_cast<uint32_t>(bindings.size());
+		samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+		samplerLayoutBinding.descriptorCount = 1;
+		samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		samplerLayoutBinding.pImmutableSamplers = nullptr; // Optional
+
+		bindings.push_back(samplerLayoutBinding);
+
+		VkDescriptorSetLayoutBinding texturesLayoutBinding{};
+		texturesLayoutBinding.binding = static_cast<uint32_t>(bindings.size());
+		texturesLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		texturesLayoutBinding.descriptorCount = textureCount;
+		texturesLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+		bindings.push_back(texturesLayoutBinding);
+	}
+
+	void addLightBinding(std::vector<VkDescriptorSetLayoutBinding>& bindings, int lightCount) {
+		VkDescriptorSetLayoutBinding lightUboLayoutBinding{};
+		lightUboLayoutBinding.binding = static_cast<uint32_t>(bindings.size());
+		lightUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		lightUboLayoutBinding.descriptorCount = lightCount;
+		lightUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+		bindings.push_back(lightUboLayoutBinding);
+	}
+}
+
+namespace DescriptorSets {
+	void addModelDescriptorWrite(VkBuffer modelUboBuffer, VkDescriptorSet descriptorSetDst,
+		VkDescriptorBufferInfo& modelBufferInfo, std::vector<VkWriteDescriptorSet>& descriptorWrites) {
+
+		// INFO
+		modelBufferInfo.buffer = modelUboBuffer;
+		modelBufferInfo.offset = 0;
+		modelBufferInfo.range = sizeof(ModelUBO);
+
+		// WRITE
+		VkWriteDescriptorSet modelBufferWrite{};
+		modelBufferWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		modelBufferWrite.dstSet = descriptorSetDst;
+		modelBufferWrite.dstBinding = static_cast<uint32_t>(descriptorWrites.size());
+		modelBufferWrite.dstArrayElement = 0;
+		modelBufferWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		modelBufferWrite.descriptorCount = 1;
+		modelBufferWrite.pBufferInfo = &modelBufferInfo;
+		modelBufferWrite.pImageInfo = nullptr; // Not used
+		modelBufferWrite.pTexelBufferView = nullptr; // Not used
+
+		descriptorWrites.push_back(modelBufferWrite);
+	}
+
+	void addTextureDescriptorWrites(const TextureManager& textures, VkDescriptorSet descriptorSetDst,
+		VkDescriptorImageInfo& samplerInfo, std::vector<VkDescriptorImageInfo>& textureInfos,
+		std::vector<VkWriteDescriptorSet>& descriptorWrites) {
+
+		// TEXTURE SAMPLER INFO
+		samplerInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		samplerInfo.sampler = textures.getSampler();
+
+		// TEXTURE INFOS
+
+		textureInfos.resize(textures.getTextureCount());
+		auto usedTypes = textures.getTextureTypesUsed();
+		int index = 0;
+		if (usedTypes & TEXTURE_TYPE_ALBEDO_BIT) {
+			// color
+			textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			textureInfos[index].imageView = textures.getAlbedo().view;
+			index++;
+		}
+		if (usedTypes & TEXTURE_TYPE_SPECULAR_BIT) {
+			// specular
+			textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			textureInfos[index].imageView = textures.getSpecular().view;
+			index++;
+		}
+		if (usedTypes & TEXTURE_TYPE_NORMAL_BIT) {
+			// normal
+			textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			textureInfos[index].imageView = textures.getNormal().view;
+			index++;
+		}
+		if (usedTypes & TEXTURE_TYPE_CUSTOM_BIT) {
+			// custom
+			for (size_t i = 0; i < textures.getTextureCount(); i++) {
+				textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+				textureInfos[index].imageView = textures.getCustomTexture(i).view;
+				index++;
+			}
+		}
+
+		// WRITES
+
+		// texture sampler
+		VkWriteDescriptorSet samplerWrite{};
+		samplerWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		samplerWrite.dstSet = descriptorSetDst;
+		samplerWrite.dstBinding = static_cast<uint32_t>(descriptorWrites.size());
+		samplerWrite.dstArrayElement = 0;
+		samplerWrite.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+		samplerWrite.descriptorCount = 1;
+		samplerWrite.pImageInfo = &samplerInfo;
+
+		descriptorWrites.push_back(samplerWrite);
+
+		// textures
+		VkWriteDescriptorSet texturesWrite{};
+		texturesWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		texturesWrite.dstSet = descriptorSetDst;
+		texturesWrite.dstBinding = static_cast<uint32_t>(descriptorWrites.size());
+		texturesWrite.dstArrayElement = 0;
+		texturesWrite.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		texturesWrite.descriptorCount = static_cast<uint32_t>(textureInfos.size());
+		texturesWrite.pImageInfo = textureInfos.data();
+
+		descriptorWrites.push_back(texturesWrite);
+	}
+
+	void addLightDescriptorWrite(VkBuffer lightsUboBuffer, size_t lightCount, VkDescriptorSet descriptorSetDst,
+		VkDescriptorBufferInfo& lightsBufferInfo, std::vector<VkWriteDescriptorSet>& descriptorWrites) {
+
+		// INFO
+		lightsBufferInfo.buffer = lightsUboBuffer;
+		lightsBufferInfo.offset = 0;
+		lightsBufferInfo.range = sizeof(LightUBO) * lightCount;
+
+		// WRITE
+		VkWriteDescriptorSet lightsBufferWrite{};
+		lightsBufferWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		lightsBufferWrite.dstSet = descriptorSetDst;
+		lightsBufferWrite.dstBinding = static_cast<uint32_t>(descriptorWrites.size());
+		lightsBufferWrite.dstArrayElement = 0;
+		lightsBufferWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		lightsBufferWrite.descriptorCount = 1;
+		lightsBufferWrite.pBufferInfo = &lightsBufferInfo;
+
+		descriptorWrites.push_back(lightsBufferWrite);
+	}
+}
+
 // TODO: receive a vector of Model and iterate over them to get their textures
 void GraphicsPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat,
 	bool renderModel, uint32_t textureCount, uint32_t lightCount,
@@ -20,57 +174,24 @@ void GraphicsPipeline::createDescriptorSetLayout(bool renderModel, uint32_t text
 
 	//----------------------------------------------------
 	// BINDINGS
-
 	std::vector<VkDescriptorSetLayoutBinding> bindings;
 
-	//---------------------
-	// model UBO binding
-	VkDescriptorSetLayoutBinding modelUboLayoutBinding{};
-	if (renderModel) {
-		modelUboLayoutBinding.binding = static_cast<uint32_t>(bindings.size());
-		modelUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		modelUboLayoutBinding.descriptorCount = 1; // only 1 model per render pass
-		modelUboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-		
-		bindings.push_back(modelUboLayoutBinding);
-	}
+	// MODEL UBO
+	if (renderModel)
+		Bindings::addModelBinding(bindings);
 
-	//---------------------
-	// sampler and textures bindings
-	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-	VkDescriptorSetLayoutBinding texturesLayoutBinding{};
+	// SAMPLER AND TEXTURE
 	if (textureCount > 0) {
-		samplerLayoutBinding.binding = static_cast<uint32_t>(bindings.size());
-		samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-		samplerLayoutBinding.descriptorCount = 1;
-		samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-		samplerLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-		bindings.push_back(samplerLayoutBinding);
-
-		texturesLayoutBinding.binding = static_cast<uint32_t>(bindings.size());
-		texturesLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-		texturesLayoutBinding.descriptorCount = textureCount;
-		texturesLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-		bindings.push_back(texturesLayoutBinding);
+		Bindings::addTextureBindings(bindings, textureCount);
 	}
 
-	//---------------------
-	// ligth UBO binding
-	VkDescriptorSetLayoutBinding lightUboLayoutBinding{};
+	// LIGHT UBOS
 	if (lightCount > 0) {
-		lightUboLayoutBinding.binding = static_cast<uint32_t>(bindings.size());
-		lightUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		lightUboLayoutBinding.descriptorCount = lightCount;
-		lightUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-		bindings.push_back(lightUboLayoutBinding);
+		Bindings::addLightBinding(bindings, lightCount);
 	}
 
 	//----------------------------------------------------
-	// CREATE DESCRIPTOR SET
-
+	// CREATE DESCRIPTOR SET LAYOUT
 	VkDescriptorSetLayoutCreateInfo layoutInfo{};
 	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -81,6 +202,7 @@ void GraphicsPipeline::createDescriptorSetLayout(bool renderModel, uint32_t text
 		throw std::runtime_error("failed to create descriptor set layout");
 	}
 }
+
 
 void GraphicsPipeline::recordDrawing(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer, VkExtent2D extent,
 	Model model, VkDescriptorSet descriptorSet) {
@@ -158,124 +280,29 @@ void GraphicsPipeline::allocateDescriptorSets(VkDescriptorPool pool, uint32_t co
 
 // TODO: move this to a Renderer class
 void GraphicsPipeline::updateDescriptorSet(ModelUboManager modelUniforms, LightUboManager lightsUniforms, TextureManager textures,
-	VkDescriptorSet& descriptorSet) {
+	VkDescriptorSet descriptorSet) {
 
 	// DESCRIPTOR WRITES
 	std::vector<VkWriteDescriptorSet> descriptorWrites{};
-	int binding = 0;
 
-	// MODELS BUFFER
-	VkDescriptorBufferInfo modelBufferInfo{};
-	VkWriteDescriptorSet modelBufferWrite{};
+	// Model UBO
+	VkDescriptorBufferInfo modelBufferInfo;
 	if (modelUniforms.hasModel()) {
-
-		// INFO
-		modelBufferInfo.buffer = modelUniforms.getBuffer(0); // TODO: RECEIVE AN ID WITH THE CORRECT MODEL
-		modelBufferInfo.offset = 0;
-		modelBufferInfo.range = sizeof(ModelUBO);
-
-		// WRITE
-		modelBufferWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		modelBufferWrite.dstSet = descriptorSet;
-		modelBufferWrite.dstBinding = binding++;
-		modelBufferWrite.dstArrayElement = 0;
-		modelBufferWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		modelBufferWrite.descriptorCount = 1;
-		modelBufferWrite.pBufferInfo = &modelBufferInfo;
-		modelBufferWrite.pImageInfo = nullptr; // Not used
-		modelBufferWrite.pTexelBufferView = nullptr; // Not used
-
-		descriptorWrites.push_back(modelBufferWrite);
+		DescriptorSets::addModelDescriptorWrite(modelUniforms.getBuffer(0), descriptorSet, modelBufferInfo, descriptorWrites);
 	}
 
-	// SAMPLER AND TEXTURES
+	// Sample and textures
 	VkDescriptorImageInfo samplerInfo{};
 	std::vector<VkDescriptorImageInfo> textureInfos;
-	VkWriteDescriptorSet samplerWrite{};
-	VkWriteDescriptorSet texturesWrite{};
 	if (textures.getTextureCount() > 0) {
-
-		// TEXTURE SAMPLER INFO
-		samplerInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		samplerInfo.sampler = textures.getSampler();
-
-		// TEXTURE INFOS
-
-		textureInfos.resize(textures.getTextureCount());
-		auto usedTypes = textures.getTextureTypesUsed();
-		int index = 0;
-		if (usedTypes & TEXTURE_TYPE_ALBEDO_BIT) {
-			// color
-			textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			textureInfos[index].imageView = textures.getAlbedo().view;
-			index++;
-		}
-		if (usedTypes & TEXTURE_TYPE_SPECULAR_BIT) {
-			// specular
-			textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			textureInfos[index].imageView = textures.getSpecular().view;
-			index++;
-		}
-		if (usedTypes & TEXTURE_TYPE_NORMAL_BIT) {
-			// normal
-			textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			textureInfos[index].imageView = textures.getNormal().view;
-			index++;
-		}
-		if (usedTypes & TEXTURE_TYPE_CUSTOM_BIT) {
-			// custom
-			for (auto& texture : textures.getCustomTextures()) {
-				textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-				textureInfos[index].imageView = texture.view;
-				index++;
-			}
-		}
-
-		// WRITES
-
-		// texture sampler
-		samplerWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		samplerWrite.dstSet = descriptorSet;
-		samplerWrite.dstBinding = binding++;
-		samplerWrite.dstArrayElement = 0;
-		samplerWrite.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-		samplerWrite.descriptorCount = 1;
-		samplerWrite.pImageInfo = &samplerInfo;
-
-		descriptorWrites.push_back(samplerWrite);
-
-		// textures
-		texturesWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		texturesWrite.dstSet = descriptorSet;
-		texturesWrite.dstBinding = binding++;
-		texturesWrite.dstArrayElement = 0;
-		texturesWrite.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-		texturesWrite.descriptorCount = static_cast<uint32_t>(textureInfos.size());
-		texturesWrite.pImageInfo = textureInfos.data();
-
-		descriptorWrites.push_back(texturesWrite);
+		DescriptorSets::addTextureDescriptorWrites(textures, descriptorSet, samplerInfo, textureInfos, descriptorWrites);
 	}
 
-	// LIGHTS BUFFER
+	// Lights UBO
 	VkDescriptorBufferInfo lightsBufferInfo{};
-	VkWriteDescriptorSet lightsBufferWrite{};
 	if (lightsUniforms.getLightCount() > 0) {
-
-		// INFO
-		lightsBufferInfo.buffer = lightsUniforms.getBuffer(0);
-		lightsBufferInfo.offset = 0;
-		lightsBufferInfo.range = sizeof(LightUBO) * lightsUniforms.getLightCount();
-
-		// WRITE
-		lightsBufferWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		lightsBufferWrite.dstSet = descriptorSet;
-		lightsBufferWrite.dstBinding = binding++;
-		lightsBufferWrite.dstArrayElement = 0;
-		lightsBufferWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		lightsBufferWrite.descriptorCount = 1;
-		lightsBufferWrite.pBufferInfo = &lightsBufferInfo;
-
-		descriptorWrites.push_back(lightsBufferWrite);
+		DescriptorSets::addLightDescriptorWrite(lightsUniforms.getBuffer(0), lightsUniforms.getLightCount(), descriptorSet,
+			lightsBufferInfo, descriptorWrites);
 	}
 	
 	// UPDATE

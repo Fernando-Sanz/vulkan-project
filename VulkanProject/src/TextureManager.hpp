@@ -29,18 +29,17 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// GETTERS AND SETTERS
 
-	int getTextureTypesUsed() { return usedTypes; }
+	int getTextureTypesUsed() const { return usedTypes; }
 
-	ImageObjects getAlbedo() { return albedo; }
-	ImageObjects getSpecular() { return specular; }
-	ImageObjects getNormal() { return normal; }
+	ImageObjects getAlbedo() const { return albedo; }
+	ImageObjects getSpecular() const { return specular; }
+	ImageObjects getNormal() const { return normal; }
 
-	ImageObjects getCustomTexture(size_t index) { return customTextures[index]; }
-	std::vector<ImageObjects> getCustomTextures() { return customTextures; }
+	ImageObjects getCustomTexture(size_t index) const { return customTextures[index]; }
 
-	uint32_t getTextureCount() { return textureCount; }
+	uint32_t getTextureCount() const { return textureCount; }
 
-	VkSampler getSampler() { return sampler; }
+	VkSampler getSampler() const { return sampler; }
 
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
