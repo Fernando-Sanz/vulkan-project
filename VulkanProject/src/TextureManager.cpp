@@ -49,39 +49,16 @@ void TextureManager::createTexture(TextureType type, std::string texturePath) {
 	addTexture(type, newTexture);
 }
 
-void TextureManager::destroyTexture(ImageObjects texture) {
-	destroyImageObjects(device, texture);
-	textureCount--;
-}
+void TextureManager::createTextures(TexturePaths texturePaths) {
 
-void TextureManager::destroyTexture(TextureType type) {
-	switch (type) {
-	case TEXTURE_TYPE_ALBEDO_BIT:
-		destroyTexture(albedo);
-		usedTypes -= TEXTURE_TYPE_ALBEDO_BIT;
-		break;
-	case TEXTURE_TYPE_SPECULAR_BIT:
-		destroyTexture(specular);
-		usedTypes -= TEXTURE_TYPE_SPECULAR_BIT;
-		break;
-	case TEXTURE_TYPE_NORMAL_BIT:
-		destroyTexture(normal);
-		usedTypes -= TEXTURE_TYPE_NORMAL_BIT;
-		break;
-	case TEXTURE_TYPE_CUSTOM_BIT:
-		destroyCustomTexture(0);
-		break;
-	default:
-		throw std::runtime_error("texture type not supported");
-	}
-}
-
-void TextureManager::destroyCustomTexture(size_t index) {
-	ImageObjects oldTexture = customTextures[index];
-	destroyTexture(customTextures[index]);
-	customTextures.erase(customTextures.begin() + index);
-
-	if (customTextures.size() == 0) usedTypes -= TEXTURE_TYPE_CUSTOM_BIT;
+	if (texturePaths.albedoPath.has_value())
+		createTexture(TEXTURE_TYPE_ALBEDO_BIT, texturePaths.albedoPath.value());
+	if (texturePaths.specularPath.has_value())
+		createTexture(TEXTURE_TYPE_SPECULAR_BIT, texturePaths.specularPath.value());
+	if (texturePaths.normalPath.has_value())
+		createTexture(TEXTURE_TYPE_NORMAL_BIT, texturePaths.normalPath.value());
+	for (auto& texturePath : texturePaths.customPaths)
+		createTexture(TEXTURE_TYPE_CUSTOM_BIT, texturePath);
 }
 
 void TextureManager::createTextureImage(std::string texturePath, ImageObjects& texture) {
@@ -178,21 +155,28 @@ void TextureManager::createSampler(uint32_t mipLevels) {
 	}
 }
 
-void TextureManager::cleanup() {
-	vkDestroySampler(device.get(), sampler, nullptr);
+void TextureManager::destroyTextures(bool destroyVulkanImages) {
 
-	if (TEXTURE_TYPE_ALBEDO_BIT & usedTypes)
-		destroyImageObjects(device, albedo);
-	if (TEXTURE_TYPE_SPECULAR_BIT & usedTypes)
-		destroyImageObjects(device, specular);
-	if (TEXTURE_TYPE_NORMAL_BIT & usedTypes)
-		destroyImageObjects(device, normal);
+	if (destroyVulkanImages) {
+		if (TEXTURE_TYPE_ALBEDO_BIT & usedTypes)
+			destroyImageObjects(device, albedo);
+		if (TEXTURE_TYPE_SPECULAR_BIT & usedTypes)
+			destroyImageObjects(device, specular);
+		if (TEXTURE_TYPE_NORMAL_BIT & usedTypes)
+			destroyImageObjects(device, normal);
 
-	if (customTextures.size() == 0) {
 		for (auto& texture : customTextures) {
 			destroyImageObjects(device, texture);
 		}
 	}
+	customTextures.clear();
 
+	textureCount = 0;
 	usedTypes = 0b0000;
+}
+
+void TextureManager::cleanup(bool destroyVulkanImages) {
+	vkDestroySampler(device.get(), sampler, nullptr);
+
+	destroyTextures(destroyVulkanImages);
 }

@@ -25,16 +25,19 @@ set(SOURCES
     ${SOURCE_CODE_PATH}/Device.cpp
     ${SOURCE_CODE_PATH}/eventManagement.cpp
     ${SOURCE_CODE_PATH}/FirstPassPipeline.cpp
+    ${SOURCE_CODE_PATH}/FramebufferResources.cpp
+    ${SOURCE_CODE_PATH}/GraphicsPipeline.cpp
     ${SOURCE_CODE_PATH}/imageUtils.cpp
     ${SOURCE_CODE_PATH}/Light.cpp
+    ${SOURCE_CODE_PATH}/LightUboManager.cpp
     ${SOURCE_CODE_PATH}/Model.cpp
+    ${SOURCE_CODE_PATH}/ModelUboManager.cpp
     ${SOURCE_CODE_PATH}/pipelineUtils.cpp
     ${SOURCE_CODE_PATH}/SecondPassPipeline.cpp
     ${SOURCE_CODE_PATH}/StandardPipeline.cpp
     ${SOURCE_CODE_PATH}/SwapChain.cpp
-    ${SOURCE_CODE_PATH}/Transform.cpp
     ${SOURCE_CODE_PATH}/TextureManager.cpp
-    ${SOURCE_CODE_PATH}/UniformManager.cpp
+    ${SOURCE_CODE_PATH}/Transform.cpp
     ${SOURCE_CODE_PATH}/utils.cpp
     ${SOURCE_CODE_PATH}/Window.cpp
 )

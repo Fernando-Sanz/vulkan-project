@@ -8,18 +8,7 @@
 #include <string>
 
 #include "PipelineUtils.hpp"
-#include "Vertex.hpp"
 
-
-void SecondPassPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat,
-	std::string vertShaderLocation, std::string fragShaderLocation) {
-
-	this->device = device;
-
-	createRenderPass(imageFormat, depthFormat);
-	createDescriptorSetLayout();
-	createGraphicsPipeline(vertShaderLocation, fragShaderLocation);
-}
 
 void SecondPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFormat) {
 
@@ -47,16 +36,16 @@ void SecondPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFo
 	//----------------------------------------------------
 	// DEPTH ATTACHMENT
 
-	// Load the image, undefined initial layout
+	// Clear the image, undefined initial layout
 	// Dont care store op, depth attch as final layout
 	VkAttachmentDescription depthAttachment{};
 	depthAttachment.format = depthFormat;
 	depthAttachment.samples = device.getMsaaSamples();
-	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	depthAttachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentReference depthAttachmentRef{};
@@ -118,33 +107,6 @@ void SecondPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFo
 
 	if (vkCreateRenderPass(device.get(), &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create render pass");
-	}
-}
-
-void SecondPassPipeline::createDescriptorSetLayout() {
-
-	//----------------------------------------------------
-	// BINDINGS
-
-	//---------------------
-	// sampler binding
-	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-	samplerLayoutBinding.binding = 0;
-	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	samplerLayoutBinding.descriptorCount = 1;
-	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	samplerLayoutBinding.pImmutableSamplers = nullptr;
-
-	//----------------------------------------------------
-	// CREATE DESCRIPTOR SET
-	VkDescriptorSetLayoutCreateInfo layoutInfo{};
-	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layoutInfo.bindingCount = 1;
-	layoutInfo.pBindings = &samplerLayoutBinding;
-
-	// CREATION
-	if (vkCreateDescriptorSetLayout(device.get(), &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create descriptor set layout");
 	}
 }
 
@@ -334,11 +296,4 @@ void SecondPassPipeline::createGraphicsPipeline(std::string vertShaderLocation, 
 	// in pipeline creation
 	vkDestroyShaderModule(device.get(), fragShaderModule, nullptr);
 	vkDestroyShaderModule(device.get(), vertShaderModule, nullptr);
-}
-
-void SecondPassPipeline::cleanup() {
-	vkDestroyDescriptorSetLayout(device.get(), descriptorSetLayout, nullptr);
-	vkDestroyPipeline(device.get(), pipeline, nullptr);
-	vkDestroyPipelineLayout(device.get(), pipelineLayout, nullptr);
-	vkDestroyRenderPass(device.get(), renderPass, nullptr);
 }

@@ -8,20 +8,9 @@
 #include <string>
 
 #include "PipelineUtils.hpp"
-#include "Vertex.hpp"
 
 
-void FirstPassPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat, TextureManager textures,
-	std::string vertShaderLocation, std::string fragShaderLocation) {
-
-	this->device = device;
-
-	createRenderPass(imageFormat, depthFormat);
-	createDescriptorSetLayout(textures);
-	createGraphicsPipeline(vertShaderLocation, fragShaderLocation);
-}
-
-void FirstPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFormat) {
+void FirstPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFormat)  {
 
 	// ATTACHMENTS (description and reference)
 
@@ -118,63 +107,6 @@ void FirstPassPipeline::createRenderPass(VkFormat imageFormat, VkFormat depthFor
 
 	if (vkCreateRenderPass(device.get(), &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create render pass");
-	}
-}
-
-void FirstPassPipeline::createDescriptorSetLayout(TextureManager textures) {
-
-	//----------------------------------------------------
-	// BINDINGS
-
-	uint32_t binding = 0;
-
-	//---------------------
-	// ubo binding
-	VkDescriptorSetLayoutBinding uboLayoutBinding{};
-	uboLayoutBinding.binding = binding++;
-	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	uboLayoutBinding.descriptorCount = 1;
-	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-	//---------------------
-	// ligth ubo binding
-	VkDescriptorSetLayoutBinding lightUboLayoutBinding{};
-	lightUboLayoutBinding.binding = binding++;
-	lightUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	lightUboLayoutBinding.descriptorCount = 1;
-	lightUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	//---------------------
-	// sampler binding
-	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-	samplerLayoutBinding.binding = binding++;
-	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-	samplerLayoutBinding.descriptorCount = 1;
-	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	samplerLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-	//---------------------
-	// textures binding
-	VkDescriptorSetLayoutBinding texturesLayoutBinding{};
-	texturesLayoutBinding.binding = binding;
-	texturesLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-	texturesLayoutBinding.descriptorCount = textures.getTextureCount();
-	texturesLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	//----------------------------------------------------
-	// CREATE DESCRIPTOR SET
-	std::vector<VkDescriptorSetLayoutBinding> bindings = {
-		uboLayoutBinding, lightUboLayoutBinding, samplerLayoutBinding, texturesLayoutBinding
-	};
-
-	VkDescriptorSetLayoutCreateInfo layoutInfo{};
-	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-	layoutInfo.pBindings = bindings.data();
-
-	// CREATION
-	if (vkCreateDescriptorSetLayout(device.get(), &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create descriptor set layout");
 	}
 }
 
@@ -372,11 +304,4 @@ void FirstPassPipeline::createGraphicsPipeline(std::string vertShaderLocation, s
 	// in pipeline creation
 	vkDestroyShaderModule(device.get(), fragShaderModule, nullptr);
 	vkDestroyShaderModule(device.get(), vertShaderModule, nullptr);
-}
-
-void FirstPassPipeline::cleanup() {
-	vkDestroyDescriptorSetLayout(device.get(), descriptorSetLayout, nullptr);
-	vkDestroyPipeline(device.get(), pipeline, nullptr);
-	vkDestroyPipelineLayout(device.get(), pipelineLayout, nullptr);
-	vkDestroyRenderPass(device.get(), renderPass, nullptr);
 }

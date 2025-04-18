@@ -9,6 +9,13 @@
 #include "imageUtils.hpp"
 
 
+struct TexturePaths {
+	std::optional<std::string> albedoPath;
+	std::optional<std::string> specularPath;
+	std::optional<std::string> normalPath;
+	std::vector<std::string> customPaths;
+};
+
 enum TextureType {
 	TEXTURE_TYPE_ALBEDO_BIT = 0b0001,
 	TEXTURE_TYPE_SPECULAR_BIT = 0b0010,
@@ -22,18 +29,17 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// GETTERS AND SETTERS
 
-	int getTextureTypesUsed() { return usedTypes; }
+	int getTextureTypesUsed() const { return usedTypes; }
 
-	ImageObjects getAlbedo() { return albedo; }
-	ImageObjects getSpecular() { return specular; }
-	ImageObjects getNormal() { return normal; }
+	ImageObjects getAlbedo() const { return albedo; }
+	ImageObjects getSpecular() const { return specular; }
+	ImageObjects getNormal() const { return normal; }
 
-	ImageObjects getCustomTexture(size_t index) { return customTextures[index]; }
-	std::vector<ImageObjects> getCustomTextures() { return customTextures; }
+	ImageObjects getCustomTexture(size_t index) const { return customTextures[index]; }
 
-	uint32_t getTextureCount() { return textureCount; }
+	uint32_t getTextureCount() const { return textureCount; }
 
-	VkSampler getSampler() { return sampler; }
+	VkSampler getSampler() const { return sampler; }
 
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -48,14 +54,14 @@ public:
 	// Create all the resources involved in texture usage and add it to the texture list
 	void createTexture(TextureType type, std::string texturePath);
 
-	// Destroy the specified texture, if type = TEXTURE_TYPE_CUSTOM_BIT only first custom texture is destroyed
-	void destroyTexture(TextureType type);
-
-	// Destroy the specified custom texture
-	void destroyCustomTexture(size_t index);
+	// Create all textures with a defined path in the struct texturePaths
+	void TextureManager::createTextures(TexturePaths texturePaths);
 
 	// Destroy Vulkan and other objects
-	void cleanup();
+	void cleanup(bool destroyVulkanImages = true);
+
+	// Erase the texture handlers and destroy the Vulkan objects associated if it is specified
+	void destroyTextures(bool destroyVulkanImages = true);
 
 private:
 
@@ -71,7 +77,7 @@ private:
 	ImageObjects specular;
 	ImageObjects normal;
 	std::vector<ImageObjects> customTextures;
-	uint32_t mipLevels = 1;
+	uint32_t mipLevels = 1; // computed in createTexture() since them depend on the texture size
 	VkSampler sampler = VK_NULL_HANDLE;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -82,9 +88,6 @@ private:
 	
 	// Create sampler for the textures
 	void createSampler(uint32_t mipLevels);
-
-	// Destroy the texture
-	void destroyTexture(ImageObjects texture);
 };
 
 

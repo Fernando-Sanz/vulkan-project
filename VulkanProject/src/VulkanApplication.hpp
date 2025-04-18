@@ -24,13 +24,15 @@
 #include "StandardPipeline.hpp"
 #include "FirstPassPipeline.hpp"
 #include "SecondPassPipeline.hpp"
-#include "UniformManager.hpp"
+#include "ModelUboManager.hpp"
+#include "LightUboManager.hpp"
 #include "Model.hpp"
 #include "TextureManager.hpp"
 #include "AppTime.hpp"
 #include "eventManagement.hpp"
 #include "Camera.hpp"
 #include "Light.hpp"
+#include <FramebufferResources.hpp>
 
 
 const uint32_t WIDTH = 800;
@@ -55,10 +57,7 @@ const std::vector<const char*> validationLayers = {
 
 struct VulkanAppParams {
 	std::string modelPath;
-	std::string albedoTexturePath;
-	std::string specularTexturePath;
-	std::string normalTexturePath;
-	std::vector<std::string> customTexturePaths;
+	std::vector<TexturePaths> texturePaths;
 	std::string firstRenderPassVertShaderPath;
 	std::string firstRenderPassFragShaderPath;
 	std::string secondRenderPassVertShaderPath;
@@ -127,58 +126,46 @@ private:
 	Window window;
 	VkInstance instance;
 	VkDebugUtilsMessengerEXT debugMessenger;
+	// Resize handled manually
+	int windowResizedEvent = -1;
 
-	// TODO: check if could be in Window class
+	// TODO: check if could be in Window class (VkInstance is necessary to create it)
 	// Surface
 	VkSurfaceKHR surface;
 
 	Device device;
+	CommandManager commandManager;
 
 	// Swap chain stuff
 	SwapChain swapChain;
 
-	// Images for framebuffers
-	ImageObjects colorImage; // multisampling
-	ImageObjects depthImage;
-	TextureManager firstPassOutputManager;
-
-	// Pipeline
-	FirstPassPipeline firstPassPipeline;
-	SecondPassPipeline secondPassPipeline;
-
-	// Framebuffers
-	VkFramebuffer firstPassFramebuffer;
-	std::vector<VkFramebuffer> swapChainFramebuffers;
-
-	// Commands
-	CommandManager commandManager;
-
 	// Camera and lights
 	Camera camera;
-	Light spotlight;
-
-	// Texture
-	TextureManager textureManager;
+	std::array<Light, 2> lights;
 
 	// Geometry
 	Model model;
 	Model postProcessingQuad;
 
-	// Uniform
-	UniformManager uniformManager;
-
 	// Descriptor pool and sets
 	VkDescriptorPool descriptorPool;
+
+	// FIRST PASS OBJECTS
+	FirstPassPipeline firstPassPipeline;
+	FramebufferResources firstPassFramebuffer;
 	VkDescriptorSet firstPassDescriptorSet;
-	std::vector<VkDescriptorSet> descriptorSets; // destroyed with descriptorPool
+	ModelUboManager modelUniforms;
+	LightUboManager lightUniforms;
+
+	// SECOND PASS OBJECTS
+	SecondPassPipeline secondPassPipeline;
+	std::vector<FramebufferResources> secondPassFramebuffers;
+	std::vector<VkDescriptorSet> secondPassDescriptorSets;
 
 	// Sync objects
 	std::vector<VkSemaphore> imageAvailableSemaphores;
 	std::vector<VkSemaphore> renderFinishedSemaphores;
 	std::vector<VkFence> inFlightFences;
-
-	// Resize handled manually
-	int windowResizedEvent = -1;
 
 	// Frame tracking
 	uint32_t currentFrame = 0;
@@ -206,7 +193,7 @@ private:
 
 	void initWindow() {
 
-		SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO);
+		SDL_Init(SDL_INIT_VIDEO);
 
 		window.create("Vulkan Render Engine", WIDTH, HEIGHT);
 		addEventSubscriber(SDL_EVENT_WINDOW_RESIZED, [this](SDL_Event e) {
@@ -235,29 +222,34 @@ private:
 		window.createSurface(instance, &surface);
 
 		device.pickDevice();
-		swapChain.create(device, window, surface);
-
 		commandManager.createPoolAndBuffers(device, MAX_FRAMES_IN_FLIGHT);
 
-		createColorResources();
-		createDepthResources();
-		createFirstPassOutputResources();
+		swapChain.create(device, window, surface);
 		
 		createWorldObjects(params);
 
-		uniformManager.createBuffers(device, 1);
+		// TODO: use a vector of models and lights
+		modelUniforms.createBuffers(device, 1);
+		lightUniforms.createBuffers(device, 1, lights.size());
 
-		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(), textureManager,
+		// the pipeline needs the texture count (models already loaded)
+		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(device),
+			true, model.getTextures().getTextureCount(), lights.size(),
 			params.firstRenderPassVertShaderPath, params.firstRenderPassFragShaderPath);
-		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(),
-			params.secondRenderPassVertShaderPath, params.secondRenderPassFragShaderPath);
 
-		createFirstPassFramebuffer();
-		createSwapChainFramebuffers();
+		// framebuffer needs post-processing texture image view
+		createFirstPassResources();
+
+		// second pipeline needs post-processing texture count
+		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(device),
+			false, postProcessingQuad.getTextures().getTextureCount(), 0,
+			params.secondRenderPassVertShaderPath, params.secondRenderPassFragShaderPath);
+		
+		createSecondPassFramebuffers();
 
 		createDescriptorPool();
-		allocateFirstPassDescriptorSets();
-		allocateSecondPassDescriptorSets();
+		createFirstPassDescriptorSets();
+		createSecondPassDescriptorSets();
 
 		createSyncObjects();
 	}
@@ -443,83 +435,17 @@ private:
 
 		cleanupRenderImages();
 
+		// Recreate swap chain
 		swapChain.create(device, window, surface);
-		createColorResources();
-		createDepthResources();
-		createFirstPassOutputResources();
+		// Recreate framebuffers
+		createFirstPassResources();
+		createSecondPassFramebuffers();
+
+		// Reset descriptor in second pass (they use the destroyed texture)
 		configureSecondPassDescriptorSets();
-		createSwapChainFramebuffers();
-		createFirstPassFramebuffer();
 
+		// Update camera with aspect ratio
 		camera.updateProjection(swapChain.getExtent());
-	}
-
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// CREATE MULTISAMPLING RESOURCES
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	void createColorResources() {
-		VkSampleCountFlagBits msaaSamples = device.getMsaaSamples();
-		VkFormat colorFormat = swapChain.getImageFormat();
-
-		createImage(device, swapChain.getExtent().width, swapChain.getExtent().height, 1, msaaSamples,
-			colorFormat, VK_IMAGE_TILING_OPTIMAL,
-			VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			colorImage.image, colorImage.memory);
-		colorImage.view = createImageView(device, colorImage.image, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
-	}
-
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// CREATE DEPTH RESOURCES
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	void createDepthResources() {
-		VkSampleCountFlagBits msaaSamples = device.getMsaaSamples();
-		VkFormat depthFormat = findDepthFormat();
-
-		// Let the graphics pipeline change the layout of the image (implicit)
-		// from UNDEFINED to DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-		createImage(device, swapChain.getExtent().width, swapChain.getExtent().height, 1, msaaSamples,
-			depthFormat, VK_IMAGE_TILING_OPTIMAL,
-			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			depthImage.image, depthImage.memory);
-		depthImage.view = createImageView(device, depthImage.image, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
-	}
-
-	VkFormat findDepthFormat() {
-		return device.findSupportedFormat(
-			{ VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT },
-			VK_IMAGE_TILING_OPTIMAL,
-			VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
-		);
-	}
-
-	bool hasStencilComponent(VkFormat format) {
-		return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
-	}
-
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// CREATE FIRST PASS OUTPUT RESOURCES
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	void createFirstPassOutputResources() {
-		VkFormat colorFormat = swapChain.getImageFormat();
-		ImageObjects texture{};
-
-		createImage(device, swapChain.getExtent().width, swapChain.getExtent().height, 1, VK_SAMPLE_COUNT_1_BIT,
-			colorFormat, VK_IMAGE_TILING_OPTIMAL,
-			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			texture.image, texture.memory);
-		texture.view = createImageView(device, texture.image, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
-
-		// CREATE THE TEXTURE
-		firstPassOutputManager.create(device, commandManager);
-		firstPassOutputManager.addTexture(TEXTURE_TYPE_CUSTOM_BIT, texture);
 	}
 
 
@@ -530,10 +456,18 @@ private:
 	void createWorldObjects(VulkanAppParams params) {
 		camera.init(swapChain.getExtent());
 
-		createTextures(params);
+		// MODEL
+		TextureManager modelTextures;
+		modelTextures.create(device, commandManager);
+		modelTextures.createTextures(params.texturePaths[0]);
+		model.create(device, commandManager, params.modelPath, modelTextures);
 
-		model.loadModel(device, commandManager, params.modelPath);
-		postProcessingQuad.loadModel(device, commandManager, POST_PROCESSING_QUAD_PATH);
+		// POST-PROCESSING QUAD (the texture is set later)
+		TextureManager postProcTextures;
+		postProcTextures.create(device, commandManager);
+		postProcessingQuad.create(device, commandManager, POST_PROCESSING_QUAD_PATH, postProcTextures);
+
+		lights[0].setColor(glm::vec3(1.0f, 0.0f, 0.0f));
 
 		// KEYBOARD EVENTS
 		addEventSubscriber(SDL_EVENT_KEY_DOWN, [this](SDL_Event e) {keyboardEventCallback(e); });
@@ -543,56 +477,23 @@ private:
 
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// FRAMEBUFFERS CREATION
+	// FRAMEBUFFERS AND POST-PROCESSING RESOURCES
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	void createFirstPassFramebuffer() {
+	void createFirstPassResources() {
+		// FRAMEBUFFER
+		firstPassFramebuffer.createEmpty(device, swapChain.getExtent(), firstPassPipeline.getRenderPass(),
+			swapChain.getImageFormat());
 
-		// Create framebuffer
-		std::array<VkImageView, 3> attachments = {
-			colorImage.view,
-			depthImage.view,
-			firstPassOutputManager.getCustomTexture(0).view
-		};
-
-		VkFramebufferCreateInfo framebufferInfo{};
-		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebufferInfo.renderPass = firstPassPipeline.getRenderPass();
-		framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-		framebufferInfo.pAttachments = attachments.data();
-		framebufferInfo.width = swapChain.getExtent().width;
-		framebufferInfo.height = swapChain.getExtent().height;
-		framebufferInfo.layers = 1;
-
-		if (vkCreateFramebuffer(device.get(), &framebufferInfo, nullptr, &firstPassFramebuffer) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create first pass framebuffer");
-		}
+		// POST PROCESSING QUAD TEXTURES
+		ImageObjects firstPassOutputImage = firstPassFramebuffer.getResolveImage();
+		postProcessingQuad.getTextures().addTexture(TEXTURE_TYPE_CUSTOM_BIT, firstPassOutputImage);
 	}
 
-	void createSwapChainFramebuffers() {
-		// Resize framebuffer
-		swapChainFramebuffers.resize(swapChain.getImageCount());
-
-		// Create framebuffers
-		for (size_t i = 0; i < swapChain.getImageCount(); i++) {
-			std::array<VkImageView, 3> attachments = {
-				colorImage.view,
-				depthImage.view,
-				swapChain.getImageView(i)
-			};
-
-			VkFramebufferCreateInfo framebufferInfo{};
-			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-			framebufferInfo.renderPass = secondPassPipeline.getRenderPass();
-			framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-			framebufferInfo.pAttachments = attachments.data();
-			framebufferInfo.width = swapChain.getExtent().width;
-			framebufferInfo.height = swapChain.getExtent().height;
-			framebufferInfo.layers = 1;
-
-			if (vkCreateFramebuffer(device.get(), &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) {
-				throw std::runtime_error("failed to create swap chain framebuffer");
-			}
+	void createSecondPassFramebuffers() {
+		secondPassFramebuffers.resize(MAX_FRAMES_IN_FLIGHT);
+		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+			secondPassFramebuffers[i].createFromSwapChain(device, swapChain, i, secondPassPipeline.getRenderPass());
 		}
 	}
 
@@ -617,140 +518,19 @@ private:
 
 		//--------------------------------------------------------
 		// FIRST PASS
-		
-		//---------------------
-		// RENDER PASS
-		VkRenderPassBeginInfo renderPassInfo{};
-		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassInfo.renderPass = firstPassPipeline.getRenderPass();
-		renderPassInfo.framebuffer = firstPassFramebuffer;
-
-		renderPassInfo.renderArea.offset = { 0, 0 };
-		renderPassInfo.renderArea.extent = swapChain.getExtent();
-
-		std::array<VkClearValue, 2> clearValues = {};
-		clearValues[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };	// for color attachment
-		clearValues[1].depthStencil = { 1.0f, 0 };				// for depth attachment
-
-		renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-		renderPassInfo.pClearValues = clearValues.data();
-
-		// drawing commands
-		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, firstPassPipeline.get());
-
-		//---------------------
-		// PIPELINE DATA
-
-		// vertex buffers
-		VkBuffer vertexBuffers[] = { model.getVertexBuffer() };
-		VkDeviceSize offsets[] = { 0 };
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-
-		// index buffer
-		vkCmdBindIndexBuffer(commandBuffer, model.getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
-
-		// viewport and scissor stage
-		VkViewport viewport{};
-		viewport.x = 0.0f;
-		viewport.y = 0.0f;
-		viewport.width = static_cast<float>(swapChain.getExtent().width);
-		viewport.height = static_cast<float>(swapChain.getExtent().height);
-		viewport.minDepth = 0.0f;
-		viewport.maxDepth = 1.0f;
-		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-
-		VkRect2D scissor{};
-		scissor.offset = { 0, 0 };
-		scissor.extent = swapChain.getExtent();
-		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-			firstPassPipeline.getLayout(), 0, 1, &firstPassDescriptorSet, 0, nullptr);
-
-		//---------------------
-		// DRAW GEOMETRY AND END
-		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model.getIndices().size()), 1, 0, 0, 0);
-		vkCmdEndRenderPass(commandBuffer);
+		firstPassPipeline.recordDrawing(commandBuffer, firstPassFramebuffer.get(), swapChain.getExtent(),
+			model, firstPassDescriptorSet);
 
 		//--------------------------------------------------------
 		// SECOND PASS
-
-		//---------------------
-		// RENDER PASS
-		VkRenderPassBeginInfo secondRenderPassInfo{};
-		secondRenderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		secondRenderPassInfo.renderPass = secondPassPipeline.getRenderPass();
-		secondRenderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
-
-		secondRenderPassInfo.renderArea.offset = { 0, 0 };
-		secondRenderPassInfo.renderArea.extent = swapChain.getExtent();
-
-		secondRenderPassInfo.clearValueCount = 1;
-		secondRenderPassInfo.pClearValues = clearValues.data();
-
-		// drawing commands
-		vkCmdBeginRenderPass(commandBuffer, &secondRenderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, secondPassPipeline.get());
-
-		//---------------------
-		// PIPELINE DATA
-
-		// vertex buffers
-		VkBuffer secondVertexBuffers[] = { postProcessingQuad.getVertexBuffer() };
-		VkDeviceSize secondOffsets[] = { 0 };
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, secondVertexBuffers, secondOffsets);
-
-		// index buffer
-		vkCmdBindIndexBuffer(commandBuffer, postProcessingQuad.getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
-
-		// viewport and scissor stage
-		VkViewport secondViewport{};
-		secondViewport.x = 0.0f;
-		secondViewport.y = 0.0f;
-		secondViewport.width = static_cast<float>(swapChain.getExtent().width);
-		secondViewport.height = static_cast<float>(swapChain.getExtent().height);
-		secondViewport.minDepth = 0.0f;
-		secondViewport.maxDepth = 1.0f;
-		vkCmdSetViewport(commandBuffer, 0, 1, &secondViewport);
-
-		VkRect2D secondScissor{};
-		secondScissor.offset = { 0, 0 };
-		secondScissor.extent = swapChain.getExtent();
-		vkCmdSetScissor(commandBuffer, 0, 1, &secondScissor);
-
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-			secondPassPipeline.getLayout(), 0, 1, &descriptorSets[currentFrame], 0, nullptr);
-
-		//---------------------
-		// DRAW GEOMETRY AND END
-		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(postProcessingQuad.getIndices().size()), 1, 0, 0, 0);
-		vkCmdEndRenderPass(commandBuffer);
+		secondPassPipeline.recordDrawing(commandBuffer, secondPassFramebuffers[imageIndex].get(), swapChain.getExtent(),
+			postProcessingQuad, secondPassDescriptorSets[imageIndex]);
 
 		//--------------------------------------------------------
 		// FINISH COMMAND
 
 		if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to record command buffer");
-		}
-	}
-
-	
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// TEXTURES
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	void createTextures(VulkanAppParams params) {
-		textureManager.create(device, commandManager);
-		if(!params.albedoTexturePath.empty())
-			textureManager.createTexture(TEXTURE_TYPE_ALBEDO_BIT, params.albedoTexturePath);
-		if(!params.specularTexturePath.empty())
-			textureManager.createTexture(TEXTURE_TYPE_SPECULAR_BIT, params.specularTexturePath);
-		if(!params.normalTexturePath.empty())
-			textureManager.createTexture(TEXTURE_TYPE_NORMAL_BIT, params.normalTexturePath);
-
-		for (auto& texturePath : params.customTexturePaths) {
-			textureManager.createTexture(TEXTURE_TYPE_CUSTOM_BIT, texturePath);
 		}
 	}
 
@@ -762,19 +542,16 @@ private:
 	// TODO: parameterize the pool size
 	void createDescriptorPool() {
 		// Sizes
-		std::array<VkDescriptorPoolSize, 4> poolSizes{};
+		std::array<VkDescriptorPoolSize, 3> poolSizes{};
 		// uniform buffer (for first pass)
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		poolSizes[0].descriptorCount = 2;
-		// sampler (for first pass)
+		poolSizes[0].descriptorCount = 3;
+		// sampler (for each pass)
 		poolSizes[1].type = VK_DESCRIPTOR_TYPE_SAMPLER;
-		poolSizes[1].descriptorCount = 1;
-		// sampler (for first pass)
+		poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) + 1;
+		// sampler (for each pass)
 		poolSizes[2].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-		poolSizes[2].descriptorCount = 2;
-		// image sampler (for second pass)
-		poolSizes[3].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		poolSizes[3].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+		poolSizes[2].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) + 2;
 
 		// Create info
 		VkDescriptorPoolCreateInfo poolInfo{};
@@ -788,138 +565,21 @@ private:
 		}
 	}
 
-	void allocateFirstPassDescriptorSets() {
-		VkDescriptorSetLayout layout = firstPassPipeline.getDescriptorSetLayout();
-
-		// DESCRIPTOR SETS ALLOCATION
-		VkDescriptorSetAllocateInfo allocInfo{};
-		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-		allocInfo.descriptorPool = descriptorPool;
-		allocInfo.descriptorSetCount = 1;
-		allocInfo.pSetLayouts = &layout;
-
-		if (vkAllocateDescriptorSets(device.get(), &allocInfo, &firstPassDescriptorSet) != VK_SUCCESS) {
-			throw std::runtime_error("failed to allocate first pass descriptor set");
-		}
-
-		// DESCRIPTOR SET CONFIGURATION
-		// UNIFORM BUFFER INFO
-		VkDescriptorBufferInfo bufferInfo{};
-		bufferInfo.buffer = uniformManager.getBuffer(0);
-		bufferInfo.offset = 0;
-		bufferInfo.range = sizeof(UniformBufferObject);
-
-		// LIGHT UNIFORM BUFFER INFO
-		VkDescriptorBufferInfo lightBufferInfo{};
-		lightBufferInfo.buffer = uniformManager.getLightBuffer();
-		lightBufferInfo.offset = 0;
-		lightBufferInfo.range = sizeof(LightUBO);
-
-		// TEXTURE SAMPLER INFO
-		VkDescriptorImageInfo samplerInfo{};
-		samplerInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		samplerInfo.sampler = textureManager.getSampler();
-
-		// TEXTURES
-		std::vector<VkDescriptorImageInfo> textureInfos(
-			textureManager.getTextureCount(), VkDescriptorImageInfo{});
-
-		// color
-		textureInfos[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		textureInfos[0].imageView = textureManager.getAlbedo().view;
-
-		// normal
-		textureInfos[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		textureInfos[1].imageView = textureManager.getNormal().view;
-
-		// DESCRIPTOR WRITES
-		std::array<VkWriteDescriptorSet, 4> descriptorWrites{};
-
-		// buffer
-		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[0].dstSet = firstPassDescriptorSet;
-		descriptorWrites[0].dstBinding = 0;
-		descriptorWrites[0].dstArrayElement = 0;
-		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		descriptorWrites[0].descriptorCount = 1;
-		descriptorWrites[0].pBufferInfo = &bufferInfo;
-		descriptorWrites[0].pImageInfo = nullptr; // Not used
-		descriptorWrites[0].pTexelBufferView = nullptr; // Not used
-
-		// light buffer
-		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[1].dstSet = firstPassDescriptorSet;
-		descriptorWrites[1].dstBinding = 1;
-		descriptorWrites[1].dstArrayElement = 0;
-		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		descriptorWrites[1].descriptorCount = 1;
-		descriptorWrites[1].pBufferInfo = &lightBufferInfo;
-
-		// texture sampler
-		descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[2].dstSet = firstPassDescriptorSet;
-		descriptorWrites[2].dstBinding = 2;
-		descriptorWrites[2].dstArrayElement = 0;
-		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-		descriptorWrites[2].descriptorCount = 1;
-		descriptorWrites[2].pImageInfo = &samplerInfo;
-
-		// textures
-		descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[3].dstSet = firstPassDescriptorSet;
-		descriptorWrites[3].dstBinding = 3;
-		descriptorWrites[3].dstArrayElement = 0;
-		descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-		descriptorWrites[3].descriptorCount = 2;
-		descriptorWrites[3].pImageInfo = textureInfos.data();
-
-		// UPDATE
-		vkUpdateDescriptorSets(device.get(), static_cast<uint32_t>(descriptorWrites.size()),
-			descriptorWrites.data(), 0, nullptr);
+	void createFirstPassDescriptorSets() {
+		firstPassPipeline.allocateDescriptorSets(descriptorPool, 1, &firstPassDescriptorSet);
+		firstPassPipeline.updateDescriptorSet(modelUniforms, lightUniforms, model.getTextures(), firstPassDescriptorSet);
 	}
 
-
-	void allocateSecondPassDescriptorSets() {
-		std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, secondPassPipeline.getDescriptorSetLayout());
-
-		// DESCRIPTOR SETS ALLOCATION
-		VkDescriptorSetAllocateInfo allocInfo{};
-		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-		allocInfo.descriptorPool = descriptorPool;
-		allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-		allocInfo.pSetLayouts = layouts.data();
-
-		descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-		if (vkAllocateDescriptorSets(device.get(), &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
-			throw std::runtime_error("failed to allocate second pass descriptor sets");
-		}
-
-		// Configure the allocated sets
+	void createSecondPassDescriptorSets() {
+		secondPassDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+		secondPassPipeline.allocateDescriptorSets(descriptorPool, MAX_FRAMES_IN_FLIGHT, secondPassDescriptorSets.data());
 		configureSecondPassDescriptorSets();
 	}
 
 	void configureSecondPassDescriptorSets(){
 		// DESCRIPTOR SETS CONFIGURATION
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-
-			// TEXTURE IMAGE SAMPLER INFO
-			VkDescriptorImageInfo imageInfo{};
-			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			imageInfo.imageView = firstPassOutputManager.getCustomTexture(0).view;
-			imageInfo.sampler = firstPassOutputManager.getSampler();
-
-			// DESCRIPTOR WRITES
-			VkWriteDescriptorSet descriptorWrite{};
-			descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			descriptorWrite.dstSet = descriptorSets[i];
-			descriptorWrite.dstBinding = 0;
-			descriptorWrite.dstArrayElement = 0;
-			descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			descriptorWrite.descriptorCount = 1;
-			descriptorWrite.pImageInfo = &imageInfo;
-
-			// UPDATE
-			vkUpdateDescriptorSets(device.get(), 1, &descriptorWrite, 0, nullptr);
+			secondPassPipeline.updateDescriptorSet({}, {}, postProcessingQuad.getTextures(), secondPassDescriptorSets[i]);
 		}
 	}
 
@@ -1005,14 +665,12 @@ private:
 		AppTime::updateDeltaTime();
 
 		camera.update();
-		model.update();
-		spotlight.update();
+		lights[1].update();
 	}
 
 	void keyboardEventCallback(SDL_Event event) {
 		// TODO: create an interface to handle all keyboard event reactions
 		camera.keyboardReaction(event);
-		spotlight.keyboardReaction(event);
 	}
 
 	void mouseEventCallback(SDL_Event event) {
@@ -1048,7 +706,9 @@ private:
 		}
 
 		// UPDATE UNIFORMS
-		uniformManager.upateBuffer(0, model.getModelMatrix(), camera, spotlight);
+		modelUniforms.upateBuffer(0, model.getModelMatrix(), camera);
+		std::vector<Light> lightVec = std::vector<Light>(lights.begin(), lights.end());
+		lightUniforms.upateBuffer(0, lightVec, camera);
 
 		vkResetFences(device.get(), 1, &inFlightFences[currentFrame]);
 
@@ -1118,19 +778,16 @@ private:
 		// Swap chain objects
 		cleanupRenderImages();
 
-		// Textures
-		firstPassOutputManager.cleanup();
-		textureManager.cleanup();
-
-		// Uniform
-		uniformManager.cleanup();
-
-		// Descriptor pool and set layout
-		vkDestroyDescriptorPool(device.get(), descriptorPool, nullptr);
-
 		// Model
 		model.cleanup();
 		postProcessingQuad.cleanup();
+
+		// Uniform
+		modelUniforms.cleanup();
+		lightUniforms.cleanup();
+
+		// Descriptor pool and set layout
+		vkDestroyDescriptorPool(device.get(), descriptorPool, nullptr);
 
 		// Sync objects
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -1161,19 +818,13 @@ private:
 	}
 
 	void cleanupRenderImages() {
-		// Color resources
-		destroyImageObjects(device, colorImage);
-
-		// depth resources
-		destroyImageObjects(device, depthImage);
-
 		// first pass output image
-		firstPassOutputManager.destroyCustomTexture(0);
+		postProcessingQuad.getTextures().destroyTextures(false);
 
 		// color attachments
-		vkDestroyFramebuffer(device.get(), firstPassFramebuffer, nullptr);
-		for (auto framebuffer : swapChainFramebuffers) {
-			vkDestroyFramebuffer(device.get(), framebuffer, nullptr);
+		firstPassFramebuffer.cleanup();
+		for (auto& framebuffer : secondPassFramebuffers) {
+			framebuffer.cleanup();
 		}
 
 		swapChain.cleanup();
