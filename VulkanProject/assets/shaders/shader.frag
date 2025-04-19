@@ -42,7 +42,7 @@ void main() {
     // ambient
     vec3 ambient = AMBIENT_COLOR * color;
 
-    vec3 result = color * ambient;
+    vec3 result = ambient;
     for(int i = 0; i < LIGHT_COUNT; i++){
         Light light = lightUBO.lights[i];
 
