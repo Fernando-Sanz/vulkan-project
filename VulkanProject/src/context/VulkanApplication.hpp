@@ -706,7 +706,7 @@ private:
 		}
 
 		// UPDATE UNIFORMS
-		modelUniforms.upateBuffer(0, model.getModelMatrix(), camera);
+		modelUniforms.upateBuffer(0, model, camera);
 		std::vector<Light> lightVec = std::vector<Light>(lights.begin(), lights.end());
 		lightUniforms.upateBuffer(0, lightVec, camera);
 

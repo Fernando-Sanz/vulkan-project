@@ -20,3 +20,19 @@ void Transform::changeOrientation(glm::vec3 newLookAt) {
 
 	changeOrientation(rotationMatrix);
 }
+
+glm::mat4 createModelMatrix(Transform transform) {
+	glm::mat4 model = glm::mat4(1.0f);
+
+	// rotation
+	// the up vector is in the Z axis
+	model[0] = glm::vec4(transform.right, 0.0f);
+	model[1] = glm::vec4(transform.lookAt, 0.0f);
+	model[2] = glm::vec4(transform.up, 0.0f);
+	// translation
+	model[3] = glm::vec4(transform.position, 1.0f);
+	// scale
+	model = model * glm::scale(glm::mat4(1.0f), transform.scale);
+
+	return model;
+}

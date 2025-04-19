@@ -13,11 +13,11 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// GETTERS AND SETTERS
 
+	Transform getTransform() { return transform; }
 	std::vector<uint32_t> getIndices() { return indices; }
 	VkBuffer getVertexBuffer() { return vertexBuffer; }
 	VkBuffer getIndexBuffer() { return indexBuffer; }
 	TextureManager& getTextures() { return textures; }
-	glm::mat4 getModelMatrix() { return model; }
 
 	void setTextures(TextureManager& textures) { this->textures = std::move(textures); }
 
@@ -46,7 +46,6 @@ private:
 	VkDeviceMemory indexBufferMemory;
 
 	Transform transform;
-	glm::mat4 model;
 
 	TextureManager textures;
 

@@ -25,13 +25,13 @@ void ModelUboManager::createBuffers(Device device, int count) {
 	}
 }
 
-void ModelUboManager::upateBuffer(uint32_t index, glm::mat4 model, Camera camera) {
+void ModelUboManager::upateBuffer(uint32_t index, Model model, Camera camera) {
 	
 	ModelUBO ubo{};
 	glm::mat4 view = camera.getView();
 
 	// Compute matrices
-	ubo.modelView = view * model;
+	ubo.modelView = view * createModelMatrix(model.getTransform());
 	ubo.invTrans_modelView = glm::inverse(glm::transpose(ubo.modelView));
 	ubo.proj = camera.getProjection();
 

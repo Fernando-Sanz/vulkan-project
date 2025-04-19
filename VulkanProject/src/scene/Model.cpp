@@ -23,13 +23,7 @@ void Model::create(Device device, CommandManager commandManager, std::string mod
 	//--------------------------------------------------------
 	// TRANSFORM AND MODEL MATRICES
 	transform.position = glm::vec3(0.0f, 0.0f, -0.15);
-	model = glm::mat4(1.0f);
-	// the up vector is in the Z axis
-	model[0] = glm::vec4(transform.right, 0.0f);
-	model[1] = glm::vec4(transform.lookAt, 0.0f);
-	model[2] = glm::vec4(transform.up, 0.0f);
-	model[3] = glm::vec4(transform.position, 1.0f);
-	model = glm::scale(model, glm::vec3(1.2f));
+	transform.scale = glm::vec3(1.2f);
 }
 
 void Model::loadModel(std::string modelPath) {
