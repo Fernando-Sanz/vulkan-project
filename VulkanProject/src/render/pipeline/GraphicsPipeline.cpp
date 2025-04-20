@@ -275,7 +275,12 @@ void GraphicsPipeline::allocateDescriptorSets(VkDescriptorPool pool, uint32_t co
 }
 
 // TODO: move this to a Renderer class
-void GraphicsPipeline::updateDescriptorSet(ModelUboManager modelUniforms, LightUboManager lightsUniforms, Material material,
+void GraphicsPipeline::updateDescriptorSet(Material material, VkDescriptorSet descriptorSet) {
+	updateDescriptorSet({}, material, {}, descriptorSet);
+}
+
+// TODO: move this to a Renderer class
+void GraphicsPipeline::updateDescriptorSet(ModelUboManager modelUniforms, Material material, LightUboManager lightsUniforms,
 	VkDescriptorSet descriptorSet) {
 
 	// DESCRIPTOR WRITES

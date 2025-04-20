@@ -565,7 +565,7 @@ private:
 
 	void createFirstPassDescriptorSets() {
 		firstPassPipeline.allocateDescriptorSets(descriptorPool, 1, &firstPassDescriptorSet);
-		firstPassPipeline.updateDescriptorSet(modelUniforms, lightUniforms, model.getMaterial(), firstPassDescriptorSet);
+		firstPassPipeline.updateDescriptorSet(modelUniforms, model.getMaterial(), lightUniforms, firstPassDescriptorSet);
 	}
 
 	void createSecondPassDescriptorSets() {
@@ -577,7 +577,7 @@ private:
 	void configureSecondPassDescriptorSets(){
 		// DESCRIPTOR SETS CONFIGURATION
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-			secondPassPipeline.updateDescriptorSet({}, {}, postProcessingQuad.getMaterial(), secondPassDescriptorSets[i]);
+			secondPassPipeline.updateDescriptorSet(postProcessingQuad.getMaterial(), secondPassDescriptorSets[i]);
 		}
 	}
 

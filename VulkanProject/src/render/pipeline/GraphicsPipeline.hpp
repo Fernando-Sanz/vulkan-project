@@ -28,8 +28,11 @@ public:
 	void allocateDescriptorSets(VkDescriptorPool pool, uint32_t count, VkDescriptorSet* descriptorSets);
 
 	// Write a descriptor set with the corresponding data
-	void updateDescriptorSet(ModelUboManager modelUniforms, LightUboManager lightsUniforms, Material material,
+	void updateDescriptorSet(ModelUboManager modelUniforms, Material material, LightUboManager lightsUniforms,
 		VkDescriptorSet descriptorSet);
+
+	// Write a descriptor set with the corresponding data
+	void updateDescriptorSet(Material material, VkDescriptorSet descriptorSet);
 
 	// Record a command buffer with the necessary operations to use the pipeline
 	void recordDrawing(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer, VkExtent2D extent,
