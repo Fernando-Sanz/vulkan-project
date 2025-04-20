@@ -3,7 +3,7 @@
 #include <vulkan/vulkan.h>
 
 #include "scene/Model.hpp"
-#include "render/uniform/TextureManager.hpp"
+#include "render/uniform/Material.hpp"
 #include "render/uniform/ModelUboManager.hpp"
 #include "render/uniform/LightUboManager.hpp"
 
@@ -28,7 +28,7 @@ public:
 	void allocateDescriptorSets(VkDescriptorPool pool, uint32_t count, VkDescriptorSet* descriptorSets);
 
 	// Write a descriptor set with the corresponding data
-	void updateDescriptorSet(ModelUboManager modelUniforms, LightUboManager lightsUniforms, TextureManager textures,
+	void updateDescriptorSet(ModelUboManager modelUniforms, LightUboManager lightsUniforms, Material material,
 		VkDescriptorSet descriptorSet);
 
 	// Record a command buffer with the necessary operations to use the pipeline

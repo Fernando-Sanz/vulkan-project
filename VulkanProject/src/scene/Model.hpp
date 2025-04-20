@@ -4,7 +4,7 @@
 #include "context/CommandManager.hpp"
 #include "render/vertex/Vertex.hpp"
 #include "Transform.hpp"
-#include "render/uniform/TextureManager.hpp"
+#include "render/uniform/Material.hpp"
 
 
 class Model {
@@ -21,16 +21,16 @@ public:
 	VkBuffer getVertexBuffer() { return vertexBuffer; }
 	
 	VkBuffer getIndexBuffer() { return indexBuffer; }
-	TextureManager& getTextures() { return textures; }
+	Material& getMaterial() { return material; }
 
-	void setTextures(TextureManager& textures) { this->textures = std::move(textures); }
+	void setMaterial(Material& material) { this->material = std::move(material); }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// METHODS
 
 	// Load a model, create its vertex and index buffer and its textures. If useRawVertexData is true then the transform
 	// is not initialized (the shader will use the raw vertex data without transformations)
-	void create(Device device, CommandManager commandManager, std::string modelPath, TextureManager textures,
+	void create(Device device, CommandManager commandManager, std::string modelPath, Material material,
 		bool useRawVertexData = false);
 
 	// Destroy Vulkan and other objects
@@ -53,7 +53,7 @@ private:
 
 	Transform* transform = nullptr;
 
-	TextureManager textures;
+	Material material;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// METHODS

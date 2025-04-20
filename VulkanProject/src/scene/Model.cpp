@@ -4,11 +4,11 @@
 #include "asset/modelLoader.hpp"
 
 
-void Model::create(Device device, CommandManager commandManager, std::string modelPath, TextureManager textures,
+void Model::create(Device device, CommandManager commandManager, std::string modelPath, Material material,
 	bool useRawVertexData) {
 
 	this->device = device;
-	this->textures = textures;
+	this->material = material;
 
 	//--------------------------------------------------------
 	// LOAD THE GEOMETRY
@@ -73,5 +73,5 @@ void Model::cleanup() {
 	vkFreeMemory(device.get(), vertexBufferMemory, nullptr);
 	vkDestroyBuffer(device.get(), indexBuffer, nullptr);
 	vkFreeMemory(device.get(), indexBufferMemory, nullptr);
-	textures.cleanup();
+	material.cleanup();
 }
