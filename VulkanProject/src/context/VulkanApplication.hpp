@@ -233,16 +233,14 @@ private:
 		lightUniforms.createBuffers(device, 1, lights.size());
 
 		// the pipeline needs the texture count (models already loaded)
-		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(device),
-			true, model.getTextures().getTextureCount(), lights.size(),
+		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(device), model, lights.size(),
 			params.firstRenderPassVertShaderPath, params.firstRenderPassFragShaderPath);
 
 		// framebuffer needs post-processing texture image view
 		createFirstPassResources();
 
 		// second pipeline needs post-processing texture count
-		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(device),
-			false, postProcessingQuad.getTextures().getTextureCount(), 0,
+		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(device), postProcessingQuad, 0,
 			params.secondRenderPassVertShaderPath, params.secondRenderPassFragShaderPath);
 		
 		createSecondPassFramebuffers();
@@ -465,7 +463,7 @@ private:
 		// POST-PROCESSING QUAD (the texture is set later)
 		TextureManager postProcTextures;
 		postProcTextures.create(device, commandManager);
-		postProcessingQuad.create(device, commandManager, POST_PROCESSING_QUAD_PATH, postProcTextures);
+		postProcessingQuad.create(device, commandManager, POST_PROCESSING_QUAD_PATH, postProcTextures, true);
 
 		lights[0].setColor(glm::vec3(1.0f, 0.0f, 0.0f));
 

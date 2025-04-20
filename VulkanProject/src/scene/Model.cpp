@@ -4,7 +4,8 @@
 #include "asset/modelLoader.hpp"
 
 
-void Model::create(Device device, CommandManager commandManager, std::string modelPath, TextureManager textures) {
+void Model::create(Device device, CommandManager commandManager, std::string modelPath, TextureManager textures,
+	bool useRawVertexData) {
 
 	this->device = device;
 	this->textures = textures;
@@ -21,9 +22,12 @@ void Model::create(Device device, CommandManager commandManager, std::string mod
 		VK_BUFFER_USAGE_INDEX_BUFFER_BIT, indexBuffer, indexBufferMemory);
 
 	//--------------------------------------------------------
-	// TRANSFORM AND MODEL MATRICES
-	transform.position = glm::vec3(0.0f, 0.0f, -0.15);
-	transform.scale = glm::vec3(1.2f);
+	// TRANSFORM (if the vertex data will be used with transformations)
+	if (!useRawVertexData) {
+		this->transform = new Transform();
+		this->transform->position = glm::vec3(0.0f, 0.0f, -0.15);
+		this->transform->scale = glm::vec3(1.2f);
+	}
 }
 
 void Model::loadModel(std::string modelPath) {

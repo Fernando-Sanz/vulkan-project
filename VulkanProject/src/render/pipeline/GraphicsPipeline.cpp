@@ -155,32 +155,29 @@ namespace DescriptorSets {
 	}
 }
 
-// TODO: receive a vector of Model and iterate over them to get their textures
-void GraphicsPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat,
-	bool renderModel, uint32_t textureCount, uint32_t lightCount,
+void GraphicsPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat, Model model, uint32_t lightCount,
 	std::string vertShaderLocation, std::string fragShaderLocation) {
 
 	this->device = device;
 
 	createRenderPass(imageFormat, depthFormat);
-	createDescriptorSetLayout(
-		renderModel, textureCount, lightCount);
+	createDescriptorSetLayout(model, lightCount);
 	createGraphicsPipeline(vertShaderLocation, fragShaderLocation);
 }
 
 
-void GraphicsPipeline::createDescriptorSetLayout(bool renderModel, uint32_t textureCount,
-	uint32_t lightCount) {
+void GraphicsPipeline::createDescriptorSetLayout(Model model, uint32_t lightCount) {
 
 	//----------------------------------------------------
 	// BINDINGS
 	std::vector<VkDescriptorSetLayoutBinding> bindings;
 
 	// MODEL UBO
-	if (renderModel)
+	if (!model.useRawVertexData())
 		Bindings::addModelBinding(bindings);
 
 	// SAMPLER AND TEXTURE
+	size_t textureCount = model.getTextures().getTextureCount();
 	if (textureCount > 0) {
 		Bindings::addTextureBindings(bindings, textureCount);
 	}
