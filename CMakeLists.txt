@@ -36,8 +36,8 @@ set(SOURCES
     "${SOURCE_CODE_PATH}/render/target/FramebufferResources.cpp"
     "${SOURCE_CODE_PATH}/render/target/SwapChain.cpp"
     "${SOURCE_CODE_PATH}/render/uniform/LightUboManager.cpp"
+    "${SOURCE_CODE_PATH}/render/uniform/Material.cpp"
     "${SOURCE_CODE_PATH}/render/uniform/ModelUboManager.cpp"
-    "${SOURCE_CODE_PATH}/render/uniform/TextureManager.cpp"
 
     "${SOURCE_CODE_PATH}/scene/Camera.cpp"
     "${SOURCE_CODE_PATH}/scene/Light.cpp"

@@ -1,4 +1,4 @@
-#include "render/uniform/TextureManager.hpp"
+#include "render/uniform/Material.hpp"
 
 #include <iostream>
 #include <stdexcept>
@@ -8,49 +8,12 @@
 #include "render/image/imageUtils.hpp"
 
 
-void TextureManager::create(Device device, CommandManager commandManager) {
+void Material::setContext(Device device, CommandManager commandManager) {
 	this->device = device;
 	this->commandManager = commandManager;
 }
 
-void TextureManager::addTexture(TextureType type, ImageObjects texture) {
-	// CREATE THE SAMPLER (if not created yet)
-	if (sampler == VK_NULL_HANDLE) createSampler(mipLevels);
-
-	// STORE THE TEXTURE
-	switch (type) {
-	case TEXTURE_TYPE_ALBEDO_BIT:
-		albedo = texture;
-		break;
-	case TEXTURE_TYPE_SPECULAR_BIT:
-		specular = texture;
-		break;
-	case TEXTURE_TYPE_NORMAL_BIT:
-		normal = texture;
-		break;
-	case TEXTURE_TYPE_CUSTOM_BIT:
-		customTextures.push_back(texture);
-		break;
-	default:
-		throw std::runtime_error("texture type not supported");
-	}
-
-	// Store the type
-	usedTypes |= type;
-	textureCount++;
-}
-
-void TextureManager::createTexture(TextureType type, std::string texturePath) {
-	// CREATE THE TEXTURE
-	ImageObjects newTexture{};
-	createTextureImage(texturePath, newTexture);
-	newTexture.view = createImageView(
-		device, newTexture.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels);
-
-	addTexture(type, newTexture);
-}
-
-void TextureManager::createTextures(TexturePaths texturePaths) {
+void Material::createTextures(TexturePaths texturePaths) {
 
 	if (texturePaths.albedoPath.has_value())
 		createTexture(TEXTURE_TYPE_ALBEDO_BIT, texturePaths.albedoPath.value());
@@ -62,7 +25,82 @@ void TextureManager::createTextures(TexturePaths texturePaths) {
 		createTexture(TEXTURE_TYPE_CUSTOM_BIT, texturePath);
 }
 
-void TextureManager::createTextureImage(std::string texturePath, ImageObjects& texture) {
+void Material::createTexture(TextureType type, std::string texturePath) {
+	// CREATE THE TEXTURE
+	ImageObjects newTexture{};
+	createTextureImage(texturePath, newTexture);
+	newTexture.view = createImageView(
+		device, newTexture.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels);
+
+	addTexture(type, newTexture);
+}
+
+void Material::addTexture(TextureType type, ImageObjects texture) {
+	// CREATE THE SAMPLER (if not created yet)
+	if (sampler == VK_NULL_HANDLE) createSampler(mipLevels);
+
+	// STORE THE TEXTURE
+	switch (type) {
+	case TEXTURE_TYPE_ALBEDO_BIT:
+		albedoTexture = texture;
+		break;
+	case TEXTURE_TYPE_SPECULAR_BIT:
+		specularTexture = texture;
+		break;
+	case TEXTURE_TYPE_NORMAL_BIT:
+		normalTexture = texture;
+		break;
+	case TEXTURE_TYPE_CUSTOM_BIT:
+		customTextures.push_back(texture);
+		break;
+	default:
+		throw std::runtime_error("texture type not valid");
+	}
+
+	// Store the type
+	usedTypes |= type;
+	textureCount++;
+}
+
+
+void Material::createSampler(uint32_t mipLevels) {
+	//-----------------------------------------
+	// CREATE INFO
+	VkSamplerCreateInfo samplerInfo{};
+	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	samplerInfo.magFilter = VK_FILTER_LINEAR;
+	samplerInfo.minFilter = VK_FILTER_LINEAR;
+
+	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+
+	samplerInfo.unnormalizedCoordinates = VK_FALSE;
+
+	// ANISOTROPIC FILTERING
+	VkPhysicalDeviceProperties properties = device.getPhysicalDeviceProperties();
+	samplerInfo.anisotropyEnable = VK_TRUE;
+	samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+
+	// COMPARE OPS. (for shadow mapping and similar)
+	samplerInfo.compareEnable = VK_FALSE;
+	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+
+	// MIPMAPS
+	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	samplerInfo.mipLodBias = 0.0f; // optional
+	samplerInfo.minLod = 0.0f; // optional
+	samplerInfo.maxLod = static_cast<float>(mipLevels);
+
+	// CREATE SAMPLER
+	if (vkCreateSampler(device.get(), &samplerInfo, nullptr, &sampler) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create texture sampler");
+	}
+}
+
+// TODO: review if this method or part of it could be in imageUtils or similar
+void Material::createTextureImage(std::string texturePath, ImageObjects& texture) {
 	//-----------------------------------------
 	// LOAD IMAGE
 	RawImage image = loadImageFromFile(texturePath);
@@ -116,51 +154,22 @@ void TextureManager::createTextureImage(std::string texturePath, ImageObjects& t
 	generateMipmaps(device, commandManager, texture.image, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels);
 }
 
-void TextureManager::createSampler(uint32_t mipLevels) {
-	//-----------------------------------------
-	// CREATE INFO
-	VkSamplerCreateInfo samplerInfo{};
-	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	samplerInfo.magFilter = VK_FILTER_LINEAR;
-	samplerInfo.minFilter = VK_FILTER_LINEAR;
 
-	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+void Material::cleanup(bool destroyVulkanImages) {
+	vkDestroySampler(device.get(), sampler, nullptr);
 
-	samplerInfo.unnormalizedCoordinates = VK_FALSE;
-
-	// ANISOTROPIC FILTERING
-	VkPhysicalDeviceProperties properties = device.getPhysicalDeviceProperties();
-	samplerInfo.anisotropyEnable = VK_TRUE;
-	samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-
-	// COMPARE OPS. (for shadow mapping and similar)
-	samplerInfo.compareEnable = VK_FALSE;
-	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-
-	// MIPMAPS
-	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	samplerInfo.mipLodBias = 0.0f; // optional
-	samplerInfo.minLod = 0.0f; // optional
-	samplerInfo.maxLod = static_cast<float>(mipLevels);
-
-	// CREATE SAMPLER
-	if (vkCreateSampler(device.get(), &samplerInfo, nullptr, &sampler) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create texture sampler");
-	}
+	destroyTextures(destroyVulkanImages);
 }
 
-void TextureManager::destroyTextures(bool destroyVulkanImages) {
+void Material::destroyTextures(bool destroyVulkanImages) {
 
 	if (destroyVulkanImages) {
 		if (TEXTURE_TYPE_ALBEDO_BIT & usedTypes)
-			destroyImageObjects(device, albedo);
+			destroyImageObjects(device, albedoTexture);
 		if (TEXTURE_TYPE_SPECULAR_BIT & usedTypes)
-			destroyImageObjects(device, specular);
+			destroyImageObjects(device, specularTexture);
 		if (TEXTURE_TYPE_NORMAL_BIT & usedTypes)
-			destroyImageObjects(device, normal);
+			destroyImageObjects(device, normalTexture);
 
 		for (auto& texture : customTextures) {
 			destroyImageObjects(device, texture);
@@ -169,11 +178,5 @@ void TextureManager::destroyTextures(bool destroyVulkanImages) {
 	customTextures.clear();
 
 	textureCount = 0;
-	usedTypes = 0b0000;
-}
-
-void TextureManager::cleanup(bool destroyVulkanImages) {
-	vkDestroySampler(device.get(), sampler, nullptr);
-
-	destroyTextures(destroyVulkanImages);
+	usedTypes = TEXTURE_TYPE_NONE_BIT;
 }

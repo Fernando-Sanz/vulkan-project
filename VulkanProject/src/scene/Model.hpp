@@ -4,7 +4,7 @@
 #include "context/CommandManager.hpp"
 #include "render/vertex/Vertex.hpp"
 #include "Transform.hpp"
-#include "render/uniform/TextureManager.hpp"
+#include "render/uniform/Material.hpp"
 
 
 class Model {
@@ -13,19 +13,25 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// GETTERS AND SETTERS
 
+	bool useRawVertexData() { return transform == nullptr; }
+	// Return a copy of the transform. Since the transform can be nullptr, it should be checked with useRawVertexData() method
+	Transform getTransform() { return *transform; }
+
 	std::vector<uint32_t> getIndices() { return indices; }
 	VkBuffer getVertexBuffer() { return vertexBuffer; }
+	
 	VkBuffer getIndexBuffer() { return indexBuffer; }
-	TextureManager& getTextures() { return textures; }
-	glm::mat4 getModelMatrix() { return model; }
+	Material& getMaterial() { return material; }
 
-	void setTextures(TextureManager& textures) { this->textures = std::move(textures); }
+	void setMaterial(Material& material) { this->material = std::move(material); }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// METHODS
 
-	// Load a model, create its vertex and index buffer and its textures
-	void create(Device device, CommandManager commandManager, std::string modelPath, TextureManager textures);
+	// Load a model, create its vertex and index buffer and its textures. If useRawVertexData is true then the transform
+	// is not initialized (the shader will use the raw vertex data without transformations)
+	void create(Device device, CommandManager commandManager, std::string modelPath, Material material,
+		bool useRawVertexData = false);
 
 	// Destroy Vulkan and other objects
 	void cleanup();
@@ -45,10 +51,9 @@ private:
 	VkBuffer indexBuffer;
 	VkDeviceMemory indexBufferMemory;
 
-	Transform transform;
-	glm::mat4 model;
+	Transform* transform = nullptr;
 
-	TextureManager textures;
+	Material material;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// METHODS

@@ -5,6 +5,7 @@
 
 #include "context/Device.hpp"
 #include "scene/Camera.hpp"
+#include "scene/Model.hpp"
 
 
 // See alignment requirements in specification
@@ -32,7 +33,7 @@ public:
     void createBuffers(Device device, int count);
 
     // Update uniform values
-    void upateBuffer(uint32_t index, glm::mat4 model, Camera camera);
+    void upateBuffer(uint32_t index, Model model, Camera camera);
 
     // Destroy Vulkan an other objects
     void cleanup();

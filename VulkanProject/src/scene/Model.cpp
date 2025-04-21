@@ -4,10 +4,11 @@
 #include "asset/modelLoader.hpp"
 
 
-void Model::create(Device device, CommandManager commandManager, std::string modelPath, TextureManager textures) {
+void Model::create(Device device, CommandManager commandManager, std::string modelPath, Material material,
+	bool useRawVertexData) {
 
 	this->device = device;
-	this->textures = textures;
+	this->material = material;
 
 	//--------------------------------------------------------
 	// LOAD THE GEOMETRY
@@ -21,15 +22,12 @@ void Model::create(Device device, CommandManager commandManager, std::string mod
 		VK_BUFFER_USAGE_INDEX_BUFFER_BIT, indexBuffer, indexBufferMemory);
 
 	//--------------------------------------------------------
-	// TRANSFORM AND MODEL MATRICES
-	transform.position = glm::vec3(0.0f, 0.0f, -0.15);
-	model = glm::mat4(1.0f);
-	// the up vector is in the Z axis
-	model[0] = glm::vec4(transform.right, 0.0f);
-	model[1] = glm::vec4(transform.lookAt, 0.0f);
-	model[2] = glm::vec4(transform.up, 0.0f);
-	model[3] = glm::vec4(transform.position, 1.0f);
-	model = glm::scale(model, glm::vec3(1.2f));
+	// TRANSFORM (if the vertex data will be used with transformations)
+	if (!useRawVertexData) {
+		this->transform = new Transform();
+		this->transform->position = glm::vec3(0.0f, 0.0f, -0.15);
+		this->transform->scale = glm::vec3(1.2f);
+	}
 }
 
 void Model::loadModel(std::string modelPath) {
@@ -75,5 +73,5 @@ void Model::cleanup() {
 	vkFreeMemory(device.get(), vertexBufferMemory, nullptr);
 	vkDestroyBuffer(device.get(), indexBuffer, nullptr);
 	vkFreeMemory(device.get(), indexBufferMemory, nullptr);
-	textures.cleanup();
+	material.cleanup();
 }

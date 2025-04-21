@@ -27,7 +27,7 @@
 #include "render/pipeline/SecondPassPipeline.hpp"
 #include "render/uniform/LightUboManager.hpp"
 #include "render/uniform/ModelUboManager.hpp"
-#include "render/uniform/TextureManager.hpp"
+#include "render/uniform/Material.hpp"
 #include "scene/Model.hpp"
 #include "scene/Camera.hpp"
 #include "scene/Light.hpp"
@@ -233,16 +233,14 @@ private:
 		lightUniforms.createBuffers(device, 1, lights.size());
 
 		// the pipeline needs the texture count (models already loaded)
-		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(device),
-			true, model.getTextures().getTextureCount(), lights.size(),
+		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(device), model, lights.size(),
 			params.firstRenderPassVertShaderPath, params.firstRenderPassFragShaderPath);
 
 		// framebuffer needs post-processing texture image view
 		createFirstPassResources();
 
 		// second pipeline needs post-processing texture count
-		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(device),
-			false, postProcessingQuad.getTextures().getTextureCount(), 0,
+		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(device), postProcessingQuad, 0,
 			params.secondRenderPassVertShaderPath, params.secondRenderPassFragShaderPath);
 		
 		createSecondPassFramebuffers();
@@ -457,15 +455,15 @@ private:
 		camera.init(swapChain.getExtent());
 
 		// MODEL
-		TextureManager modelTextures;
-		modelTextures.create(device, commandManager);
-		modelTextures.createTextures(params.texturePaths[0]);
-		model.create(device, commandManager, params.modelPath, modelTextures);
+		Material modelMaterial;
+		modelMaterial.setContext(device, commandManager);
+		modelMaterial.createTextures(params.texturePaths[0]);
+		model.create(device, commandManager, params.modelPath, modelMaterial);
 
 		// POST-PROCESSING QUAD (the texture is set later)
-		TextureManager postProcTextures;
-		postProcTextures.create(device, commandManager);
-		postProcessingQuad.create(device, commandManager, POST_PROCESSING_QUAD_PATH, postProcTextures);
+		Material postProcMaterial;
+		postProcMaterial.setContext(device, commandManager);
+		postProcessingQuad.create(device, commandManager, POST_PROCESSING_QUAD_PATH, postProcMaterial, true);
 
 		lights[0].setColor(glm::vec3(1.0f, 0.0f, 0.0f));
 
@@ -487,7 +485,7 @@ private:
 
 		// POST PROCESSING QUAD TEXTURES
 		ImageObjects firstPassOutputImage = firstPassFramebuffer.getResolveImage();
-		postProcessingQuad.getTextures().addTexture(TEXTURE_TYPE_CUSTOM_BIT, firstPassOutputImage);
+		postProcessingQuad.getMaterial().addTexture(TEXTURE_TYPE_CUSTOM_BIT, firstPassOutputImage);
 	}
 
 	void createSecondPassFramebuffers() {
@@ -567,7 +565,7 @@ private:
 
 	void createFirstPassDescriptorSets() {
 		firstPassPipeline.allocateDescriptorSets(descriptorPool, 1, &firstPassDescriptorSet);
-		firstPassPipeline.updateDescriptorSet(modelUniforms, lightUniforms, model.getTextures(), firstPassDescriptorSet);
+		firstPassPipeline.updateDescriptorSet(modelUniforms, model.getMaterial(), lightUniforms, firstPassDescriptorSet);
 	}
 
 	void createSecondPassDescriptorSets() {
@@ -579,7 +577,7 @@ private:
 	void configureSecondPassDescriptorSets(){
 		// DESCRIPTOR SETS CONFIGURATION
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-			secondPassPipeline.updateDescriptorSet({}, {}, postProcessingQuad.getTextures(), secondPassDescriptorSets[i]);
+			secondPassPipeline.updateDescriptorSet(postProcessingQuad.getMaterial(), secondPassDescriptorSets[i]);
 		}
 	}
 
@@ -706,7 +704,7 @@ private:
 		}
 
 		// UPDATE UNIFORMS
-		modelUniforms.upateBuffer(0, model.getModelMatrix(), camera);
+		modelUniforms.upateBuffer(0, model, camera);
 		std::vector<Light> lightVec = std::vector<Light>(lights.begin(), lights.end());
 		lightUniforms.upateBuffer(0, lightVec, camera);
 
@@ -819,7 +817,7 @@ private:
 
 	void cleanupRenderImages() {
 		// first pass output image
-		postProcessingQuad.getTextures().destroyTextures(false);
+		postProcessingQuad.getMaterial().destroyTextures(false);
 
 		// color attachments
 		firstPassFramebuffer.cleanup();
