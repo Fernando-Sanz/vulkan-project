@@ -4,6 +4,7 @@
 #include <glm/gtx/quaternion.hpp>
 
 
+const glm::vec3 Transform::ORIGIN = glm::vec3(0.0f);
 const glm::vec3 Transform::X = glm::vec3(1.0f, 0.0f, 0.0f);
 const glm::vec3 Transform::Y = glm::vec3(0.0f, 1.0f, 0.0f);
 const glm::vec3 Transform::Z = glm::vec3(0.0f, 0.0f, 1.0f);
@@ -21,7 +22,7 @@ void Transform::changeOrientation(glm::vec3 newLookAt) {
 	changeOrientation(rotationMatrix);
 }
 
-glm::mat4 createModelMatrix(Transform transform) {
+glm::mat4 createModelMatrix(const Transform& transform) {
 	glm::mat4 model = glm::mat4(1.0f);
 
 	// rotation
@@ -35,4 +36,16 @@ glm::mat4 createModelMatrix(Transform transform) {
 	model = model * glm::scale(glm::mat4(1.0f), transform.scale);
 
 	return model;
+}
+
+glm::mat4 createWorldMatrix(const Transform& transform) {
+
+	const Transform* current = &transform;
+	glm::mat4 worldMatrix = glm::mat4(1.0f);
+	while (current) {
+		worldMatrix = createModelMatrix(*current) * worldMatrix;
+		current = current->parent;
+	}
+
+	return worldMatrix;
 }
