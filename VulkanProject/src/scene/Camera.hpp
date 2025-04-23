@@ -1,10 +1,12 @@
 #pragma once
 
+#include <vulkan/vulkan.h>
+
 #include <glm/glm.hpp>
 #include <SDL3/SDL.h>
 
+#include "scene/Module.hpp"
 #include "scene/Transform.hpp"
-#include "render/target/SwapChain.hpp"
 
 
 struct MovementState {
@@ -14,7 +16,7 @@ struct MovementState {
 	bool toLeft = 0;
 };
 
-class Camera{
+class Camera : public Module {
 public:
 	glm::mat4 getView() { return view; }
 	glm::mat4 getProjection() { return projection; }
@@ -32,7 +34,6 @@ public:
 private:
 	VkExtent2D extent;
 
-	Transform transform;
 	glm::mat4 view;
 	glm::mat4 projection;
 

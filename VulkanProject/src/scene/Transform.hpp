@@ -18,10 +18,18 @@ struct Transform {
 	static const glm::vec3 Y;
 	static const glm::vec3 Z;
 
+	Transform() :
+		position(Transform::ORIGIN),
+		lookAt(Transform::Y),
+		right(Transform::X),
+		up(Transform::Z),
+		scale(glm::vec3(1.0f))
+	{}
+
 	void changeOrientation(glm::mat3 transformation);
 	void changeOrientation(glm::vec3 newLookAt);
 };
 
-glm::mat4 createWorldMatrix(const Transform& transform);
+glm::mat4 createWorldMatrix(const Transform* transform);
 
-glm::mat4 createModelMatrix(const Transform& transform);
+glm::mat4 createModelMatrix(const Transform* transform);

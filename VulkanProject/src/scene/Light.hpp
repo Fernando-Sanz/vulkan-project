@@ -3,8 +3,8 @@
 #include <glm/glm.hpp>
 #include <SDL3/SDL.h>
 
-#include "scene/Transform.hpp"
 #include "scene/Module.hpp"
+#include "scene/Transform.hpp"
 
 
 class Light : public Module {

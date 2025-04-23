@@ -5,7 +5,8 @@
 #include "scene/Camera.hpp"
 
 
-struct Scene {
+class Scene {
+public:
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// FIELDS
@@ -18,22 +19,20 @@ struct Scene {
 	// METHODS
 
 	// Add an entity to the scene
-	template<typename T>
-	Entity& addEntity(T&& entity) {
-		// Use perfect forwarding
-		entities.push_back(std::forward<T>(entity));
+	Entity& addEntity() {
+		entities.emplace_back();
 		return entities.back();
 	};
 
 	// Return a vector with the modules of the specified type in the scene
 	template<typename T>
-	std::vector<T*> getModulesOfType() {
+	std::vector<T> getModulesOfType() {
 
-		std::vector<T*> targetModules;
+		std::vector<T> targetModules;
 		// Get the modules from all the entities
-		for (Entity* entity : entities) {
-			std::vector<T*> modules = entity->getModulesOfType();
-			targetModules.insert(targetModules.begin(), modules.begin(), modules.end());
+		for (Entity& entity : entities) {
+			std::vector<T>& modules = entity.getModulesOfType<T>();
+			targetModules.insert(targetModules.end(), modules.begin(), modules.end());
 		}
 
 		return targetModules;

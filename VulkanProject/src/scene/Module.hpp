@@ -9,15 +9,18 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// GETTERS AND SETTER
 
-	Transform getTransform() { return *transform; }
+	Transform* getTransform() { return transform; }
 
-	void setOwner(Entity* owner) { this->owner = owner; }
+	void setOwner(Entity* owner) {
+		this->entity = owner;
+		transform = &owner->transform;
+	}
 
 protected:
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// CLASS MEMBERS
 
-	Entity* owner = nullptr;
+	Entity* entity = nullptr;
 	Transform* transform = nullptr;
 };

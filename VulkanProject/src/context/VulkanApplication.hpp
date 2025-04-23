@@ -33,6 +33,7 @@
 #include "scene/Light.hpp"
 #include "system/eventManagement.hpp"
 #include "time/AppTime.hpp"
+#include "scene/Scene.hpp"
 
 
 const uint32_t WIDTH = 800;
@@ -139,13 +140,17 @@ private:
 	// Swap chain stuff
 	SwapChain swapChain;
 
+	// Scene
+	Scene scene;
+
 	// Camera and lights
 	Camera camera;
 	std::array<Light, 2> lights;
 
 	// Geometry
 	Model model;
-	Model postProcessingQuad;
+	//Model postProcessingQuad;
+	Entity postProcessingQuad;
 
 	// Descriptor pool and sets
 	VkDescriptorPool descriptorPool;
@@ -233,14 +238,15 @@ private:
 		lightUniforms.createBuffers(device, 1, lights.size());
 
 		// the pipeline needs the texture count (models already loaded)
-		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(device), model, lights.size(),
+		Model m = scene.getModulesOfType<Model>()[0];
+		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(device), m, lights.size(),
 			params.firstRenderPassVertShaderPath, params.firstRenderPassFragShaderPath);
 
 		// framebuffer needs post-processing texture image view
 		createFirstPassResources();
 
 		// second pipeline needs post-processing texture count
-		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(device), postProcessingQuad, 0,
+		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(device), postProcessingQuad.getModulesOfType<Model>()[0], 0,
 			params.secondRenderPassVertShaderPath, params.secondRenderPassFragShaderPath);
 		
 		createSecondPassFramebuffers();
@@ -459,13 +465,26 @@ private:
 		modelMaterial.setContext(device, commandManager);
 		modelMaterial.createTextures(params.texturePaths[0]);
 		model.create(device, commandManager, params.modelPath, modelMaterial);
+		Entity& modelEntity = scene.addEntity();
+		modelEntity.addModule(model);
 
 		// POST-PROCESSING QUAD (the texture is set later)
 		Material postProcMaterial;
 		postProcMaterial.setContext(device, commandManager);
-		postProcessingQuad.create(device, commandManager, POST_PROCESSING_QUAD_PATH, postProcMaterial, true);
+		Model postProcessingQuadModel;
+		postProcessingQuadModel.create(device, commandManager, POST_PROCESSING_QUAD_PATH, postProcMaterial, true);
+		postProcessingQuad.addModule(postProcessingQuadModel);
 
 		lights[0].setColor(glm::vec3(1.0f, 0.0f, 0.0f));
+
+		Entity& lightTest = scene.addEntity();
+		Entity& lightTest2 = scene.addEntity();
+		lightTest.addModule(lights[0]);
+		lightTest2.addModule(lights[1]);
+
+		Entity& cameraEntity = scene.addEntity();
+		cameraEntity.transform.lookAt = -Transform::Y;
+		cameraEntity.addModule(camera);
 
 		// KEYBOARD EVENTS
 		addEventSubscriber(SDL_EVENT_KEY_DOWN, [this](SDL_Event e) {keyboardEventCallback(e); });
@@ -485,7 +504,7 @@ private:
 
 		// POST PROCESSING QUAD TEXTURES
 		ImageObjects firstPassOutputImage = firstPassFramebuffer.getResolveImage();
-		postProcessingQuad.getMaterial().addTexture(TEXTURE_TYPE_CUSTOM_BIT, firstPassOutputImage);
+		postProcessingQuad.getModulesOfType<Model>()[0].getMaterial().addTexture(TEXTURE_TYPE_CUSTOM_BIT, firstPassOutputImage);
 	}
 
 	void createSecondPassFramebuffers() {
@@ -517,12 +536,12 @@ private:
 		//--------------------------------------------------------
 		// FIRST PASS
 		firstPassPipeline.recordDrawing(commandBuffer, firstPassFramebuffer.get(), swapChain.getExtent(),
-			model, firstPassDescriptorSet);
+			scene.getModulesOfType<Model>()[0], firstPassDescriptorSet);
 
 		//--------------------------------------------------------
 		// SECOND PASS
 		secondPassPipeline.recordDrawing(commandBuffer, secondPassFramebuffers[imageIndex].get(), swapChain.getExtent(),
-			postProcessingQuad, secondPassDescriptorSets[imageIndex]);
+			postProcessingQuad.getModulesOfType<Model>()[0], secondPassDescriptorSets[imageIndex]);
 
 		//--------------------------------------------------------
 		// FINISH COMMAND
@@ -577,7 +596,7 @@ private:
 	void configureSecondPassDescriptorSets(){
 		// DESCRIPTOR SETS CONFIGURATION
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-			secondPassPipeline.updateDescriptorSet(postProcessingQuad.getMaterial(), secondPassDescriptorSets[i]);
+			secondPassPipeline.updateDescriptorSet(postProcessingQuad.getModulesOfType<Model>()[0].getMaterial(), secondPassDescriptorSets[i]);
 		}
 	}
 
@@ -662,17 +681,17 @@ private:
 	void updateWorld() {
 		AppTime::updateDeltaTime();
 
-		camera.update();
-		lights[1].update();
+		//camera.update();
+		//lights[1].update();
 	}
 
 	void keyboardEventCallback(SDL_Event event) {
 		// TODO: create an interface to handle all keyboard event reactions
-		camera.keyboardReaction(event);
+		//camera.keyboardReaction(event);
 	}
 
 	void mouseEventCallback(SDL_Event event) {
-		camera.mouseReaction(event);
+		//camera.mouseReaction(event);
 	}
 
 	void drawFrame() {
@@ -704,9 +723,9 @@ private:
 		}
 
 		// UPDATE UNIFORMS
-		modelUniforms.upateBuffer(0, model, camera);
-		std::vector<Light> lightVec = std::vector<Light>(lights.begin(), lights.end());
-		lightUniforms.upateBuffer(0, lightVec, camera);
+		modelUniforms.upateBuffer(0, scene.getModulesOfType<Model>()[0], *scene.activeCamera);
+		std::vector<Light> lightVec = {scene.getModulesOfType<Light>()[0], scene.getModulesOfType<Light>()[1] };
+		lightUniforms.upateBuffer(0, lightVec, scene.getModulesOfType<Camera>()[0]);
 
 		vkResetFences(device.get(), 1, &inFlightFences[currentFrame]);
 
@@ -778,7 +797,7 @@ private:
 
 		// Model
 		model.cleanup();
-		postProcessingQuad.cleanup();
+		postProcessingQuad.getModulesOfType<Model>()[0].cleanup();
 
 		// Uniform
 		modelUniforms.cleanup();
@@ -817,7 +836,7 @@ private:
 
 	void cleanupRenderImages() {
 		// first pass output image
-		postProcessingQuad.getMaterial().destroyTextures(false);
+		postProcessingQuad.getModulesOfType<Model>()[0].getMaterial().destroyTextures(false);
 
 		// color attachments
 		firstPassFramebuffer.cleanup();
