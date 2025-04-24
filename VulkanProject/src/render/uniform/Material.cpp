@@ -36,6 +36,11 @@ void Material::createTexture(TextureType type, std::string texturePath) {
 }
 
 void Material::addTexture(TextureType type, ImageObjects texture) {
+	texture.ownedImage = false;
+	storeTexture(type, texture);
+}
+
+void Material::storeTexture(TextureType type, ImageObjects texture) {
 	// CREATE THE SAMPLER (if not created yet)
 	if (sampler == VK_NULL_HANDLE) createSampler(mipLevels);
 
@@ -61,7 +66,6 @@ void Material::addTexture(TextureType type, ImageObjects texture) {
 	usedTypes |= type;
 	textureCount++;
 }
-
 
 void Material::createSampler(uint32_t mipLevels) {
 	//-----------------------------------------
@@ -155,25 +159,23 @@ void Material::createTextureImage(std::string texturePath, ImageObjects& texture
 }
 
 
-void Material::cleanup(bool destroyVulkanImages) {
+void Material::cleanup() {
 	vkDestroySampler(device.get(), sampler, nullptr);
 
-	destroyTextures(destroyVulkanImages);
+	destroyTextures();
 }
 
-void Material::destroyTextures(bool destroyVulkanImages) {
+void Material::destroyTextures() {
 
-	if (destroyVulkanImages) {
-		if (TEXTURE_TYPE_ALBEDO_BIT & usedTypes)
-			destroyImageObjects(device, albedoTexture);
-		if (TEXTURE_TYPE_SPECULAR_BIT & usedTypes)
-			destroyImageObjects(device, specularTexture);
-		if (TEXTURE_TYPE_NORMAL_BIT & usedTypes)
-			destroyImageObjects(device, normalTexture);
+	if (TEXTURE_TYPE_ALBEDO_BIT & usedTypes)
+		destroyImageObjects(device, albedoTexture);
+	if (TEXTURE_TYPE_SPECULAR_BIT & usedTypes)
+		destroyImageObjects(device, specularTexture);
+	if (TEXTURE_TYPE_NORMAL_BIT & usedTypes)
+		destroyImageObjects(device, normalTexture);
 
-		for (auto& texture : customTextures) {
-			destroyImageObjects(device, texture);
-		}
+	for (auto& texture : customTextures) {
+		destroyImageObjects(device, texture);
 	}
 	customTextures.clear();
 

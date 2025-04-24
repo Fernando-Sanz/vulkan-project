@@ -66,10 +66,10 @@ struct Material {
 	void addTexture(TextureType type, ImageObjects texture);
 
 	// Destroy Vulkan and other objects
-	void cleanup(bool destroyVulkanImages = true);
+	void cleanup();
 
 	// Erase the texture handlers and destroy the Vulkan objects associated if it is specified
-	void destroyTextures(bool destroyVulkanImages = true);
+	void destroyTextures();
 
 private:
 
@@ -81,4 +81,6 @@ private:
 	
 	// Create sampler for the textures
 	void createSampler(uint32_t mipLevels);
+
+	void storeTexture(TextureType type, ImageObjects texture);
 };

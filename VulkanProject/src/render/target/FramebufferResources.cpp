@@ -25,6 +25,7 @@ void FramebufferResources::createFromSwapChain(Device device, SwapChain swapChai
 	createColorResources(swapChain.getImageFormat());
 	createDepthResources(0); // no special usage
 	resolveImage.view = swapChain.getImageView(imageIndex);
+	resolveImage.ownedImage = false; // the image view is owned by swap chain
 	createFramebuffer();
 }
 
@@ -89,8 +90,7 @@ void FramebufferResources::createFramebuffer() {
 void FramebufferResources::cleanup() {
 	destroyImageObjects(device, colorImage);
 	destroyImageObjects(device, depthImage);
-	if(resolveImage.image != VK_NULL_HANDLE)
-		destroyImageObjects(device, resolveImage);
+	destroyImageObjects(device, resolveImage);
 
 	vkDestroyFramebuffer(device.get(), framebuffer, nullptr);
 }

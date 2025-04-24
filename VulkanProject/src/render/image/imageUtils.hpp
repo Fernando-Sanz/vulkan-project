@@ -8,6 +8,7 @@
 
 // TODO: use the struct in other classes (Texture.hpp)
 struct ImageObjects {
+	bool ownedImage = true;
 	VkImage image = VK_NULL_HANDLE;
 	VkDeviceMemory memory = VK_NULL_HANDLE;
 	VkImageView view = VK_NULL_HANDLE;
@@ -40,4 +41,4 @@ VkFormat findDepthFormat(Device device);
 bool hasStencilComponent(VkFormat format);
 
 // Destroy ImageObjects fields
-void destroyImageObjects(Device device, ImageObjects imageObjects);
+void destroyImageObjects(Device device, ImageObjects& imageObjects);

@@ -835,6 +835,7 @@ private:
 
 	void cleanupRenderImages() {
 		// first pass output image
+		postProcessingQuad.getModulesOfType<Model>()[0]->getMaterial().destroyTextures();
 
 		// color attachments
 		firstPassFramebuffer.cleanup();

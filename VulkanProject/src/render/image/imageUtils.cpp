@@ -308,8 +308,12 @@ bool hasStencilComponent(VkFormat format) {
 	return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 }
 
-void destroyImageObjects(Device device, ImageObjects imageObjects) {
+void destroyImageObjects(Device device, ImageObjects& imageObjects) {
+	if (!imageObjects.ownedImage) return;
 	vkDestroyImageView(device.get(), imageObjects.view, nullptr);
+	imageObjects.view = VK_NULL_HANDLE;
 	vkDestroyImage(device.get(), imageObjects.image, nullptr);
+	imageObjects.image = VK_NULL_HANDLE;
 	vkFreeMemory(device.get(), imageObjects.memory, nullptr);
+	imageObjects.memory = VK_NULL_HANDLE;
 }
