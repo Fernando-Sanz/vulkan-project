@@ -482,6 +482,7 @@ private:
 		Entity* cameraEntity = scene.addEntity();
 		cameraEntity->transform.lookAt = -Transform::Y;
 		cameraEntity->transform.right = -Transform::X;
+		cameraEntity->transform.position.y = 2;
 		camera = cameraEntity->addModule<Camera>();
 		camera->init(swapChain.getExtent());
 		scene.activeCamera = camera;
@@ -681,7 +682,7 @@ private:
 	void updateWorld() {
 		AppTime::updateDeltaTime();
 
-		//camera.update();
+		//camera->update();
 		//lights[1].update();
 	}
 
@@ -691,7 +692,7 @@ private:
 	}
 
 	void mouseEventCallback(SDL_Event event) {
-		//camera.mouseReaction(event);
+		//camera->mouseReaction(event);
 	}
 
 	void drawFrame() {

@@ -14,21 +14,11 @@ Camera::Camera() {
 }
 
 void Camera::init(VkExtent2D extent) {
-	//computeView();
-	//updateProjection(extent);
+	computeView();
+	updateProjection(extent);
 }
 
 void Camera::update() {
-	static bool initializated = false;
-	if (!initializated) {
-		transform->position = glm::vec3(0.0f, 3.0, 0.5f);
-		transform->lookAt = glm::vec3(0.0f, -1.0f, 0.0f);
-		transform->up = glm::vec3(0.0f, 0.0f, 1.0f);
-		transform->right = glm::cross(transform->lookAt, transform->up);
-
-		initializated = true;
-	}
-
 	transform->position += movingDirection * speed * AppTime::deltaTime();
 	computeView();
 }
@@ -101,11 +91,15 @@ void Camera::mouseReaction(SDL_Event event) {
 }
 
 void Camera::computeView() {
+	if (transform == nullptr) return;
+	
 	view = glm::lookAt(
 		transform->position, transform->position + transform->lookAt, transform->up);
 }
 
 void Camera::computeProjection() {
+	if (transform == nullptr) return;
+
 	float aspectRatio = extent.width / (float)extent.height;
 	projection = glm::perspective(
 		glm::radians(45.0f), aspectRatio, 0.1f, 10.0f);
