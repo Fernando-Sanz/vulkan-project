@@ -11,7 +11,7 @@ public:
 
 	Transform* getTransform() { return transform; }
 
-	void setOwner(Entity* owner) {
+	virtual void setOwner(Entity* owner) {
 		this->entity = owner;
 		transform = &owner->transform;
 	}

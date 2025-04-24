@@ -154,7 +154,7 @@ namespace DescriptorSets {
 	}
 }
 
-void GraphicsPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat, Model model, uint32_t lightCount,
+void GraphicsPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat, Model* model, uint32_t lightCount,
 	std::string vertShaderLocation, std::string fragShaderLocation) {
 
 	this->device = device;
@@ -165,18 +165,18 @@ void GraphicsPipeline::create(Device device, VkFormat imageFormat, VkFormat dept
 }
 
 
-void GraphicsPipeline::createDescriptorSetLayout(Model model, uint32_t lightCount) {
+void GraphicsPipeline::createDescriptorSetLayout(Model* model, uint32_t lightCount) {
 
 	//----------------------------------------------------
 	// BINDINGS
 	std::vector<VkDescriptorSetLayoutBinding> bindings;
 
 	// MODEL UBO
-	if (!model.useRawVertexData())
+	if (!model->useRawVertexData())
 		Bindings::addModelBinding(bindings);
 
 	// SAMPLER AND TEXTURE
-	size_t textureCount = model.getMaterial().textureCount;
+	size_t textureCount = model->getMaterial().textureCount;
 	if (textureCount > 0) {
 		Bindings::addTextureBindings(bindings, textureCount);
 	}
@@ -201,7 +201,7 @@ void GraphicsPipeline::createDescriptorSetLayout(Model model, uint32_t lightCoun
 
 
 void GraphicsPipeline::recordDrawing(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer, VkExtent2D extent,
-	Model model, VkDescriptorSet descriptorSet) {
+	Model* model, VkDescriptorSet descriptorSet) {
 
 	//---------------------
 	// RENDER PASS
@@ -228,12 +228,12 @@ void GraphicsPipeline::recordDrawing(VkCommandBuffer commandBuffer, VkFramebuffe
 	// PIPELINE DATA
 
 	// vertex buffers
-	VkBuffer vertexBuffers[] = { model.getVertexBuffer() };
+	VkBuffer vertexBuffers[] = { model->getVertexBuffer() };
 	VkDeviceSize offsets[] = { 0 };
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
 	// index buffer
-	vkCmdBindIndexBuffer(commandBuffer, model.getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+	vkCmdBindIndexBuffer(commandBuffer, model->getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
 	// viewport and scissor stage
 	VkViewport viewport{};
@@ -255,7 +255,7 @@ void GraphicsPipeline::recordDrawing(VkCommandBuffer commandBuffer, VkFramebuffe
 
 	//---------------------
 	// DRAW GEOMETRY AND END
-	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model.getIndices().size()), 1, 0, 0, 0);
+	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model->getIndices().size()), 1, 0, 0, 0);
 	vkCmdEndRenderPass(commandBuffer);
 }
 

@@ -30,6 +30,11 @@ public:
 	void create(Device device, CommandManager commandManager, std::string modelPath, Material material,
 		bool useRawVertexData = false);
 
+	void setOwner(Entity* owner) override {
+		Module::setOwner(owner);
+		transform = nullptr;
+	}
+
 	// Destroy Vulkan and other objects
 	void cleanup();
 
