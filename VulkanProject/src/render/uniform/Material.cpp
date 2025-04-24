@@ -32,7 +32,7 @@ void Material::createTexture(TextureType type, std::string texturePath) {
 	newTexture.view = createImageView(
 		device, newTexture.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels);
 
-	addTexture(type, newTexture);
+	storeTexture(type, newTexture);
 }
 
 void Material::addTexture(TextureType type, ImageObjects texture) {

@@ -24,9 +24,7 @@ void Model::create(Device device, CommandManager commandManager, std::string mod
 	//--------------------------------------------------------
 	// TRANSFORM (if the vertex data will be used with transformations)
 	if (!useRawVertexData) {
-		this->transform = new Transform();
-		this->transform->position = glm::vec3(0.0f, 0.0f, -0.15);
-		this->transform->scale = glm::vec3(1.2f);
+		transform = &entity->transform;
 	}
 }
 

@@ -796,7 +796,13 @@ private:
 		// Swap chain objects
 		cleanupRenderImages();
 
-		// Model
+		// Models
+		for (auto* model : scene.getModulesOfType<Model>()) {
+			model->cleanup();
+		}
+		for (auto* model : postProcessingQuad.getModulesOfType<Model>()) {
+			model->cleanup();
+		}
 
 		// Uniform
 		modelUniforms.cleanup();
