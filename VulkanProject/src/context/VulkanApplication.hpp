@@ -682,17 +682,17 @@ private:
 	void updateWorld() {
 		AppTime::updateDeltaTime();
 
-		//camera->update();
+		camera->update();
 		//lights[1].update();
 	}
 
 	void keyboardEventCallback(SDL_Event event) {
 		// TODO: create an interface to handle all keyboard event reactions
-		//camera.keyboardReaction(event);
+		camera->keyboardReaction(event);
 	}
 
 	void mouseEventCallback(SDL_Event event) {
-		//camera->mouseReaction(event);
+		camera->mouseReaction(event);
 	}
 
 	void drawFrame() {

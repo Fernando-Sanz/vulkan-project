@@ -4,9 +4,8 @@
 #include <memory>
 
 #include "scene/Transform.hpp"
-//#include "scene/Model.hpp"
-//#include "scene/Light.hpp"
-//#include "scene/Camera.hpp"
+
+
 class Model;
 class Light;
 class Camera;
