@@ -149,6 +149,8 @@ private:
 	Camera* camera;
 
 	// Geometry
+	std::array<Mesh, 2> meshes;
+	std::array<Material, 2> materials;
 	Entity postProcessingQuad;
 
 	// Descriptor pool and sets
@@ -458,19 +460,21 @@ private:
 
 	void createWorldObjects(VulkanAppParams params) {
 
+		// LOAD MESHES
+		meshes[0].create(device, commandManager, params.modelPath);
+		meshes[1].create(device, commandManager, POST_PROCESSING_QUAD_PATH);
+
 		// MODEL
 		Entity* modelEntity = scene.addEntity();
 		Model* model = modelEntity->addModule<Model>();
-		Material modelMaterial;
-		modelMaterial.setContext(device, commandManager);
-		modelMaterial.createTextures(params.texturePaths[0]);
-		model->create(device, commandManager, params.modelPath, modelMaterial);
+		materials[0].setContext(device, commandManager);
+		materials[0].createTextures(params.texturePaths[0]);
+		model->create(&meshes[0], &materials[0]);
 
 		// POST-PROCESSING QUAD (the texture is set later)
 		Model* postProcessingQuadM = postProcessingQuad.addModule<Model>();
-		Material postProcMaterial;
-		postProcMaterial.setContext(device, commandManager);
-		postProcessingQuadM->create(device, commandManager, POST_PROCESSING_QUAD_PATH, postProcMaterial, true);
+		materials[1].setContext(device, commandManager);
+		postProcessingQuadM->create(&meshes[1], &materials[1], true);
 
 
 		Entity* lightTest = scene.addEntity();
@@ -505,7 +509,7 @@ private:
 
 		// POST PROCESSING QUAD TEXTURES
 		ImageObjects firstPassOutputImage = firstPassFramebuffer.getResolveImage();
-		postProcessingQuad.getModulesOfType<Model>()[0]->getMaterial().addTexture(TEXTURE_TYPE_CUSTOM_BIT, firstPassOutputImage);
+		materials[1].addTexture(TEXTURE_TYPE_CUSTOM_BIT, firstPassOutputImage);
 	}
 
 	void createSecondPassFramebuffers() {
@@ -796,13 +800,11 @@ private:
 		// Swap chain objects
 		cleanupRenderImages();
 
-		// Models
-		for (auto* model : scene.getModulesOfType<Model>()) {
-			model->cleanup();
-		}
-		for (auto* model : postProcessingQuad.getModulesOfType<Model>()) {
-			model->cleanup();
-		}
+		// Meshes
+		for (auto mesh : meshes)
+			mesh.cleanup();
+		for (auto material : materials)
+			material.cleanup();
 
 		// Uniform
 		modelUniforms.cleanup();
@@ -841,7 +843,7 @@ private:
 
 	void cleanupRenderImages() {
 		// first pass output image
-		postProcessingQuad.getModulesOfType<Model>()[0]->getMaterial().destroyTextures();
+		materials[1].destroyTextures();
 
 		// color attachments
 		firstPassFramebuffer.cleanup();

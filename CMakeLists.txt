@@ -38,6 +38,7 @@ set(SOURCES
     "${SOURCE_CODE_PATH}/render/uniform/LightUboManager.cpp"
     "${SOURCE_CODE_PATH}/render/uniform/Material.cpp"
     "${SOURCE_CODE_PATH}/render/uniform/ModelUboManager.cpp"
+    "${SOURCE_CODE_PATH}/render/vertex/Mesh.cpp"
 
     "${SOURCE_CODE_PATH}/scene/Camera.cpp"
     "${SOURCE_CODE_PATH}/scene/Light.cpp"

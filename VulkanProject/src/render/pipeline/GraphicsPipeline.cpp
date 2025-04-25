@@ -54,41 +54,41 @@ namespace DescriptorSets {
 		descriptorWrites.push_back(lightsBufferWrite);
 	}
 
-	void addTextureDescriptorWrites(const Material& material, VkDescriptorSet descriptorSetDst,
+	void addTextureDescriptorWrites(const Material* material, VkDescriptorSet descriptorSetDst,
 		VkDescriptorImageInfo& samplerInfo, std::vector<VkDescriptorImageInfo>& textureInfos,
 		std::vector<VkWriteDescriptorSet>& descriptorWrites) {
 
 		// TEXTURE SAMPLER INFO
 		samplerInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		samplerInfo.sampler = material.sampler;
+		samplerInfo.sampler = material->sampler;
 
 		// TEXTURE INFOS
 
-		textureInfos.resize(material.textureCount);
+		textureInfos.resize(material->textureCount);
 		int index = 0;
-		if (material.hasAlbedo()) {
+		if (material->hasAlbedo()) {
 			// color
 			textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			textureInfos[index].imageView = material.albedoTexture.view;
+			textureInfos[index].imageView = material->albedoTexture.view;
 			index++;
 		}
-		if (material.hasSpecular()) {
+		if (material->hasSpecular()) {
 			// specular
 			textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			textureInfos[index].imageView = material.specularTexture.view;
+			textureInfos[index].imageView = material->specularTexture.view;
 			index++;
 		}
-		if (material.hasNormal()) {
+		if (material->hasNormal()) {
 			// normal
 			textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			textureInfos[index].imageView = material.normalTexture.view;
+			textureInfos[index].imageView = material->normalTexture.view;
 			index++;
 		}
-		if (material.customTextures.size()) {
+		if (material->customTextures.size()) {
 			// custom
-			for (size_t i = 0; i < material.customTextures.size(); i++) {
+			for (size_t i = 0; i < material->customTextures.size(); i++) {
 				textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-				textureInfos[index].imageView = material.customTextures[i].view;
+				textureInfos[index].imageView = material->customTextures[i].view;
 				index++;
 			}
 		}
@@ -143,7 +143,7 @@ void GraphicsPipeline::createDescriptorSetLayout(Model* model, uint32_t lightCou
 		Bindings::addBufferBinding(bindings, 1, VK_SHADER_STAGE_VERTEX_BIT);
 
 	// SAMPLER AND TEXTURE
-	size_t textureCount = model->getMaterial().textureCount;
+	size_t textureCount = model->getMaterial()->textureCount;
 	if (textureCount > 0) {
 		Bindings::addTextureBindings(bindings, textureCount);
 	}
@@ -195,12 +195,12 @@ void GraphicsPipeline::recordDrawing(VkCommandBuffer commandBuffer, VkFramebuffe
 	// PIPELINE DATA
 
 	// vertex buffers
-	VkBuffer vertexBuffers[] = { model->getVertexBuffer() };
+	VkBuffer vertexBuffers[] = { model->getMesh()->getVertexBuffer() };
 	VkDeviceSize offsets[] = { 0 };
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
 	// index buffer
-	vkCmdBindIndexBuffer(commandBuffer, model->getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+	vkCmdBindIndexBuffer(commandBuffer, model->getMesh()->getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
 	// viewport and scissor stage
 	VkViewport viewport{};
@@ -222,7 +222,7 @@ void GraphicsPipeline::recordDrawing(VkCommandBuffer commandBuffer, VkFramebuffe
 
 	//---------------------
 	// DRAW GEOMETRY AND END
-	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model->getIndices().size()), 1, 0, 0, 0);
+	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model->getMesh()->getIndices().size()), 1, 0, 0, 0);
 	vkCmdEndRenderPass(commandBuffer);
 }
 
@@ -242,12 +242,12 @@ void GraphicsPipeline::allocateDescriptorSets(VkDescriptorPool pool, uint32_t co
 }
 
 // TODO: move this to a Renderer class
-void GraphicsPipeline::updateDescriptorSet(Material material, VkDescriptorSet descriptorSet) {
+void GraphicsPipeline::updateDescriptorSet(const Material* material, VkDescriptorSet descriptorSet) {
 	updateDescriptorSet({}, material, {}, descriptorSet);
 }
 
 // TODO: move this to a Renderer class
-void GraphicsPipeline::updateDescriptorSet(ModelUboManager modelUniforms, Material material, LightUboManager lightsUniforms,
+void GraphicsPipeline::updateDescriptorSet(ModelUboManager modelUniforms, const Material* material, LightUboManager lightsUniforms,
 	VkDescriptorSet descriptorSet) {
 
 	// DESCRIPTOR WRITES
@@ -263,7 +263,7 @@ void GraphicsPipeline::updateDescriptorSet(ModelUboManager modelUniforms, Materi
 	// Sample and textures
 	VkDescriptorImageInfo samplerInfo{};
 	std::vector<VkDescriptorImageInfo> textureInfos;
-	if (material.textureCount > 0) {
+	if (material->textureCount > 0) {
 		DescriptorSets::addTextureDescriptorWrites(material, descriptorSet, samplerInfo, textureInfos, descriptorWrites);
 	}
 
