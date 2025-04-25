@@ -3,10 +3,6 @@
 #include "time/AppTime.hpp"
 
 
-Light::Light() {
-	color = glm::vec3(0.5f, 0.437f, 0.365f);
-}
-
 // TODO: remove this to a Behaviour type class
 void Light::update() {
 	// SIMPLE MOVEMENT FOR TESTING:

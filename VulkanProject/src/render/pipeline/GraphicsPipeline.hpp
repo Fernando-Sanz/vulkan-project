@@ -17,6 +17,8 @@ public:
 	VkRenderPass getRenderPass() { return renderPass; }
 	VkDescriptorSetLayout getDescriptorSetLayout() { return descriptorSetLayout; }
 
+	virtual ~GraphicsPipeline() = default;
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// METHODS
 	

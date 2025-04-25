@@ -8,11 +8,6 @@
 #include "time/AppTime.hpp"
 
 
-Camera::Camera() {
-	view = glm::mat4(1.0f);
-	projection = glm::mat4(1.0f);
-}
-
 void Camera::init(VkExtent2D extent) {
 	computeView();
 	updateProjection(extent);

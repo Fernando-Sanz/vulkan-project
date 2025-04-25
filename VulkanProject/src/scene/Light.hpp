@@ -4,7 +4,6 @@
 #include <SDL3/SDL.h>
 
 #include "scene/Module.hpp"
-#include "scene/Transform.hpp"
 
 
 class Light : public Module {
@@ -18,8 +17,6 @@ public:
 
 	void setColor(glm::vec3 color) { this->color = color; }
 
-	Light();
-
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// METHODS
 
@@ -32,6 +29,6 @@ private:
 	// CLASS MEMBERS
 
 	// TODO: add intensity and radius variables
-	glm::vec3 color;
+	glm::vec3 color = glm::vec3(0.5f, 0.437f, 0.365f);
 
 };

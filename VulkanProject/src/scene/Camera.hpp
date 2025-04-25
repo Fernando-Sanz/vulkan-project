@@ -22,8 +22,6 @@ public:
 
 	void updateProjection(VkExtent2D extent) { this->extent = extent; computeProjection(); }
 
-	Camera();
-
 	void init(VkExtent2D extent);
 
 	void update();
@@ -33,8 +31,8 @@ public:
 private:
 	VkExtent2D extent;
 
-	glm::mat4 view;
-	glm::mat4 projection;
+	glm::mat4 view = glm::mat4(1.0f);
+	glm::mat4 projection = glm::mat4(1.0f);
 
 	void computeView();
 	void computeProjection();
