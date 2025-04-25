@@ -1,8 +1,8 @@
 #pragma once
 
 #include "scene/Module.hpp"
-#include "render/vertex/Mesh.hpp"
-#include "render/uniform/Material.hpp"
+#include "render/model/Mesh.hpp"
+#include "render/model/Material.hpp"
 
 
 class Model : public Module {

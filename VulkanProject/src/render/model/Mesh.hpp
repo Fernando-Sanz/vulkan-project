@@ -7,7 +7,7 @@
 
 #include "context/Device.hpp"
 #include "context/CommandManager.hpp"
-#include "render/vertex/Vertex.hpp"
+#include "render/model/Vertex.hpp"
 
 
 class Mesh {

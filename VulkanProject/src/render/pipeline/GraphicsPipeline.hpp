@@ -3,7 +3,7 @@
 #include <vulkan/vulkan.h>
 
 #include "scene/Model.hpp"
-#include "render/uniform/Material.hpp"
+#include "render/model/Material.hpp"
 #include "render/uniform/ModelUboManager.hpp"
 #include "render/uniform/LightUboManager.hpp"
 

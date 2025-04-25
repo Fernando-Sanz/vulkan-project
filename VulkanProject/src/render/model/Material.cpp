@@ -1,4 +1,4 @@
-#include "render/uniform/Material.hpp"
+#include "render/model/Material.hpp"
 
 #include <iostream>
 #include <stdexcept>

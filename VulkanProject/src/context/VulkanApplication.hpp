@@ -27,7 +27,7 @@
 #include "render/pipeline/SecondPassPipeline.hpp"
 #include "render/uniform/LightUboManager.hpp"
 #include "render/uniform/ModelUboManager.hpp"
-#include "render/uniform/Material.hpp"
+#include "render/model/Material.hpp"
 #include "scene/Model.hpp"
 #include "scene/Camera.hpp"
 #include "scene/Light.hpp"

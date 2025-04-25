@@ -30,15 +30,15 @@ set(SOURCES
     "${SOURCE_CODE_PATH}/context/Window.cpp"
 
     "${SOURCE_CODE_PATH}/render/image/imageUtils.cpp"
+    "${SOURCE_CODE_PATH}/render/model/Material.cpp"
+    "${SOURCE_CODE_PATH}/render/model/Mesh.cpp"
     "${SOURCE_CODE_PATH}/render/pipeline/FirstPassPipeline.cpp"
     "${SOURCE_CODE_PATH}/render/pipeline/GraphicsPipeline.cpp"
     "${SOURCE_CODE_PATH}/render/pipeline/SecondPassPipeline.cpp"
     "${SOURCE_CODE_PATH}/render/target/FramebufferResources.cpp"
     "${SOURCE_CODE_PATH}/render/target/SwapChain.cpp"
     "${SOURCE_CODE_PATH}/render/uniform/LightUboManager.cpp"
-    "${SOURCE_CODE_PATH}/render/uniform/Material.cpp"
     "${SOURCE_CODE_PATH}/render/uniform/ModelUboManager.cpp"
-    "${SOURCE_CODE_PATH}/render/vertex/Mesh.cpp"
 
     "${SOURCE_CODE_PATH}/scene/Camera.cpp"
     "${SOURCE_CODE_PATH}/scene/Light.cpp"
