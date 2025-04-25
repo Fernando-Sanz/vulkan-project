@@ -34,6 +34,7 @@
 #include "system/eventManagement.hpp"
 #include "time/AppTime.hpp"
 #include "scene/Scene.hpp"
+#include "render/model/MeshManager.hpp"
 
 
 const uint32_t WIDTH = 800;
@@ -149,7 +150,7 @@ private:
 	Camera* camera;
 
 	// Geometry
-	std::array<Mesh, 2> meshes;
+	MeshManager meshes;
 	std::array<Material, 2> materials;
 	Entity postProcessingQuad;
 
@@ -461,20 +462,21 @@ private:
 	void createWorldObjects(VulkanAppParams params) {
 
 		// LOAD MESHES
-		meshes[0].create(device, commandManager, params.modelPath);
-		meshes[1].create(device, commandManager, POST_PROCESSING_QUAD_PATH);
+		meshes.init(device, commandManager);
+		Mesh* mesh1 = meshes.createMesh(params.modelPath);
+		Mesh* mesh2 = meshes.createMesh(POST_PROCESSING_QUAD_PATH);
 
 		// MODEL
 		Entity* modelEntity = scene.addEntity();
 		Model* model = modelEntity->addModule<Model>();
 		materials[0].setContext(device, commandManager);
 		materials[0].createTextures(params.texturePaths[0]);
-		model->create(&meshes[0], &materials[0]);
+		model->create(mesh1, &materials[0]);
 
 		// POST-PROCESSING QUAD (the texture is set later)
 		Model* postProcessingQuadM = postProcessingQuad.addModule<Model>();
 		materials[1].setContext(device, commandManager);
-		postProcessingQuadM->create(&meshes[1], &materials[1], true);
+		postProcessingQuadM->create(mesh2, &materials[1], true);
 
 
 		Entity* lightTest = scene.addEntity();
@@ -801,8 +803,7 @@ private:
 		cleanupRenderImages();
 
 		// Meshes
-		for (auto mesh : meshes)
-			mesh.cleanup();
+		meshes.cleanup();
 		for (auto material : materials)
 			material.cleanup();
 

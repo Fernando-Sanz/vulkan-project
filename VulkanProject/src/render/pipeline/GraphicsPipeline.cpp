@@ -195,12 +195,12 @@ void GraphicsPipeline::recordDrawing(VkCommandBuffer commandBuffer, VkFramebuffe
 	// PIPELINE DATA
 
 	// vertex buffers
-	VkBuffer vertexBuffers[] = { model->getMesh()->getVertexBuffer() };
+	VkBuffer vertexBuffers[] = { model->getMesh()->vertexBuffer };
 	VkDeviceSize offsets[] = { 0 };
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
 	// index buffer
-	vkCmdBindIndexBuffer(commandBuffer, model->getMesh()->getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+	vkCmdBindIndexBuffer(commandBuffer, model->getMesh()->indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
 	// viewport and scissor stage
 	VkViewport viewport{};
@@ -222,7 +222,7 @@ void GraphicsPipeline::recordDrawing(VkCommandBuffer commandBuffer, VkFramebuffe
 
 	//---------------------
 	// DRAW GEOMETRY AND END
-	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model->getMesh()->getIndices().size()), 1, 0, 0, 0);
+	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model->getMesh()->indices.size()), 1, 0, 0, 0);
 	vkCmdEndRenderPass(commandBuffer);
 }
 

@@ -32,6 +32,7 @@ set(SOURCES
     "${SOURCE_CODE_PATH}/render/image/imageUtils.cpp"
     "${SOURCE_CODE_PATH}/render/model/Material.cpp"
     "${SOURCE_CODE_PATH}/render/model/Mesh.cpp"
+    "${SOURCE_CODE_PATH}/render/model/MeshManager.cpp"
     "${SOURCE_CODE_PATH}/render/pipeline/FirstPassPipeline.cpp"
     "${SOURCE_CODE_PATH}/render/pipeline/GraphicsPipeline.cpp"
     "${SOURCE_CODE_PATH}/render/pipeline/SecondPassPipeline.cpp"
