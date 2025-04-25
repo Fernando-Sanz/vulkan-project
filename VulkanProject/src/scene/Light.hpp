@@ -3,26 +3,35 @@
 #include <glm/glm.hpp>
 #include <SDL3/SDL.h>
 
+#include "scene/Module.hpp"
 #include "scene/Transform.hpp"
 
 
-class Light {
+class Light : public Module {
 public:
 
-	glm::vec3 getPosition() { return transform.position; }
-	glm::vec3 getColor() { return color; }
-	glm::vec3 getDirection() { return transform.lookAt; }
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// GETTERS AND SETTERS
+
+	glm::vec3 getDirection() const { return transform->lookAt; }
+	glm::vec3 getColor() const { return color; }
 
 	void setColor(glm::vec3 color) { this->color = color; }
 
 	Light();
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// METHODS
 
 	void update();
 	void keyboardReaction(SDL_Event event);
 
 private:
 
-	Transform transform;
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// CLASS MEMBERS
+
+	// TODO: add intensity and radius variables
 	glm::vec3 color;
 
 };

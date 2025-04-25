@@ -35,7 +35,7 @@ void LightUboManager::upateBuffer(uint32_t index, std::vector<Light> lights, Cam
 		LightUBO ubo{};
 
 		// Light pos and dir in camera coordinates
-		glm::vec4 lightPos = view * glm::vec4(lights[i].getPosition(), 1.0f);
+		glm::vec4 lightPos = view * glm::vec4(lights[i].getTransform()->position, 1.0f);
 		glm::vec4 lightDirection = view * glm::vec4(lights[i].getDirection(), 0.0f);
 		ubo.pos = glm::vec3(lightPos);
 		ubo.color = lights[i].getColor();

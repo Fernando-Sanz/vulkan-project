@@ -9,13 +9,8 @@
 
 
 Camera::Camera() {
-	transform.position = glm::vec3(0.0f, 3.0, 0.5f);
-	transform.lookAt = glm::vec3(0.0f, -1.0f, 0.0f);
-	transform.up = glm::vec3(0.0f, 0.0f, 1.0f);
-	transform.right = glm::cross(transform.lookAt, transform.up);
-
-	view = glm::mat4();
-	projection = glm::mat4();
+	view = glm::mat4(1.0f);
+	projection = glm::mat4(1.0f);
 }
 
 void Camera::init(VkExtent2D extent) {
@@ -24,13 +19,13 @@ void Camera::init(VkExtent2D extent) {
 }
 
 void Camera::update() {
-	transform.position += movingDirection * speed * AppTime::deltaTime();
+	transform->position += movingDirection * speed * AppTime::deltaTime();
 	computeView();
 }
 
 void Camera::keyboardReaction(SDL_Event event) {
-	float xFactor = glm::dot(transform.lookAt, Transform::X);
-	float yFactor = glm::dot(transform.lookAt, Transform::Y);
+	float xFactor = glm::dot(transform->lookAt, Transform::X);
+	float yFactor = glm::dot(transform->lookAt, Transform::Y);
 	glm::vec3 forwardDirection = xFactor * Transform::X + yFactor * Transform::Y;
 	forwardDirection = glm::normalize(forwardDirection);
 
@@ -69,8 +64,8 @@ void Camera::keyboardReaction(SDL_Event event) {
 	movingDirection = glm::vec3(0.0f);
 	movingDirection += forwardDirection * (float)moving.forward;
 	movingDirection -= forwardDirection * (float)moving.backward;
-	movingDirection += transform.right * (float)moving.toRight;
-	movingDirection -= transform.right * (float)moving.toLeft;
+	movingDirection += transform->right * (float)moving.toRight;
+	movingDirection -= transform->right * (float)moving.toLeft;
 	if (movingDirection != glm::vec3(0.0f))
 		movingDirection = glm::normalize(movingDirection);
 }
@@ -84,7 +79,7 @@ void Camera::mouseReaction(SDL_Event event) {
 		float factor = 0.0f;
 		factor = (mouse.yrel < 0) ? 1.0f : -1.0f;
 		float verticalAngle = angleSpeed * AppTime::deltaTime() * sensitivity * factor;
-		rot = glm::rotate(rot, verticalAngle, transform.right);
+		rot = glm::rotate(rot, verticalAngle, transform->right);
 	}
 	if (mouse.xrel != 0) {
 		float factor = 0.0f;
@@ -92,15 +87,19 @@ void Camera::mouseReaction(SDL_Event event) {
 		float horizontalAngle = angleSpeed * AppTime::deltaTime() * sensitivity * factor;
 		rot = glm::rotate(glm::mat4(1.0f), horizontalAngle, Transform::Z) * rot;
 	}
-	transform.changeOrientation(glm::mat3(rot));
+	transform->changeOrientation(glm::mat3(rot));
 }
 
 void Camera::computeView() {
+	if (transform == nullptr) return;
+	
 	view = glm::lookAt(
-		transform.position, transform.position + transform.lookAt, transform.up);
+		transform->position, transform->position + transform->lookAt, transform->up);
 }
 
 void Camera::computeProjection() {
+	if (transform == nullptr) return;
+
 	float aspectRatio = extent.width / (float)extent.height;
 	projection = glm::perspective(
 		glm::radians(45.0f), aspectRatio, 0.1f, 10.0f);

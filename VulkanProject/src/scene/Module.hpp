@@ -1,0 +1,26 @@
+#pragma once
+
+#include "scene/Entity.hpp"
+
+
+class Module {
+public:
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// GETTERS AND SETTER
+
+	Transform* getTransform() { return transform; }
+
+	virtual void setOwner(Entity* owner) {
+		this->entity = owner;
+		transform = &owner->transform;
+	}
+
+protected:
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// CLASS MEMBERS
+
+	Entity* entity = nullptr;
+	Transform* transform = nullptr;
+};

@@ -2,12 +2,12 @@
 
 
 namespace Bindings {
-	void addModelBinding(std::vector<VkDescriptorSetLayoutBinding>& bindings) {
+	void addBufferBinding(std::vector<VkDescriptorSetLayoutBinding>& bindings, size_t count, VkShaderStageFlagBits stage) {
 		VkDescriptorSetLayoutBinding modelUboLayoutBinding{};
 		modelUboLayoutBinding.binding = static_cast<uint32_t>(bindings.size());
 		modelUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		modelUboLayoutBinding.descriptorCount = 1; // only 1 model per render pass
-		modelUboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+		modelUboLayoutBinding.descriptorCount = count;
+		modelUboLayoutBinding.stageFlags = stage;
 		
 		bindings.push_back(modelUboLayoutBinding);
 	}
@@ -30,40 +30,28 @@ namespace Bindings {
 
 		bindings.push_back(texturesLayoutBinding);
 	}
-
-	void addLightBinding(std::vector<VkDescriptorSetLayoutBinding>& bindings, int lightCount) {
-		VkDescriptorSetLayoutBinding lightUboLayoutBinding{};
-		lightUboLayoutBinding.binding = static_cast<uint32_t>(bindings.size());
-		lightUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		lightUboLayoutBinding.descriptorCount = lightCount;
-		lightUboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-		bindings.push_back(lightUboLayoutBinding);
-	}
 }
 
 namespace DescriptorSets {
-	void addModelDescriptorWrite(VkBuffer modelUboBuffer, VkDescriptorSet descriptorSetDst,
-		VkDescriptorBufferInfo& modelBufferInfo, std::vector<VkWriteDescriptorSet>& descriptorWrites) {
+	void addBufferDescriptorWrite(VkBuffer buffer, VkDeviceSize size, VkDescriptorSet descriptorSetDst,
+		VkDescriptorBufferInfo& bufferInfo, std::vector<VkWriteDescriptorSet>& descriptorWrites) {
 
 		// INFO
-		modelBufferInfo.buffer = modelUboBuffer;
-		modelBufferInfo.offset = 0;
-		modelBufferInfo.range = sizeof(ModelUBO);
+		bufferInfo.buffer = buffer;
+		bufferInfo.offset = 0;
+		bufferInfo.range = size;
 
 		// WRITE
-		VkWriteDescriptorSet modelBufferWrite{};
-		modelBufferWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		modelBufferWrite.dstSet = descriptorSetDst;
-		modelBufferWrite.dstBinding = static_cast<uint32_t>(descriptorWrites.size());
-		modelBufferWrite.dstArrayElement = 0;
-		modelBufferWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		modelBufferWrite.descriptorCount = 1;
-		modelBufferWrite.pBufferInfo = &modelBufferInfo;
-		modelBufferWrite.pImageInfo = nullptr; // Not used
-		modelBufferWrite.pTexelBufferView = nullptr; // Not used
+		VkWriteDescriptorSet lightsBufferWrite{};
+		lightsBufferWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		lightsBufferWrite.dstSet = descriptorSetDst;
+		lightsBufferWrite.dstBinding = static_cast<uint32_t>(descriptorWrites.size());
+		lightsBufferWrite.dstArrayElement = 0;
+		lightsBufferWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		lightsBufferWrite.descriptorCount = 1;
+		lightsBufferWrite.pBufferInfo = &bufferInfo;
 
-		descriptorWrites.push_back(modelBufferWrite);
+		descriptorWrites.push_back(lightsBufferWrite);
 	}
 
 	void addTextureDescriptorWrites(const Material& material, VkDescriptorSet descriptorSetDst,
@@ -131,30 +119,9 @@ namespace DescriptorSets {
 
 		descriptorWrites.push_back(texturesWrite);
 	}
-
-	void addLightDescriptorWrite(VkBuffer lightsUboBuffer, size_t lightCount, VkDescriptorSet descriptorSetDst,
-		VkDescriptorBufferInfo& lightsBufferInfo, std::vector<VkWriteDescriptorSet>& descriptorWrites) {
-
-		// INFO
-		lightsBufferInfo.buffer = lightsUboBuffer;
-		lightsBufferInfo.offset = 0;
-		lightsBufferInfo.range = sizeof(LightUBO) * lightCount;
-
-		// WRITE
-		VkWriteDescriptorSet lightsBufferWrite{};
-		lightsBufferWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		lightsBufferWrite.dstSet = descriptorSetDst;
-		lightsBufferWrite.dstBinding = static_cast<uint32_t>(descriptorWrites.size());
-		lightsBufferWrite.dstArrayElement = 0;
-		lightsBufferWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		lightsBufferWrite.descriptorCount = 1;
-		lightsBufferWrite.pBufferInfo = &lightsBufferInfo;
-
-		descriptorWrites.push_back(lightsBufferWrite);
-	}
 }
 
-void GraphicsPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat, Model model, uint32_t lightCount,
+void GraphicsPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat, Model* model, uint32_t lightCount,
 	std::string vertShaderLocation, std::string fragShaderLocation) {
 
 	this->device = device;
@@ -165,25 +132,25 @@ void GraphicsPipeline::create(Device device, VkFormat imageFormat, VkFormat dept
 }
 
 
-void GraphicsPipeline::createDescriptorSetLayout(Model model, uint32_t lightCount) {
+void GraphicsPipeline::createDescriptorSetLayout(Model* model, uint32_t lightCount) {
 
 	//----------------------------------------------------
 	// BINDINGS
 	std::vector<VkDescriptorSetLayoutBinding> bindings;
 
 	// MODEL UBO
-	if (!model.useRawVertexData())
-		Bindings::addModelBinding(bindings);
+	if (!model->useRawVertexData())
+		Bindings::addBufferBinding(bindings, 1, VK_SHADER_STAGE_VERTEX_BIT);
 
 	// SAMPLER AND TEXTURE
-	size_t textureCount = model.getMaterial().textureCount;
+	size_t textureCount = model->getMaterial().textureCount;
 	if (textureCount > 0) {
 		Bindings::addTextureBindings(bindings, textureCount);
 	}
 
 	// LIGHT UBOS
 	if (lightCount > 0) {
-		Bindings::addLightBinding(bindings, lightCount);
+		Bindings::addBufferBinding(bindings, lightCount, VK_SHADER_STAGE_FRAGMENT_BIT);
 	}
 
 	//----------------------------------------------------
@@ -201,7 +168,7 @@ void GraphicsPipeline::createDescriptorSetLayout(Model model, uint32_t lightCoun
 
 
 void GraphicsPipeline::recordDrawing(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer, VkExtent2D extent,
-	Model model, VkDescriptorSet descriptorSet) {
+	Model* model, VkDescriptorSet descriptorSet) {
 
 	//---------------------
 	// RENDER PASS
@@ -228,12 +195,12 @@ void GraphicsPipeline::recordDrawing(VkCommandBuffer commandBuffer, VkFramebuffe
 	// PIPELINE DATA
 
 	// vertex buffers
-	VkBuffer vertexBuffers[] = { model.getVertexBuffer() };
+	VkBuffer vertexBuffers[] = { model->getVertexBuffer() };
 	VkDeviceSize offsets[] = { 0 };
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
 	// index buffer
-	vkCmdBindIndexBuffer(commandBuffer, model.getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+	vkCmdBindIndexBuffer(commandBuffer, model->getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
 	// viewport and scissor stage
 	VkViewport viewport{};
@@ -255,7 +222,7 @@ void GraphicsPipeline::recordDrawing(VkCommandBuffer commandBuffer, VkFramebuffe
 
 	//---------------------
 	// DRAW GEOMETRY AND END
-	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model.getIndices().size()), 1, 0, 0, 0);
+	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model->getIndices().size()), 1, 0, 0, 0);
 	vkCmdEndRenderPass(commandBuffer);
 }
 
@@ -289,7 +256,8 @@ void GraphicsPipeline::updateDescriptorSet(ModelUboManager modelUniforms, Materi
 	// Model UBO
 	VkDescriptorBufferInfo modelBufferInfo;
 	if (modelUniforms.hasModel()) {
-		DescriptorSets::addModelDescriptorWrite(modelUniforms.getBuffer(0), descriptorSet, modelBufferInfo, descriptorWrites);
+		DescriptorSets::addBufferDescriptorWrite(modelUniforms.getBuffer(0), sizeof(ModelUBO),
+			descriptorSet, modelBufferInfo, descriptorWrites);
 	}
 
 	// Sample and textures
@@ -302,8 +270,8 @@ void GraphicsPipeline::updateDescriptorSet(ModelUboManager modelUniforms, Materi
 	// Lights UBO
 	VkDescriptorBufferInfo lightsBufferInfo{};
 	if (lightsUniforms.getLightCount() > 0) {
-		DescriptorSets::addLightDescriptorWrite(lightsUniforms.getBuffer(0), lightsUniforms.getLightCount(), descriptorSet,
-			lightsBufferInfo, descriptorWrites);
+		DescriptorSets::addBufferDescriptorWrite(lightsUniforms.getBuffer(0), sizeof(LightUBO) * lightsUniforms.getLightCount(),
+			descriptorSet, lightsBufferInfo, descriptorWrites);
 	}
 	
 	// UPDATE

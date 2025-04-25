@@ -1,21 +1,18 @@
 #pragma once
 
-#include "context/Device.hpp"
-#include "context/CommandManager.hpp"
+#include "scene/Module.hpp"
 #include "render/vertex/Vertex.hpp"
 #include "Transform.hpp"
 #include "render/uniform/Material.hpp"
 
 
-class Model {
+class Model : public Module {
 public:
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// GETTERS AND SETTERS
 
 	bool useRawVertexData() { return transform == nullptr; }
-	// Return a copy of the transform. Since the transform can be nullptr, it should be checked with useRawVertexData() method
-	Transform getTransform() { return *transform; }
 
 	std::vector<uint32_t> getIndices() { return indices; }
 	VkBuffer getVertexBuffer() { return vertexBuffer; }
@@ -33,6 +30,11 @@ public:
 	void create(Device device, CommandManager commandManager, std::string modelPath, Material material,
 		bool useRawVertexData = false);
 
+	void setOwner(Entity* owner) override {
+		Module::setOwner(owner);
+		transform = nullptr;
+	}
+
 	// Destroy Vulkan and other objects
 	void cleanup();
 
@@ -41,17 +43,14 @@ private:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// CLASS MEMBERS
 
+	// TODO: move to MeshManager, store here an ID instead
 	Device device;
-
 	std::vector<Vertex> vertices;
 	std::vector<uint32_t> indices;
-
 	VkBuffer vertexBuffer;
 	VkDeviceMemory vertexBufferMemory;
 	VkBuffer indexBuffer;
 	VkDeviceMemory indexBufferMemory;
-
-	Transform* transform = nullptr;
 
 	Material material;
 

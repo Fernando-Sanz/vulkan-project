@@ -5,21 +5,24 @@
 
 // TODO: review the fields (rotation)
 struct Transform {
-	glm::vec3 position;
-	glm::vec3 lookAt;
-	glm::vec3 up;
-	glm::vec3 right;
-	glm::vec3 scale;
+	Transform* parent = nullptr;
 
+	glm::vec3 position = Transform::ORIGIN;
+	glm::vec3 lookAt = Transform::Y;
+	glm::vec3 up = Transform::Z;
+	glm::vec3 right = Transform::X;
+	glm::vec3 scale = glm::vec3(1.0f);
+
+	static const glm::vec3 ORIGIN;
 	static const glm::vec3 X;
 	static const glm::vec3 Y;
 	static const glm::vec3 Z;
 
 	Transform() :
-		position(glm::vec3(0.0f)),
+		position(Transform::ORIGIN),
 		lookAt(Transform::Y),
-		up(Transform::Z),
 		right(Transform::X),
+		up(Transform::Z),
 		scale(glm::vec3(1.0f))
 	{}
 
@@ -27,4 +30,6 @@ struct Transform {
 	void changeOrientation(glm::vec3 newLookAt);
 };
 
-glm::mat4 createModelMatrix(Transform transform);
+glm::mat4 createWorldMatrix(const Transform* transform);
+
+glm::mat4 createModelMatrix(const Transform* transform);
