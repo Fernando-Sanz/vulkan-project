@@ -567,7 +567,7 @@ private:
 		std::array<VkDescriptorPoolSize, 3> poolSizes{};
 		// uniform buffer (for first pass)
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		poolSizes[0].descriptorCount = 3;
+		poolSizes[0].descriptorCount = 2; // only one buffer for all the lights in the scene
 		// sampler (for each pass)
 		poolSizes[1].type = VK_DESCRIPTOR_TYPE_SAMPLER;
 		poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) + 1;
@@ -687,7 +687,7 @@ private:
 		AppTime::updateDeltaTime();
 
 		camera->update();
-		//lights[1].update();
+		scene.getModulesOfType<Light>()[0]->update();
 	}
 
 	void keyboardEventCallback(SDL_Event event) {

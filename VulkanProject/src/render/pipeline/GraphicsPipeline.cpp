@@ -2,11 +2,11 @@
 
 
 namespace Bindings {
-	void addBufferBinding(std::vector<VkDescriptorSetLayoutBinding>& bindings, size_t count, VkShaderStageFlagBits stage) {
+	void addBufferBinding(std::vector<VkDescriptorSetLayoutBinding>& bindings, VkShaderStageFlagBits stage) {
 		VkDescriptorSetLayoutBinding modelUboLayoutBinding{};
 		modelUboLayoutBinding.binding = static_cast<uint32_t>(bindings.size());
 		modelUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		modelUboLayoutBinding.descriptorCount = count;
+		modelUboLayoutBinding.descriptorCount = 1;
 		modelUboLayoutBinding.stageFlags = stage;
 		
 		bindings.push_back(modelUboLayoutBinding);
@@ -140,7 +140,7 @@ void GraphicsPipeline::createDescriptorSetLayout(Model* model, uint32_t lightCou
 
 	// MODEL UBO
 	if (!model->useRawVertexData())
-		Bindings::addBufferBinding(bindings, 1, VK_SHADER_STAGE_VERTEX_BIT);
+		Bindings::addBufferBinding(bindings, VK_SHADER_STAGE_VERTEX_BIT);
 
 	// SAMPLER AND TEXTURE
 	size_t textureCount = model->getMaterial()->textureCount;
@@ -150,7 +150,7 @@ void GraphicsPipeline::createDescriptorSetLayout(Model* model, uint32_t lightCou
 
 	// LIGHT UBOS
 	if (lightCount > 0) {
-		Bindings::addBufferBinding(bindings, lightCount, VK_SHADER_STAGE_FRAGMENT_BIT);
+		Bindings::addBufferBinding(bindings, VK_SHADER_STAGE_FRAGMENT_BIT);
 	}
 
 	//----------------------------------------------------
