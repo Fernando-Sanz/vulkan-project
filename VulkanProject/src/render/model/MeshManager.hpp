@@ -25,7 +25,7 @@ public:
 	// Create and fill a Mesh struct with the data of the file
 	Mesh* createMesh(std::string modelPath);
 
-	void deleteMesh(size_t id);
+	void destroyMesh(size_t id);
 
 	void cleanup();
 
@@ -40,10 +40,4 @@ private:
 	std::unordered_map<size_t, std::unique_ptr<Mesh>> meshes;
 	size_t nextId = 0;
 
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// METHODS
-
-	// Create a buffer in GPU memory and fill it with the received data
-	void createBuffer(VkDeviceSize bufferSize, void* bufferData, VkBufferUsageFlagBits bufferUsage,
-		VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 };

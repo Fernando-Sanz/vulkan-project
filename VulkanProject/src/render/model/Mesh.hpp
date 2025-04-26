@@ -10,10 +10,30 @@
 #include "render/model/Vertex.hpp"
 
 
-struct Mesh {
+class Mesh {
+public:
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// MEMBERS
+	// GETTERS AND SETTERS
+
+	size_t getId() const { return id; }
+
+	const std::vector<uint32_t>& getIndices() const { return indices; }
+
+	VkBuffer getIndexBuffer() const { return indexBuffer; }
+	VkBuffer getVertexBuffer() const { return vertexBuffer; }
+
+	Mesh(size_t id, Device& device, CommandManager commandManager, std::string modelPath) :
+		id(id), device(device) {
+		create(commandManager, modelPath);
+	}
+
+private:
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// CLASS MEMBERS
+
+	Device& device;
 
 	const size_t id;
 
@@ -25,7 +45,15 @@ struct Mesh {
 	VkBuffer indexBuffer;
 	VkDeviceMemory indexBufferMemory;
 
-	Mesh(size_t id) : id(id) {}
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// METHODS
+	
+	friend class MeshManager;
+
+	void create(CommandManager& commandManager, std::string modelPath);
+
+	void loadMesh(std::string modelPath);
+
+	void cleanup();
 };
 
-void destroyMesh(Device device, Mesh& mesh);
