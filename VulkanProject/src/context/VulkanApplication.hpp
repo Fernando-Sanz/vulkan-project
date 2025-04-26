@@ -38,14 +38,10 @@
 #include "render/model/MaterialManager.hpp"
 
 
-const uint32_t WIDTH = 800;
-const uint32_t HEIGHT = 600;
 
 const std::string POST_PROCESSING_QUAD_PATH = "C:/development/cpp/VulkanProject/assets/models/post_processing/post_processing_quad.obj";
 
-
 const int MAX_FRAMES_IN_FLIGHT = 2;
-
 
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
@@ -66,6 +62,8 @@ struct VulkanAppParams {
 	std::string secondRenderPassVertShaderPath;
 	std::string secondRenderPassFragShaderPath;
 
+	uint32_t width = 800;
+	uint32_t height = 600;
 	uint32_t fps = 144;
 	uint32_t updateRate = 60;
 };
@@ -105,7 +103,7 @@ class VulkanApplication {
 
 public:
 	void run(VulkanAppParams params) {
-		initWindow();
+		initWindow(params);
 		initVulkan(params);
 		mainLoop(params.fps, params.updateRate);
 		cleanup();
@@ -200,11 +198,11 @@ private:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	void initWindow() {
+	void initWindow(VulkanAppParams params) {
 
 		SDL_Init(SDL_INIT_VIDEO);
 
-		window.create("Vulkan Render Engine", WIDTH, HEIGHT);
+		window.create("Vulkan Render Engine", params.width, params.height);
 		addEventSubscriber(SDL_EVENT_WINDOW_RESIZED, [this](SDL_Event e) {
 			windowResizedEvent = e.type;
 			});
