@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan.h>
 
+#include <vector>
 #include <string>
 
 #include "context/Device.hpp"
@@ -9,6 +10,7 @@
 #include "render/image/imageUtils.hpp"
 
 
+// TODO: review if MaterialManager is a better place to place this
 struct TexturePaths {
 	std::optional<std::string> albedoPath;
 	std::optional<std::string> specularPath;
@@ -26,12 +28,58 @@ enum TextureType {
 
 
 // TODO: add other material info (shininess, etc)
-struct Material {
+class Material {
+public:
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// GETTERS AND SETTERS
+
+	VkSampler getSampler() const { return sampler; }
+
+	size_t getTextureCount() const { return textureCount; }
+
+	bool hasAlbedo() const { return usedTypes & TEXTURE_TYPE_ALBEDO_BIT; }
+	bool hasSpecular() const { return usedTypes & TEXTURE_TYPE_SPECULAR_BIT; }
+	bool hasNormal() const { return usedTypes & TEXTURE_TYPE_NORMAL_BIT; }
+	bool hasCustom() const { return usedTypes & TEXTURE_TYPE_CUSTOM_BIT; }
+
+	ImageObjects getAlbedo() const { return albedoTexture; }
+	ImageObjects getSpecular() const { return specularTexture; }
+	ImageObjects getNormal() const { return normalTexture; }
+	const std::vector<ImageObjects>& getCustomTextures() const { return customTextures; }
+
+	Material(size_t id, Device& device, CommandManager commandManager, TexturePaths paths) :
+		Material(id, device) {
+		createTextures(commandManager, paths);
+	}
+
+	Material(size_t id, Device& device) : id(id), device(device) {}
+	
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// METHODS
+
+	// Add a texture of the specified type
+	void addTexture(TextureType type, ImageObjects texture);
+
+	// Create all textures with a defined path in the struct texturePaths
+	void createTextures(const CommandManager& commandManager, TexturePaths texturePaths);
+
+	// Destroy Vulkan and other objects
+	void cleanup();
+
+	// Erase the texture handlers and destroy the Vulkan objects associated
+	void destroyTextures();
+
+private:
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// CLASS MEMBERS
 
 	using TextureTypes = uint32_t;
 
-	Device device;
-	CommandManager commandManager;
+	Device& device;
+
+	const size_t id;
 
 	size_t textureCount = 0;
 	TextureTypes usedTypes = TEXTURE_TYPE_NONE_BIT;
@@ -45,39 +93,11 @@ struct Material {
 	// TODO: review other owner for the sampler
 	VkSampler sampler = VK_NULL_HANDLE;
 
-	bool hasAlbedo() const { return usedTypes & TEXTURE_TYPE_ALBEDO_BIT; }
-	bool hasSpecular() const { return usedTypes & TEXTURE_TYPE_SPECULAR_BIT; }
-	bool hasNormal() const { return usedTypes & TEXTURE_TYPE_NORMAL_BIT; }
-	bool hasCustom() const { return usedTypes & TEXTURE_TYPE_CUSTOM_BIT; }
-	
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// METHODS
-	
-	// Store the device and command manager for future operations
-	void setContext(Device device, CommandManager commandManager);
-
-	// Create all textures with a defined path in the struct texturePaths
-	void createTextures(TexturePaths texturePaths);
 
 	// Create all the resources involved in texture usage and add it to the texture list
-	void createTexture(TextureType type, std::string texturePath);
-
-	// Add a texture of the specified type
-	void addTexture(TextureType type, ImageObjects texture);
-
-	// Destroy Vulkan and other objects
-	void cleanup();
-
-	// Erase the texture handlers and destroy the Vulkan objects associated if it is specified
-	void destroyTextures();
-
-private:
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// METHODS
-
-	// Create an image and its memory for the texture and generate its mipmaps
-	void createTextureImage(std::string texturePath, ImageObjects& texture);
+	void createTexture(const CommandManager& commandManager, TextureType type, std::string texturePath);
 	
 	// Create sampler for the textures
 	void createSampler(uint32_t mipLevels);

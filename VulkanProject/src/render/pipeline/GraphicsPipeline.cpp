@@ -60,35 +60,36 @@ namespace DescriptorSets {
 
 		// TEXTURE SAMPLER INFO
 		samplerInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		samplerInfo.sampler = material->sampler;
+		samplerInfo.sampler = material->getSampler();
 
 		// TEXTURE INFOS
 
-		textureInfos.resize(material->textureCount);
+		textureInfos.resize(material->getTextureCount());
 		int index = 0;
 		if (material->hasAlbedo()) {
 			// color
 			textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			textureInfos[index].imageView = material->albedoTexture.view;
+			textureInfos[index].imageView = material->getAlbedo().view;
 			index++;
 		}
 		if (material->hasSpecular()) {
 			// specular
 			textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			textureInfos[index].imageView = material->specularTexture.view;
+			textureInfos[index].imageView = material->getSpecular().view;
 			index++;
 		}
 		if (material->hasNormal()) {
 			// normal
 			textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			textureInfos[index].imageView = material->normalTexture.view;
+			textureInfos[index].imageView = material->getNormal().view;
 			index++;
 		}
-		if (material->customTextures.size()) {
+		const auto& customTextures = material->getCustomTextures();
+		if (customTextures.size() > 0) {
 			// custom
-			for (size_t i = 0; i < material->customTextures.size(); i++) {
+			for (size_t i = 0; i < customTextures.size(); i++) {
 				textureInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-				textureInfos[index].imageView = material->customTextures[i].view;
+				textureInfos[index].imageView = customTextures[i].view;
 				index++;
 			}
 		}
@@ -143,7 +144,7 @@ void GraphicsPipeline::createDescriptorSetLayout(Model* model, uint32_t lightCou
 		Bindings::addBufferBinding(bindings, VK_SHADER_STAGE_VERTEX_BIT);
 
 	// SAMPLER AND TEXTURE
-	size_t textureCount = model->getMaterial()->textureCount;
+	size_t textureCount = model->getMaterial()->getTextureCount();
 	if (textureCount > 0) {
 		Bindings::addTextureBindings(bindings, textureCount);
 	}
@@ -264,7 +265,7 @@ void GraphicsPipeline::updateDescriptorSet(ModelUboManager modelUniforms, const 
 	// Sample and textures
 	VkDescriptorImageInfo samplerInfo{};
 	std::vector<VkDescriptorImageInfo> textureInfos;
-	if (material->textureCount > 0) {
+	if (material->getTextureCount() > 0) {
 		DescriptorSets::addTextureDescriptorWrites(material, descriptorSet, samplerInfo, textureInfos, descriptorWrites);
 	}
 

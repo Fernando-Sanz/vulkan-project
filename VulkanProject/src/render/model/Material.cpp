@@ -8,27 +8,80 @@
 #include "render/image/imageUtils.hpp"
 
 
-void Material::setContext(Device device, CommandManager commandManager) {
-	this->device = device;
-	this->commandManager = commandManager;
+namespace {
+	// TODO: review if this method or part of it could be in imageUtils or similar
+	void loadTexture(Device& device, const CommandManager& commandManager, std::string texturePath,
+		uint32_t& mipLevels, ImageObjects& texture) {
+
+		//-----------------------------------------
+		// LOAD IMAGE
+		RawImage image = loadImageFromFile(texturePath);
+		VkDeviceSize imageSize = static_cast<VkDeviceSize>(image.size);
+		uint32_t texWidth = static_cast<uint32_t>(image.width);
+		uint32_t texHeight = static_cast<uint32_t>(image.height);
+		// Compute mip levels
+		mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(image.width, image.height)))) + 1;
+
+		//-----------------------------------------
+		// COPY IMAGE TO STAGING BUFFER
+		VkBuffer stagingBuffer;
+		VkDeviceMemory stagingBufferMemory;
+
+		device.createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			stagingBuffer, stagingBufferMemory);
+
+		void* data;
+		vkMapMemory(device.get(), stagingBufferMemory, 0, imageSize, 0, &data);
+		memcpy(data, image.pixels, static_cast<size_t>(imageSize));
+		vkUnmapMemory(device.get(), stagingBufferMemory);
+
+		// cleanup old pixel array
+		image.free();
+
+		//-----------------------------------------
+		// CREATE IMAGE
+		createImage(device, texWidth, texHeight, mipLevels, VK_SAMPLE_COUNT_1_BIT,
+			VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			texture.image, texture.memory);
+
+		//-----------------------------------------
+		// COPY THE IMAGE FROM STAGING BUFFER
+		transitionImageLayout(commandManager, texture.image,
+			VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			mipLevels);
+		copyBufferToImage(commandManager, stagingBuffer, texture.image,
+			static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+		// transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
+
+		//-----------------------------------------
+		// CLEAN UP STAGING STUFF
+		vkDestroyBuffer(device.get(), stagingBuffer, nullptr);
+		vkFreeMemory(device.get(), stagingBufferMemory, nullptr);
+
+		//-----------------------------------------
+		// GENERATE MIPMAPS
+		generateMipmaps(device, commandManager, texture.image, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels);
+	}
 }
 
-void Material::createTextures(TexturePaths texturePaths) {
-
+void Material::createTextures(const CommandManager& commandManager, TexturePaths texturePaths) {
 	if (texturePaths.albedoPath.has_value())
-		createTexture(TEXTURE_TYPE_ALBEDO_BIT, texturePaths.albedoPath.value());
+		createTexture(commandManager, TEXTURE_TYPE_ALBEDO_BIT, texturePaths.albedoPath.value());
 	if (texturePaths.specularPath.has_value())
-		createTexture(TEXTURE_TYPE_SPECULAR_BIT, texturePaths.specularPath.value());
+		createTexture(commandManager, TEXTURE_TYPE_SPECULAR_BIT, texturePaths.specularPath.value());
 	if (texturePaths.normalPath.has_value())
-		createTexture(TEXTURE_TYPE_NORMAL_BIT, texturePaths.normalPath.value());
+		createTexture(commandManager, TEXTURE_TYPE_NORMAL_BIT, texturePaths.normalPath.value());
 	for (auto& texturePath : texturePaths.customPaths)
-		createTexture(TEXTURE_TYPE_CUSTOM_BIT, texturePath);
+		createTexture(commandManager, TEXTURE_TYPE_CUSTOM_BIT, texturePath);
 }
 
-void Material::createTexture(TextureType type, std::string texturePath) {
+void Material::createTexture(const CommandManager& commandManager, TextureType type, std::string texturePath) {
 	// CREATE THE TEXTURE
 	ImageObjects newTexture{};
-	createTextureImage(texturePath, newTexture);
+	loadTexture(device, commandManager, texturePath, mipLevels, newTexture);
 	newTexture.view = createImageView(
 		device, newTexture.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels);
 
@@ -102,62 +155,6 @@ void Material::createSampler(uint32_t mipLevels) {
 		throw std::runtime_error("failed to create texture sampler");
 	}
 }
-
-// TODO: review if this method or part of it could be in imageUtils or similar
-void Material::createTextureImage(std::string texturePath, ImageObjects& texture) {
-	//-----------------------------------------
-	// LOAD IMAGE
-	RawImage image = loadImageFromFile(texturePath);
-	VkDeviceSize imageSize = static_cast<VkDeviceSize>(image.size);
-	uint32_t texWidth = static_cast<uint32_t>(image.width);
-	uint32_t texHeight = static_cast<uint32_t>(image.height);
-	// Compute mip levels
-	mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(image.width, image.height)))) + 1;
-
-	//-----------------------------------------
-	// COPY IMAGE TO STAGING BUFFER
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-
-	device.createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		stagingBuffer, stagingBufferMemory);
-
-	void* data;
-	vkMapMemory(device.get(), stagingBufferMemory, 0, imageSize, 0, &data);
-	memcpy(data, image.pixels, static_cast<size_t>(imageSize));
-	vkUnmapMemory(device.get(), stagingBufferMemory);
-
-	// cleanup old pixel array
-	image.free();
-
-	//-----------------------------------------
-	// CREATE IMAGE
-	createImage(device, texWidth, texHeight, mipLevels, VK_SAMPLE_COUNT_1_BIT,
-		VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
-		VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		texture.image, texture.memory);
-
-	//-----------------------------------------
-	// COPY THE IMAGE FROM STAGING BUFFER
-	transitionImageLayout(commandManager, texture.image,
-		VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-		mipLevels);
-	copyBufferToImage(commandManager, stagingBuffer, texture.image,
-		static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
-	// transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
-
-	//-----------------------------------------
-	// CLEAN UP STAGING STUFF
-	vkDestroyBuffer(device.get(), stagingBuffer, nullptr);
-	vkFreeMemory(device.get(), stagingBufferMemory, nullptr);
-
-	//-----------------------------------------
-	// GENERATE MIPMAPS
-	generateMipmaps(device, commandManager, texture.image, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels);
-}
-
 
 void Material::cleanup() {
 	vkDestroySampler(device.get(), sampler, nullptr);

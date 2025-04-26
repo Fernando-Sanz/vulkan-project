@@ -35,6 +35,7 @@
 #include "time/AppTime.hpp"
 #include "scene/Scene.hpp"
 #include "render/model/MeshManager.hpp"
+#include "render/model/MaterialManager.hpp"
 
 
 const uint32_t WIDTH = 800;
@@ -151,7 +152,8 @@ private:
 
 	// Geometry
 	MeshManager meshes;
-	std::array<Material, 2> materials;
+	MaterialManager materials;
+	Material* postProcessingQuadMaterial;
 	Entity postProcessingQuad;
 
 	// Descriptor pool and sets
@@ -465,18 +467,19 @@ private:
 		meshes.init(device, commandManager);
 		Mesh* mesh1 = meshes.createMesh(params.modelPath);
 		Mesh* mesh2 = meshes.createMesh(POST_PROCESSING_QUAD_PATH);
+		// LOAD TEXTURES
+		materials.init(device, commandManager);
+		Material* material1 = materials.createMaterial(params.texturePaths[0]);
+		postProcessingQuadMaterial = materials.createEmptyMaterial();
 
 		// MODEL
 		Entity* modelEntity = scene.addEntity();
 		Model* model = modelEntity->addModule<Model>();
-		materials[0].setContext(device, commandManager);
-		materials[0].createTextures(params.texturePaths[0]);
-		model->create(mesh1, &materials[0]);
+		model->create(mesh1, material1);
 
 		// POST-PROCESSING QUAD (the texture is set later)
 		Model* postProcessingQuadM = postProcessingQuad.addModule<Model>();
-		materials[1].setContext(device, commandManager);
-		postProcessingQuadM->create(mesh2, &materials[1], true);
+		postProcessingQuadM->create(mesh2, postProcessingQuadMaterial, true);
 
 
 		Entity* lightTest = scene.addEntity();
@@ -511,7 +514,7 @@ private:
 
 		// POST PROCESSING QUAD TEXTURES
 		ImageObjects firstPassOutputImage = firstPassFramebuffer.getResolveImage();
-		materials[1].addTexture(TEXTURE_TYPE_CUSTOM_BIT, firstPassOutputImage);
+		postProcessingQuadMaterial->addTexture(TEXTURE_TYPE_CUSTOM_BIT, firstPassOutputImage);
 	}
 
 	void createSecondPassFramebuffers() {
@@ -804,8 +807,8 @@ private:
 
 		// Meshes
 		meshes.cleanup();
-		for (auto material : materials)
-			material.cleanup();
+		// Materials
+		materials.cleanup();
 
 		// Uniform
 		modelUniforms.cleanup();
@@ -844,7 +847,7 @@ private:
 
 	void cleanupRenderImages() {
 		// first pass output image
-		materials[1].destroyTextures();
+		materials.getMaterial(1)->destroyTextures();
 
 		// color attachments
 		firstPassFramebuffer.cleanup();

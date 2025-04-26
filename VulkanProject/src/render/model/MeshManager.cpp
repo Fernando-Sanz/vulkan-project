@@ -26,6 +26,7 @@ void MeshManager::destroyMesh(size_t id) {
 
 void MeshManager::cleanup() {
 	for (const auto& pair : meshes) {
-		destroyMesh(pair.first);
+		pair.second->cleanup();
 	}
+	meshes.clear();
 }
