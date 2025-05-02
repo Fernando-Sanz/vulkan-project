@@ -510,7 +510,7 @@ private:
 
 	void createFirstPassResources() {
 		// FRAMEBUFFER
-		firstPassFramebuffer.createEmpty(device, swapChain.getExtent(), firstPassPipeline.getRenderPass(),
+		firstPassFramebuffer.createEmpty(device, swapChain.getExtent(), RenderPasses::getFirstRenderPass(),
 			swapChain.getImageFormat());
 
 		// POST PROCESSING QUAD TEXTURES
@@ -521,7 +521,7 @@ private:
 	void createSecondPassFramebuffers() {
 		secondPassFramebuffers.resize(MAX_FRAMES_IN_FLIGHT);
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-			secondPassFramebuffers[i].createFromSwapChain(device, swapChain, i, secondPassPipeline.getRenderPass());
+			secondPassFramebuffers[i].createFromSwapChain(device, swapChain, i, RenderPasses::getSecondRenderPass());
 		}
 	}
 

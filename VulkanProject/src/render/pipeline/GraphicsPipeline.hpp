@@ -14,7 +14,6 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// GETTERS AND SETTERS
 
-	const VkRenderPass& getRenderPass() const { return renderPass; }
 	VkDescriptorSetLayout getDescriptorSetLayout() { return descriptorSetLayout; }
 
 	GraphicsPipeline(bool useModelUBO, bool useLightUBO) : useModelUBO(useModelUBO), useLightUBO(useLightUBO) {}
