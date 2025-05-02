@@ -1,4 +1,4 @@
-#include "SecondPassPipeline.hpp"
+#include "Pipeline2D.hpp"
 
 #include <vulkan/vulkan.h>
 
@@ -10,7 +10,7 @@
 #include "asset/bytecodeFileReader.hpp"
 
 
-void SecondPassPipeline::createGraphicsPipeline(std::string vertShaderLocation, std::string fragShaderLocation) {
+void Pipeline2D::createGraphicsPipeline(std::string vertShaderLocation, std::string fragShaderLocation) {
 
 	//--------------------------------------------------------
 	// SHADERS

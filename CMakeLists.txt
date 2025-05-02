@@ -36,7 +36,7 @@ set(SOURCES
     "${SOURCE_CODE_PATH}/render/model/MeshManager.cpp"
     "${SOURCE_CODE_PATH}/render/pipeline/FirstPassPipeline.cpp"
     "${SOURCE_CODE_PATH}/render/pipeline/GraphicsPipeline.cpp"
-    "${SOURCE_CODE_PATH}/render/pipeline/SecondPassPipeline.cpp"
+    "${SOURCE_CODE_PATH}/render/pipeline/Pipeline2D.cpp"
     #"${SOURCE_CODE_PATH}/render/pipeline/Shader.cpp"
     "${SOURCE_CODE_PATH}/render/target/FramebufferResources.cpp"
     "${SOURCE_CODE_PATH}/render/target/RenderPasses.cpp"

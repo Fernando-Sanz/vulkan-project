@@ -25,7 +25,7 @@
 #include "render/target/RenderPasses.hpp"
 #include "render/image/imageUtils.hpp"
 #include "render/pipeline/FirstPassPipeline.hpp"
-#include "render/pipeline/SecondPassPipeline.hpp"
+#include "render/pipeline/Pipeline2D.hpp"
 #include "render/uniform/LightUboManager.hpp"
 #include "render/uniform/ModelUboManager.hpp"
 #include "render/model/Material.hpp"
@@ -166,7 +166,7 @@ private:
 	LightUboManager lightUniforms;
 
 	// SECOND PASS OBJECTS
-	SecondPassPipeline secondPassPipeline;
+	Pipeline2D secondPassPipeline;
 	std::vector<FramebufferResources> secondPassFramebuffers;
 	std::vector<VkDescriptorSet> secondPassDescriptorSets;
 
