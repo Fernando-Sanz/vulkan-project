@@ -2,15 +2,13 @@
 
 #include <vulkan/vulkan.h>
 
-#include "render/pipeline/GraphicsPIpeline.hpp"
+#include "render/pipeline/GraphicsPipeline.hpp"
 
 
-class  FirstPassPipeline : public GraphicsPipeline {
-
+class FirstPassPipeline : public GraphicsPipeline {
 public:
+	FirstPassPipeline() : GraphicsPipeline(true, true) {}
 
 private:
-	
-	void createRenderPass(VkFormat imageFormat, VkFormat depthFormat) override;
 	void createGraphicsPipeline(std::string vertexShaderLocation, std::string fragmentShaderLocation) override;
 };

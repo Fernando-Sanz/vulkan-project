@@ -14,27 +14,18 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// GETTERS AND SETTERS
 
-	VkRenderPass getRenderPass() { return renderPass; }
+	const VkRenderPass& getRenderPass() const { return renderPass; }
 	VkDescriptorSetLayout getDescriptorSetLayout() { return descriptorSetLayout; }
 
+	GraphicsPipeline(bool useModelUBO, bool useLightUBO) : useModelUBO(useModelUBO), useLightUBO(useLightUBO) {}
 	virtual ~GraphicsPipeline() = default;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// METHODS
 	
 	// Create the graphics pipeline with the specified formats
-	void create(Device device, VkFormat imageFormat, VkFormat depthFormat, Model* model, uint32_t lightCount,
+	void create(Device device, VkRenderPass renderPass, uint32_t textureCount,
 		std::string vertShaderLocation, std::string fragShaderLocation);
-
-	// Allocate descriptor sets with the layout of the pipeline
-	void allocateDescriptorSets(VkDescriptorPool pool, uint32_t count, VkDescriptorSet* descriptorSets);
-
-	// Write a descriptor set with the corresponding data
-	void updateDescriptorSet(ModelUboManager modelUniforms, const Material* material, LightUboManager lightsUniforms,
-		VkDescriptorSet descriptorSet);
-
-	// Write a descriptor set with the corresponding data
-	void updateDescriptorSet(const Material* material, VkDescriptorSet descriptorSet);
 
 	// Record a command buffer with the necessary operations to use the pipeline
 	void recordDrawing(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer, VkExtent2D extent,
@@ -42,6 +33,15 @@ public:
 
 	// Destroy Vulkan and other objects
 	void cleanup();
+
+	// TODO: MOVE TO RENDERER OR SIMILAR
+	// Allocate descriptor sets with the layout of the pipeline
+	void allocateDescriptorSets(VkDescriptorPool pool, uint32_t count, VkDescriptorSet* descriptorSets);
+	// Write a descriptor set with the corresponding data
+	void updateDescriptorSet(ModelUboManager modelUniforms, const Material* material, LightUboManager lightsUniforms,
+		VkDescriptorSet descriptorSet);
+	// Write a descriptor set with the corresponding data
+	void updateDescriptorSet(const Material* material, VkDescriptorSet descriptorSet);
 
 protected:
 
@@ -55,14 +55,14 @@ protected:
 	VkDescriptorSetLayout descriptorSetLayout;
 	VkPipelineLayout pipelineLayout;
 
+	const bool useModelUBO;
+	const bool useLightUBO;
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// METHODS
 
-	// Create RenderPass defining attachments, subpasses and dependencies
-	virtual void createRenderPass(VkFormat imageFormat, VkFormat depthFormat) = 0;
-
 	// Defines the Descriptor Set Layout of the pipeline
-	void createDescriptorSetLayout(Model* model, uint32_t lightCount);
+	void createDescriptorSetLayout(uint32_t textureCount);
 
 	// Create a GraphicsPipeline with all the stages and a PipelineLayout
 	virtual void createGraphicsPipeline(std::string vertexShaderLocation, std::string fragmentShaderLocation) = 0;

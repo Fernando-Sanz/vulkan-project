@@ -37,10 +37,13 @@ set(SOURCES
     "${SOURCE_CODE_PATH}/render/pipeline/FirstPassPipeline.cpp"
     "${SOURCE_CODE_PATH}/render/pipeline/GraphicsPipeline.cpp"
     "${SOURCE_CODE_PATH}/render/pipeline/SecondPassPipeline.cpp"
+    #"${SOURCE_CODE_PATH}/render/pipeline/Shader.cpp"
     "${SOURCE_CODE_PATH}/render/target/FramebufferResources.cpp"
+    "${SOURCE_CODE_PATH}/render/target/RenderPasses.cpp"
     "${SOURCE_CODE_PATH}/render/target/SwapChain.cpp"
     "${SOURCE_CODE_PATH}/render/uniform/LightUboManager.cpp"
     "${SOURCE_CODE_PATH}/render/uniform/ModelUboManager.cpp"
+    "${SOURCE_CODE_PATH}/render/Renderer.cpp"
 
     "${SOURCE_CODE_PATH}/scene/Camera.cpp"
     "${SOURCE_CODE_PATH}/scene/Light.cpp"

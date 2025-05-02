@@ -122,37 +122,35 @@ namespace DescriptorSets {
 	}
 }
 
-void GraphicsPipeline::create(Device device, VkFormat imageFormat, VkFormat depthFormat, Model* model, uint32_t lightCount,
+void GraphicsPipeline::create(Device device, VkRenderPass renderPass, uint32_t textureCount,
 	std::string vertShaderLocation, std::string fragShaderLocation) {
 
 	this->device = device;
+	this->renderPass = renderPass;
 
-	createRenderPass(imageFormat, depthFormat);
-	createDescriptorSetLayout(model, lightCount);
+	createDescriptorSetLayout(textureCount);
 	createGraphicsPipeline(vertShaderLocation, fragShaderLocation);
 }
 
 
-void GraphicsPipeline::createDescriptorSetLayout(Model* model, uint32_t lightCount) {
+void GraphicsPipeline::createDescriptorSetLayout(uint32_t textureCount) {
 
 	//----------------------------------------------------
 	// BINDINGS
 	std::vector<VkDescriptorSetLayoutBinding> bindings;
 
 	// MODEL UBO
-	if (!model->useRawVertexData())
+	if(useModelUBO)
 		Bindings::addBufferBinding(bindings, VK_SHADER_STAGE_VERTEX_BIT);
 
 	// SAMPLER AND TEXTURE
-	size_t textureCount = model->getMaterial()->getTextureCount();
 	if (textureCount > 0) {
 		Bindings::addTextureBindings(bindings, textureCount);
 	}
 
 	// LIGHT UBOS
-	if (lightCount > 0) {
+	if(useLightUBO)
 		Bindings::addBufferBinding(bindings, VK_SHADER_STAGE_FRAGMENT_BIT);
-	}
 
 	//----------------------------------------------------
 	// CREATE DESCRIPTOR SET LAYOUT
@@ -302,5 +300,4 @@ void GraphicsPipeline::cleanup() {
 	vkDestroyDescriptorSetLayout(device.get(), descriptorSetLayout, nullptr);
 	vkDestroyPipeline(device.get(), pipeline, nullptr);
 	vkDestroyPipelineLayout(device.get(), pipelineLayout, nullptr);
-	vkDestroyRenderPass(device.get(), renderPass, nullptr);
 }

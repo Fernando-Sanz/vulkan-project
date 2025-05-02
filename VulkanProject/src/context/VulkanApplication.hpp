@@ -22,6 +22,7 @@
 #include "context/CommandManager.hpp"
 #include "render/target/SwapChain.hpp"
 #include "render/target/FramebufferResources.hpp"
+#include "render/target/RenderPasses.hpp"
 #include "render/image/imageUtils.hpp"
 #include "render/pipeline/FirstPassPipeline.hpp"
 #include "render/pipeline/SecondPassPipeline.hpp"
@@ -239,16 +240,18 @@ private:
 		modelUniforms.createBuffers(device, 1);
 		lightUniforms.createBuffers(device, 1, lightCount);
 
+		RenderPasses::createRenderPasses(&device, swapChain.getImageFormat(), findDepthFormat(device));
+
 		// the pipeline needs the texture count (models already loaded)
 		Model* m = scene.getModulesOfType<Model>()[0];
-		firstPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(device), m, lightCount,
+		firstPassPipeline.create(device, RenderPasses::getFirstRenderPass() , m->getMaterial()->getTextureCount(),
 			params.firstRenderPassVertShaderPath, params.firstRenderPassFragShaderPath);
 
 		// framebuffer needs post-processing texture image view
 		createFirstPassResources();
 
 		// second pipeline needs post-processing texture count
-		secondPassPipeline.create(device, swapChain.getImageFormat(), findDepthFormat(device), postProcessingQuad.getModulesOfType<Model>()[0], 0,
+		secondPassPipeline.create(device, RenderPasses::getSecondRenderPass(), postProcessingQuadMaterial->getTextureCount(),
 			params.secondRenderPassVertShaderPath, params.secondRenderPassFragShaderPath);
 		
 		createSecondPassFramebuffers();
@@ -828,6 +831,7 @@ private:
 		// Pipeline
 		firstPassPipeline.cleanup();
 		secondPassPipeline.cleanup();
+		RenderPasses::cleanup();
 
 		// Device
 		device.cleanup();
