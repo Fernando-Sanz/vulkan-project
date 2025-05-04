@@ -349,13 +349,16 @@ private:
 		std::array<VkDescriptorPoolSize, 3> poolSizes{};
 		// uniform buffer (for first pass)
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		poolSizes[0].descriptorCount = 2; // only one buffer for all the lights in the scene
+		poolSizes[0].descriptorCount =
+			firstPassPipeline.getUboDescriptorCount() + secondPassPipeline.getUboDescriptorCount() * MAX_FRAMES_IN_FLIGHT;
 		// sampler (for each pass)
 		poolSizes[1].type = VK_DESCRIPTOR_TYPE_SAMPLER;
-		poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) + 1;
+		poolSizes[1].descriptorCount = 
+			firstPassPipeline.getSamplerDescriptorCount() + secondPassPipeline.getSamplerDescriptorCount() * MAX_FRAMES_IN_FLIGHT;
 		// sampler (for each pass)
 		poolSizes[2].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-		poolSizes[2].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) + 2;
+		poolSizes[2].descriptorCount =
+			firstPassPipeline.getImageDescriptorCount() + secondPassPipeline.getImageDescriptorCount() * MAX_FRAMES_IN_FLIGHT;
 
 		// Create info
 		VkDescriptorPoolCreateInfo poolInfo{};

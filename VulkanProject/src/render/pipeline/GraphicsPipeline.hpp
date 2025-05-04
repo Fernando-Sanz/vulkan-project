@@ -16,6 +16,10 @@ public:
 
 	VkDescriptorSetLayout getDescriptorSetLayout() { return descriptorSetLayout; }
 
+	uint32_t getUboDescriptorCount() { return uboDescriptorCount; }
+	uint32_t getSamplerDescriptorCount() { return samplerDescriptorCount; }
+	uint32_t getImageDescriptorCount() { return imageDescriptorCount; }
+
 	GraphicsPipeline(bool useModelUBO, bool useLightUBO) : useModelUBO(useModelUBO), useLightUBO(useLightUBO) {}
 	virtual ~GraphicsPipeline() = default;
 
@@ -43,6 +47,10 @@ public:
 	void updateDescriptorSet(const Material* material, VkDescriptorSet descriptorSet);
 
 protected:
+
+	uint32_t uboDescriptorCount = 0;
+	uint32_t samplerDescriptorCount = 0;
+	uint32_t imageDescriptorCount = 0;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// CLASS MEMBERS

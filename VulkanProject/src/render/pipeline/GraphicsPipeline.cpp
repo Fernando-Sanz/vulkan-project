@@ -140,17 +140,23 @@ void GraphicsPipeline::createDescriptorSetLayout(uint32_t textureCount) {
 	std::vector<VkDescriptorSetLayoutBinding> bindings;
 
 	// MODEL UBO
-	if(useModelUBO)
+	if (useModelUBO) {
 		Bindings::addBufferBinding(bindings, VK_SHADER_STAGE_VERTEX_BIT);
+		uboDescriptorCount++;
+	}
 
 	// SAMPLER AND TEXTURE
 	if (textureCount > 0) {
 		Bindings::addTextureBindings(bindings, textureCount);
+		samplerDescriptorCount++;
+		imageDescriptorCount += textureCount;
 	}
 
 	// LIGHT UBOS
-	if(useLightUBO)
+	if (useLightUBO) {
 		Bindings::addBufferBinding(bindings, VK_SHADER_STAGE_FRAGMENT_BIT);
+		uboDescriptorCount++;
+	}
 
 	//----------------------------------------------------
 	// CREATE DESCRIPTOR SET LAYOUT
