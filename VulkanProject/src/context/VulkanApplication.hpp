@@ -47,6 +47,8 @@ const int MAX_FRAMES_IN_FLIGHT = 2;
 struct VulkanAppParams {
 	std::string applicationName;
 
+	Scene* scene;
+
 	std::string modelPath;
 	std::vector<TexturePaths> texturePaths;
 	std::string firstRenderPassVertShaderPath;
@@ -65,11 +67,23 @@ struct VulkanAppParams {
 class VulkanApplication {
 
 public:
-	void run(VulkanAppParams params) {
+	void init(VulkanAppParams params) {
 		initWindow(params);
 		initVulkan(params);
+	}
+
+	void run(VulkanAppParams params) {
+		setupRenderSystem(params);
 		mainLoop(params.fps, params.updateRate);
 		cleanup();
+	}
+
+	Mesh* createMesh(std::string& modelPath) {
+		return meshes.createMesh(modelPath);
+	}
+
+	Material* createMaterial(TexturePaths& texturePaths) {
+		return materials.createMaterial(texturePaths);
 	}
 
 private:
@@ -91,13 +105,7 @@ private:
 	// Swap chain stuff
 	SwapChain swapChain;
 
-	// Scene
-	Scene scene;
-
-	// Camera and lights
-	size_t lightCount = 2;
-
-	Camera* camera;
+	Scene* scene;
 
 	// Geometry
 	MeshManager meshes;
@@ -169,17 +177,24 @@ private:
 		commandManager.createPoolAndBuffers(device, MAX_FRAMES_IN_FLIGHT);
 
 		swapChain.create(device, window, surface);
+
+		// INIT MESH AND MATERIAL MANAGERS
+		meshes.init(device, commandManager);
+		materials.init(device, commandManager);
+	}
+
+	void setupRenderSystem(VulkanAppParams params) {
 		
 		createWorldObjects(params);
 
 		// TODO: use a vector of models and lights
 		modelUniforms.createBuffers(device, 1);
-		lightUniforms.createBuffers(device, 1, lightCount);
+		lightUniforms.createBuffers(device, 1, scene->getModulesOfType<Light>().size());
 
 		RenderPasses::createRenderPasses(&device, swapChain.getImageFormat(), findDepthFormat(device));
 
 		// the pipeline needs the texture count (models already loaded)
-		Model* m = scene.getModulesOfType<Model>()[0];
+		Model* m = scene->getModulesOfType<Model>()[0];
 		firstPassPipeline.create(device, RenderPasses::getFirstRenderPass() , m->getMaterial()->getTextureCount(),
 			params.firstRenderPassVertShaderPath, params.firstRenderPassFragShaderPath);
 
@@ -230,7 +245,7 @@ private:
 		configureSecondPassDescriptorSets();
 
 		// Update camera with aspect ratio
-		camera->updateProjection(swapChain.getExtent());
+		scene->activeCamera->updateProjection(swapChain.getExtent());
 	}
 
 
@@ -240,38 +255,18 @@ private:
 
 	void createWorldObjects(VulkanAppParams params) {
 
-		// LOAD MESHES
-		meshes.init(device, commandManager);
-		Mesh* mesh1 = meshes.createMesh(params.modelPath);
-		Mesh* mesh2 = meshes.createMesh(POST_PROCESSING_QUAD_PATH);
-		// LOAD TEXTURES
-		materials.init(device, commandManager);
-		Material* material1 = materials.createMaterial(params.texturePaths[0]);
+		scene = params.scene;
+
+		// POST-PROCESSING QUAD
+		// mesh and material (the texture is set later)
+		Mesh* mesh = meshes.createMesh(POST_PROCESSING_QUAD_PATH);
 		postProcessingQuadMaterial = materials.createEmptyMaterial();
-
-		// MODEL
-		Entity* modelEntity = scene.addEntity();
-		Model* model = modelEntity->addModule<Model>();
-		model->create(mesh1, material1);
-
-		// POST-PROCESSING QUAD (the texture is set later)
+		// entity
 		Model* postProcessingQuadM = postProcessingQuad.addModule<Model>();
-		postProcessingQuadM->create(mesh2, postProcessingQuadMaterial, true);
+		postProcessingQuadM->create(mesh, postProcessingQuadMaterial, true);
 
-
-		Entity* lightTest = scene.addEntity();
-		Entity* lightTest2 = scene.addEntity();
-		Light* lightM1 = lightTest->addModule<Light>();
-		Light* lightM2 = lightTest2->addModule<Light>();
-		lightM2->setColor(glm::vec3(1.0f, 0.0f, 0.0f));
-
-		Entity* cameraEntity = scene.addEntity();
-		cameraEntity->transform.lookAt = -Transform::Y;
-		cameraEntity->transform.right = -Transform::X;
-		cameraEntity->transform.position.y = 2;
-		camera = cameraEntity->addModule<Camera>();
-		camera->init(swapChain.getExtent());
-		scene.activeCamera = camera;
+		// INIT CAMERA
+		scene->activeCamera->init(swapChain.getExtent());
 
 		// KEYBOARD EVENTS
 		addEventSubscriber(SDL_EVENT_KEY_DOWN, [this](SDL_Event e) {keyboardEventCallback(e); });
@@ -323,7 +318,7 @@ private:
 		//--------------------------------------------------------
 		// FIRST PASS
 		firstPassPipeline.recordDrawing(commandBuffer, firstPassFramebuffer.get(), swapChain.getExtent(),
-			scene.getModulesOfType<Model>()[0], firstPassDescriptorSet);
+			scene->getModulesOfType<Model>()[0], firstPassDescriptorSet);
 
 		//--------------------------------------------------------
 		// SECOND PASS
@@ -374,7 +369,7 @@ private:
 
 	void createFirstPassDescriptorSets() {
 		firstPassPipeline.allocateDescriptorSets(descriptorPool, 1, &firstPassDescriptorSet);
-		firstPassPipeline.updateDescriptorSet(modelUniforms, scene.getModulesOfType<Model>()[0]->getMaterial(), lightUniforms, firstPassDescriptorSet);
+		firstPassPipeline.updateDescriptorSet(modelUniforms, scene->getModulesOfType<Model>()[0]->getMaterial(), lightUniforms, firstPassDescriptorSet);
 	}
 
 	void createSecondPassDescriptorSets() {
@@ -471,17 +466,17 @@ private:
 	void updateWorld() {
 		AppTime::updateDeltaTime();
 
-		camera->update();
-		scene.getModulesOfType<Light>()[0]->update();
+		scene->activeCamera->update();
+		scene->getModulesOfType<Light>()[0]->update();
 	}
 
 	void keyboardEventCallback(SDL_Event event) {
 		// TODO: create an interface to handle all keyboard event reactions
-		camera->keyboardReaction(event);
+		scene->activeCamera->keyboardReaction(event);
 	}
 
 	void mouseEventCallback(SDL_Event event) {
-		camera->mouseReaction(event);
+		scene->activeCamera->mouseReaction(event);
 	}
 
 	void drawFrame() {
@@ -513,9 +508,9 @@ private:
 		}
 
 		// UPDATE UNIFORMS
-		modelUniforms.upateBuffer(0, *scene.getModulesOfType<Model>()[0], *scene.activeCamera);
-		std::vector<Light> lightVec = {*scene.getModulesOfType<Light>()[0], *scene.getModulesOfType<Light>()[1] };
-		lightUniforms.upateBuffer(0, lightVec, *scene.getModulesOfType<Camera>()[0]);
+		modelUniforms.upateBuffer(0, *scene->getModulesOfType<Model>()[0], *scene->activeCamera);
+		std::vector<Light> lightVec = {*scene->getModulesOfType<Light>()[0], *scene->getModulesOfType<Light>()[1] };
+		lightUniforms.upateBuffer(0, lightVec, *scene->activeCamera);
 
 		vkResetFences(device.get(), 1, &inFlightFences[currentFrame]);
 
