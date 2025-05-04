@@ -19,7 +19,7 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// METHODS
 	
-	void create(char* title, int width, int height);
+	void create(const char* title, int width, int height);
 
 	void createSurface(VkInstance vulkanInstance, VkSurfaceKHR* surface);
 
@@ -34,6 +34,6 @@ private:
 	// CLASS MEMBERS
 
 	SDL_Window* window;
-	bool closeRequested;
+	bool closeRequested = false;
 
 };

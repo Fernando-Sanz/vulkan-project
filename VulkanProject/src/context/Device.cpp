@@ -5,30 +5,145 @@
 #include "VulkanApplication.hpp"
 
 
+namespace {
+	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface) {
+		// Logic to find queue family indices
+		QueueFamilyIndices indices;
+
+		//-----------------------------------------
+		// Get queue families
+		uint32_t queueFamilyCount = 0;
+		vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+		std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+		vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+		//-----------------------------------------
+		// Check queue families needed
+		int i = 0;
+		for (const auto& queueFamily : queueFamilies) {
+
+			// GRAPHICS QUEUE
+			if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+				indices.graphicsFamily = i;
+			}
+
+			// PRESENT QUEUE
+			VkBool32 presentSupport = false;
+			vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+			if (presentSupport) {
+				indices.presentFamily = i;
+			}
+
+			// CHECK TO EXIT
+			if (indices.isComplete()) break;
+
+			i++;
+		}
+
+		return indices;
+	}
+
+	bool checkDeviceExtensionSupport(VkPhysicalDevice device) {
+		//-----------------------------------------
+		// Get device extensions
+		uint32_t extensionCount;
+		vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+		std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+		vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
+
+		//-----------------------------------------
+		// Check required extensions
+		std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
+		for (const auto& extension : availableExtensions) {
+			requiredExtensions.erase(extension.extensionName);
+		}
+
+		return requiredExtensions.empty();
+	}
+
+	SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface) {
+
+		//-----------------------------------------
+		// SURFACE CAPABILITIES
+		SwapChainSupportDetails details;
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
+
+		//-----------------------------------------
+		// SURFACE FORMATS
+		uint32_t formatCount;
+		vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, nullptr);
+		if (formatCount != 0) {
+			details.formats.resize(formatCount);
+			vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, details.formats.data());
+		}
+
+		//-----------------------------------------
+		// SURFACE PRESENT MODES
+		uint32_t presentModeCount;
+		vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, nullptr);
+		if (presentModeCount != 0) {
+			details.presentModes.resize(presentModeCount);
+			vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, details.presentModes.data());
+		}
+
+		return details;
+	}
+
+	bool isDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface) {
+		// IMPORTANT NOTE:
+		// Here could be a customized selection process that considers different
+		// aspects of the available GPUs (texture max size, separate GPU, etc)
+
+		// QUEUE FAMILIES
+		QueueFamilyIndices indices = findQueueFamilies(device, surface);
+
+		// EXTENSIONS SUPPORT
+		bool extensionsSupported = checkDeviceExtensionSupport(device);
+
+		// SWAP CHAIN SUPPORT
+		// Swapchain suitability given the surface that already exists
+		bool swapChainAdequate = false;
+		if (extensionsSupported) {
+			SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device, surface);
+			swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
+		}
+
+		// GENERAL FEATURES SUPPORT
+		VkPhysicalDeviceFeatures supportedFeatures;
+		vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
+
+		return indices.isComplete() &&				// all queue families needed
+			extensionsSupported &&					// all extensions required
+			swapChainAdequate &&					// swapchain support
+			supportedFeatures.samplerAnisotropy;	// supports anisotropy
+	}
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // PHYSICAL DEVICE METHODS
 
-void Device::pickDevice() {
-	VulkanApplication& instance = VulkanApplication::getInstance();
+void Device::pickDevice(VkInstance instance, VkSurfaceKHR surface) {
 
 	//-----------------------------------------
 	// Get available graphics cards
 	uint32_t deviceCount = 0;
-	vkEnumeratePhysicalDevices(instance.getVulkanInstance(), &deviceCount, nullptr);
+	vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
 
 	if (deviceCount == 0) {
 		throw std::runtime_error("failed to find GPUs with Vulkan support");
 	}
 
 	std::vector<VkPhysicalDevice> devices(deviceCount);
-	vkEnumeratePhysicalDevices(instance.getVulkanInstance(), &deviceCount, devices.data());
+	vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
 	//-----------------------------------------
 	// Find suitable graphics card
 	for (const auto& device : devices) {
-		if (isDeviceSuitable(device)) {
+		if (isDeviceSuitable(device, surface)) {
 			physicalDevice = device;
 			msaaSamples = getMaxUsableSampleCount();
+			queueFamilyIndices = findQueueFamilies(physicalDevice, surface);
+			swapChainSupportDetails = querySwapChainSupport(physicalDevice, surface);
 			break;
 		}
 	}
@@ -40,120 +155,6 @@ void Device::pickDevice() {
 	//-----------------------------------------
 	// Create logical device
 	createLogicalDevice();
-}
-
-bool Device::isDeviceSuitable(VkPhysicalDevice device) {
-	// IMPORTANT NOTE:
-	// Here could be a customized selection process that considers different
-	// aspects of the available GPUs (texture max size, separate GPU, etc)
-
-	// QUEUE FAMILIES
-	QueueFamilyIndices indices = findQueueFamilies(device);
-
-	// EXTENSIONS SUPPORT
-	bool extensionsSupported = checkDeviceExtensionSupport(device);
-
-	// SWAP CHAIN SUPPORT
-	// Swapchain suitability given the surface that already exists
-	bool swapChainAdequate = false;
-	if (extensionsSupported) {
-		SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device);
-		swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
-	}
-
-	// GENERAL FEATURES SUPPORT
-	VkPhysicalDeviceFeatures supportedFeatures;
-	vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
-
-	return indices.isComplete() &&				// all queue families needed
-		extensionsSupported &&					// all extensions required
-		swapChainAdequate &&					// swapchain support
-		supportedFeatures.samplerAnisotropy;	// supports anisotropy
-}
-
-QueueFamilyIndices Device::findQueueFamilies(VkPhysicalDevice device) {
-	// Logic to find queue family indices
-	VulkanApplication& instance = VulkanApplication::getInstance();
-	QueueFamilyIndices indices;
-
-	//-----------------------------------------
-	// Get queue families
-	uint32_t queueFamilyCount = 0;
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
-	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
-
-	//-----------------------------------------
-	// Check queue families needed
-	int i = 0;
-	for (const auto& queueFamily : queueFamilies) {
-
-		// GRAPHICS QUEUE
-		if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-			indices.graphicsFamily = i;
-		}
-
-		// PRESENT QUEUE
-		VkBool32 presentSupport = false;
-		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, instance.getSurface(), &presentSupport);
-		if (presentSupport) {
-			indices.presentFamily = i;
-		}
-
-		// CHECK TO EXIT
-		if (indices.isComplete()) break;
-
-		i++;
-	}
-
-	return indices;
-}
-
-bool Device::checkDeviceExtensionSupport(VkPhysicalDevice device) {
-	//-----------------------------------------
-	// Get device extensions
-	uint32_t extensionCount;
-	vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
-	std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-	vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
-
-	//-----------------------------------------
-	// Check required extensions
-	std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
-	for (const auto& extension : availableExtensions) {
-		requiredExtensions.erase(extension.extensionName);
-	}
-
-	return requiredExtensions.empty();
-}
-
-SwapChainSupportDetails Device::querySwapChainSupport(VkPhysicalDevice device) {
-	VulkanApplication& vulkanApp = VulkanApplication::getInstance();
-
-	//-----------------------------------------
-	// SURFACE CAPABILITIES
-	SwapChainSupportDetails details;
-	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, vulkanApp.getSurface(), &details.capabilities);
-
-	//-----------------------------------------
-	// SURFACE FORMATS
-	uint32_t formatCount;
-	vkGetPhysicalDeviceSurfaceFormatsKHR(device, vulkanApp.getSurface(), &formatCount, nullptr);
-	if (formatCount != 0) {
-		details.formats.resize(formatCount);
-		vkGetPhysicalDeviceSurfaceFormatsKHR(device, vulkanApp.getSurface(), &formatCount, details.formats.data());
-	}
-
-	//-----------------------------------------
-	// SURFACE PRESENT MODES
-	uint32_t presentModeCount;
-	vkGetPhysicalDeviceSurfacePresentModesKHR(device, vulkanApp.getSurface(), &presentModeCount, nullptr);
-	if (presentModeCount != 0) {
-		details.presentModes.resize(presentModeCount);
-		vkGetPhysicalDeviceSurfacePresentModesKHR(device, vulkanApp.getSurface(), &presentModeCount, details.presentModes.data());
-	}
-
-	return details;
 }
 
 uint32_t Device::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
@@ -228,10 +229,10 @@ void Device::createLogicalDevice() {
 	// QUEUE CREATE INFOS
 
 	// unique queue families
-	QueueFamilyIndices indices = findQueueFamilies();
 	std::set<uint32_t> queueFamilies = {
-		indices.graphicsFamily.value(),
-		indices.presentFamily.value() };
+		queueFamilyIndices.graphicsFamily.value(),
+		queueFamilyIndices.presentFamily.value()
+	};
 
 	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
 	float queuePriority = 1.0f;
@@ -276,8 +277,8 @@ void Device::createLogicalDevice() {
 
 	//-----------------------------------------
 	// GET THE QUEUES
-	vkGetDeviceQueue(logicalDevice, indices.graphicsFamily.value(), 0, &graphicsQueue);
-	vkGetDeviceQueue(logicalDevice, indices.presentFamily.value(), 0, &presentQueue);
+	vkGetDeviceQueue(logicalDevice, queueFamilyIndices.graphicsFamily.value(), 0, &graphicsQueue);
+	vkGetDeviceQueue(logicalDevice, queueFamilyIndices.presentFamily.value(), 0, &presentQueue);
 }
 
 void Device::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,

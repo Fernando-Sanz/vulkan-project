@@ -9,7 +9,7 @@ void CommandManager::createPoolAndBuffers(Device device, int bufferCount) {
 	VkCommandPoolCreateInfo poolInfo{};
 	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	poolInfo.queueFamilyIndex = device.findQueueFamilies().graphicsFamily.value();
+	poolInfo.queueFamilyIndex = device.getQueueFamilies().graphicsFamily.value();
 
 	if (vkCreateCommandPool(device.get(), &poolInfo, nullptr, &pool) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create command pool");

@@ -8,7 +8,7 @@
 #include "system/eventManagement.hpp"
 
 
-void Window::create(char* title, int width, int height) {
+void Window::create(const char* title, int width, int height) {
 	window = SDL_CreateWindow(title,
 		width, height, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 

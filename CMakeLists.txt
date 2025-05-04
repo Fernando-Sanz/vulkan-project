@@ -27,6 +27,7 @@ set(SOURCES
 
     "${SOURCE_CODE_PATH}/context/CommandManager.cpp"
     "${SOURCE_CODE_PATH}/context/Device.cpp"
+    "${SOURCE_CODE_PATH}/context/VulkanInstance.cpp"
     "${SOURCE_CODE_PATH}/context/Window.cpp"
 
     "${SOURCE_CODE_PATH}/render/image/imageUtils.cpp"

@@ -48,13 +48,13 @@ public:
     
     // Select a device depending on the requirements of 'isDeviceSuitable()' and creates a logical device
     // TODO: Check if it could receive the surface that will be used for rendering
-    void pickDevice();
+    void pickDevice(VkInstance instance, VkSurfaceKHR surface);
 
     // This function returns a QueueFamilyIndices struct with the supported queue families
-    QueueFamilyIndices findQueueFamilies() { return findQueueFamilies(physicalDevice); }
+    QueueFamilyIndices getQueueFamilies() const { return queueFamilyIndices; }
 
     // Check for CAPABILITIES, FORMATS and PRESENT MODES
-    SwapChainSupportDetails querySwapChainSupport() { return querySwapChainSupport(physicalDevice); }
+    SwapChainSupportDetails getSwapChainSupport() { return swapChainSupportDetails; }
 
     // Search for a memory type that has the properties specified
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
@@ -88,6 +88,8 @@ private:
     // Physical device objects
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;	// destroyed with instance
     VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT; // multisampling
+    QueueFamilyIndices queueFamilyIndices; // queue family indices of the physical device
+    SwapChainSupportDetails swapChainSupportDetails; // swap chain support details of the physical device
 
     // Logical device objects
     VkDevice logicalDevice;
@@ -95,22 +97,9 @@ private:
     VkQueue presentQueue;
 
 
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // PHYSICAL DEVICE METHODS
-
-    // Determine if a device is suitable based on queue families, required extensions,
-    // and support for swap chain and certain features
-    // Now it picks the first device that meets with all the requirements
-    bool isDeviceSuitable(VkPhysicalDevice device);
-
-    // This function returns a QueueFamilyIndices struct with the supported queue families by the GPU
-    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
-
-    // This function returns true if all extensions are supported
-    bool checkDeviceExtensionSupport(VkPhysicalDevice device);
-
-    // Check for supported CAPABILITIES, FORMATS and PRESENT MODES by the GPU
-    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
 
     // Get the maximun sample count supported by the GPU depending on color buffer AND depth buffer
     VkSampleCountFlagBits getMaxUsableSampleCount();

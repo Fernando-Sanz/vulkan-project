@@ -13,7 +13,7 @@ const std::string TEXTURE2_PATH = "../../VulkanProject/assets/models/viking_room
 
 
 int main() {
-	VulkanApplication& app = VulkanApplication::getInstance();
+	VulkanApplication app;
 	VulkanAppParams params = {};
 	params.firstRenderPassVertShaderPath = FIRST_PASS_VERT_SHADER_PATH;
 	params.firstRenderPassFragShaderPath = FIRST_PASS_FRAG_SHADER_PATH;

@@ -18,8 +18,7 @@
 #include <chrono>
 
 #include "context/Window.hpp"
-#include "context/Device.hpp"
-#include "context/CommandManager.hpp"
+#include "context/VulkanInstance.hpp"
 #include "render/target/SwapChain.hpp"
 #include "render/target/FramebufferResources.hpp"
 #include "render/target/RenderPasses.hpp"
@@ -44,18 +43,10 @@ const std::string POST_PROCESSING_QUAD_PATH = "C:/development/cpp/VulkanProject/
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
-#ifdef NDEBUG
-const bool enableValidationLayers = false;
-#else
-const bool enableValidationLayers = true;
-#endif
-
-const std::vector<const char*> validationLayers = {
-	"VK_LAYER_KHRONOS_validation"
-};
-
 
 struct VulkanAppParams {
+	std::string applicationName;
+
 	std::string modelPath;
 	std::vector<TexturePaths> texturePaths;
 	std::string firstRenderPassVertShaderPath;
@@ -70,35 +61,6 @@ struct VulkanAppParams {
 };
 
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// HELPER FUNCTIONS
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace {
-
-	VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
-		const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
-
-		auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-		if (func != nullptr) {
-			return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
-		}
-		else {
-			return VK_ERROR_EXTENSION_NOT_PRESENT;
-		}
-	}
-
-	void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
-		auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-		if (func != nullptr) {
-			func(instance, debugMessenger, pAllocator);
-		}
-	}
-}
-
-
 
 class VulkanApplication {
 
@@ -110,26 +72,14 @@ public:
 		cleanup();
 	}
 
-	static VulkanApplication& getInstance() {
-		static VulkanApplication instance;
-		return instance;
-	}
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// GETTERS AND SETTERS
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	VkInstance getVulkanInstance() { return instance; }
-	VkSurfaceKHR getSurface() { return surface; }
-
 private:
 
 	// Instance objects
 	Window window;
-	VkInstance instance;
-	VkDebugUtilsMessengerEXT debugMessenger;
 	// Resize handled manually
 	int windowResizedEvent = -1;
+
+	VulkanInstance instance;
 
 	// TODO: check if could be in Window class (VkInstance is necessary to create it)
 	// Surface
@@ -182,19 +132,6 @@ private:
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// CONSTRUCTOR AND OPERATORS
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	VulkanApplication() {}
-
-	// Delete copy and assignment (for singleton)
-	VulkanApplication(const VulkanApplication&) = delete;
-	VulkanApplication& operator=(const VulkanApplication&) = delete;
-
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// WINDOW CONFIGURATION FUNCTIONS
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -203,7 +140,7 @@ private:
 
 		SDL_Init(SDL_INIT_VIDEO);
 
-		window.create("Vulkan Render Engine", params.width, params.height);
+		window.create(params.applicationName.c_str(), params.width, params.height);
 		addEventSubscriber(SDL_EVENT_WINDOW_RESIZED, [this](SDL_Event e) {
 			windowResizedEvent = e.type;
 			});
@@ -224,12 +161,11 @@ private:
 
 	void initVulkan(VulkanAppParams params) {
 
-		createInstance();
-		setupDebugMessenger();
+		instance.create(params.applicationName.c_str());
 
-		window.createSurface(instance, &surface);
+		window.createSurface(instance.get(), &surface);
 
-		device.pickDevice();
+		device.pickDevice(instance.get(), surface);
 		commandManager.createPoolAndBuffers(device, MAX_FRAMES_IN_FLIGHT);
 
 		swapChain.create(device, window, surface);
@@ -261,166 +197,6 @@ private:
 		createSecondPassDescriptorSets();
 
 		createSyncObjects();
-	}
-
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// INSTANCE CREATION
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	void createInstance() {
-
-		if (enableValidationLayers && !checkValidationLayerSupport()) {
-			throw std::runtime_error("validation layers requested, but no available");
-		}
-
-		//-----------------------------------------------
-		// APPLICATION INFO
-		VkApplicationInfo appInfo{};
-		appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-		appInfo.pApplicationName = "Vulkan application";
-		appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-		appInfo.pEngineName = "Render Engine";
-		appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-		appInfo.apiVersion = VK_API_VERSION_1_0;
-
-		// GET EXTENSIONS
-		auto extensions = getRequiredExtensions();
-
-		// SET THE VALIDATION LAYERS
-		uint32_t layerCount = 0;
-		const char* const* layers = nullptr;
-		if (enableValidationLayers) {
-			layerCount = static_cast<uint32_t>(validationLayers.size());
-			layers = validationLayers.data();
-		}
-		else {
-			layerCount = 0;
-		}
-
-		//-----------------------------------------------
-		// INSTANCE DEBUG MESSENGER
-		VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-		VkDebugUtilsMessengerCreateInfoEXT* pNext = nullptr;
-		if (enableValidationLayers) {
-			populateDebugMessengerCreateInfo(debugCreateInfo);
-			pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
-		}
-
-		//-----------------------------------------------
-		// CREATE INFO
-		VkInstanceCreateInfo createInfo{};
-		createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-		createInfo.pApplicationInfo = &appInfo;
-
-		createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-		createInfo.ppEnabledExtensionNames = extensions.data();
-
-		createInfo.enabledLayerCount = layerCount;
-		createInfo.ppEnabledLayerNames = layers;
-
-		createInfo.pNext = pNext;
-
-		// CREATE VULKAN INSTANCE
-		if (vkCreateInstance(&createInfo, nullptr, &instance)) {
-			throw std::runtime_error("failed to create instance.");
-		}
-	}
-
-	std::vector<const char*> getRequiredExtensions() {
-		uint32_t sdlExtensionCount = 0;
-		const char* const* sdlExtensions;
-		sdlExtensions = SDL_Vulkan_GetInstanceExtensions(&sdlExtensionCount);
-
-		std::vector<const char*> extensions(sdlExtensions, sdlExtensions + sdlExtensionCount);
-
-		// add debug utils extension (if debugging)
-		if (enableValidationLayers)
-			extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-
-		// show required extensions
-		std::cout << "Required extensions:" << std::endl;
-		for (const auto& extension : extensions) {
-			std::cout << extension << std::endl;
-		}
-
-		return extensions;
-	}
-
-	bool checkValidationLayerSupport() {
-		// GET AVAILABLE LAYERS
-		uint32_t layerCount;
-		vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-
-		std::vector<VkLayerProperties> availableLayers(layerCount);
-		vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
-
-		// COMPARE THE AVAILABLE LAYERS WITH THE REQUESTED ONES
-		for (const char* layerName : validationLayers) {
-			bool layerFound = false;
-
-			for (const auto& layerProperties : availableLayers) {
-				if (strcmp(layerName, layerProperties.layerName) == 0) {
-					layerFound = true;
-					break;
-				}
-			}
-
-			if (!layerFound) {
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// DEBUG MESSENGER CREATION
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	void setupDebugMessenger() {
-		if (!enableValidationLayers) return;
-
-		// create info
-		VkDebugUtilsMessengerCreateInfoEXT createInfo;
-		populateDebugMessengerCreateInfo(createInfo);
-
-		if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
-			throw std::runtime_error("failed to set up debug messenger");
-		}
-	}
-
-	void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
-		createInfo = {};
-		createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-		//createInfo.messageSeverity =
-		//	VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-		//	VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-		createInfo.messageSeverity =
-			VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-			VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-		createInfo.messageType =
-			VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-			VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-		createInfo.pfnUserCallback = debugCallback;
-	}
-
-	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
-		VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-		VkDebugUtilsMessageTypeFlagsEXT messageType,
-		const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-		void* pUserData) {
-
-		bool filterMessages = true;
-
-		// it only shows error and warning messages
-		if (filterMessages && messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-			std::cerr << "VALIDATION LAYER: " << pCallbackData->pMessage << std::endl;
-			//std::cerr << "\tREFERED TO OBJECT: " << pCallbackData->pObjects->pObjectName << std::endl;
-		}
-
-		return VK_FALSE;
 	}
 
 
@@ -825,22 +601,20 @@ private:
 			vkDestroyFence(device.get(), inFlightFences[i], nullptr);
 		}
 
-		// Command pool
-		commandManager.cleanup();
-
 		// Pipeline
 		firstPassPipeline.cleanup();
 		secondPassPipeline.cleanup();
 		RenderPasses::cleanup();
 
 		// Device
+		commandManager.cleanup();
 		device.cleanup();
 
+		// Surface
+		vkDestroySurfaceKHR(instance.get(), surface, nullptr);
+
 		// Instance objects
-		if (enableValidationLayers)
-			DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
-		vkDestroySurfaceKHR(instance, surface, nullptr);
-		vkDestroyInstance(instance, nullptr);
+		instance.cleanup();
 
 		window.cleanup();
 

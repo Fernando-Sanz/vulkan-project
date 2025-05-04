@@ -52,7 +52,7 @@ VkExtent2D SwapChain::chooseExtent(Window window, const VkSurfaceCapabilitiesKHR
 }
 
 void SwapChain::createSwapChain(Window window, VkSurfaceKHR surface) {
-	SwapChainSupportDetails swapChainSupport = device.querySwapChainSupport();
+	SwapChainSupportDetails swapChainSupport = device.getSwapChainSupport();
 
 	// MAJOR PROPERTIES
 	VkSurfaceFormatKHR surfaceFormat = chooseSurfaceFormat(swapChainSupport.formats);
@@ -78,7 +78,7 @@ void SwapChain::createSwapChain(Window window, VkSurfaceKHR surface) {
 	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
 	// how to handle images between queues:
-	QueueFamilyIndices indices = device.findQueueFamilies();
+	QueueFamilyIndices indices = device.getQueueFamilies();
 	uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };
 
 	if (indices.graphicsFamily != indices.presentFamily) {
