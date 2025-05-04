@@ -1,4 +1,4 @@
-#include "FirstPassPipeline.hpp"
+#include "Pipeline3D.hpp"
 
 #include <vulkan/vulkan.h>
 
@@ -10,7 +10,7 @@
 #include "asset/bytecodeFileReader.hpp"
 
 
-void FirstPassPipeline::createGraphicsPipeline(std::string vertShaderLocation, std::string fragShaderLocation) {
+void Pipeline3D::createGraphicsPipeline(std::string vertShaderLocation, std::string fragShaderLocation) {
 
 	//--------------------------------------------------------
 	// SHADERS

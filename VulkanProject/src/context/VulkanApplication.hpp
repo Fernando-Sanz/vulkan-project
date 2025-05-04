@@ -23,8 +23,8 @@
 #include "render/target/FramebufferResources.hpp"
 #include "render/target/RenderPasses.hpp"
 #include "render/image/imageUtils.hpp"
-#include "render/pipeline/FirstPassPipeline.hpp"
 #include "render/pipeline/Pipeline2D.hpp"
+#include "render/pipeline/Pipeline3D.hpp"
 #include "render/uniform/LightUboManager.hpp"
 #include "render/uniform/ModelUboManager.hpp"
 #include "render/model/Material.hpp"
@@ -109,7 +109,7 @@ private:
 	VkDescriptorPool descriptorPool;
 
 	// FIRST PASS OBJECTS
-	FirstPassPipeline firstPassPipeline;
+	Pipeline3D firstPassPipeline;
 	FramebufferResources firstPassFramebuffer;
 	VkDescriptorSet firstPassDescriptorSet;
 	ModelUboManager modelUniforms;

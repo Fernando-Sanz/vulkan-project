@@ -5,9 +5,9 @@
 #include "render/pipeline/GraphicsPipeline.hpp"
 
 
-class FirstPassPipeline : public GraphicsPipeline {
+class Pipeline3D : public GraphicsPipeline {
 public:
-	FirstPassPipeline() : GraphicsPipeline(true, true) {}
+	Pipeline3D() : GraphicsPipeline(true, true) {}
 
 private:
 	void createGraphicsPipeline(std::string vertexShaderLocation, std::string fragmentShaderLocation) override;
