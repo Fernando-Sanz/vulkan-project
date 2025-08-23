@@ -49,8 +49,6 @@ struct VulkanAppParams {
 
 	Scene* scene;
 
-	std::string modelPath;
-	std::vector<TexturePaths> texturePaths;
 	std::string firstRenderPassVertShaderPath;
 	std::string firstRenderPassFragShaderPath;
 	std::string secondRenderPassVertShaderPath;
@@ -64,76 +62,90 @@ struct VulkanAppParams {
 
 
 
+// TODO: change name to VulkanRenderer or similar
 class VulkanApplication {
 
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+//	PUBLIC METHODS
 public:
-	void init(VulkanAppParams params) {
+
+	// CONSTRUCTOR
+	VulkanApplication(VulkanAppParams params) {
 		initWindow(params);
 		initVulkan(params);
 	}
 
+	// RENDER THE SCENE
 	void run(VulkanAppParams params) {
 		setupRenderSystem(params);
 		mainLoop(params.fps, params.updateRate);
 		cleanup();
 	}
 
-	Mesh* createMesh(std::string& modelPath) {
+	// MESH AND MATERIAL CREATION
+	Mesh* createMesh(const std::string& modelPath) {
 		return meshes.createMesh(modelPath);
 	}
-
-	Material* createMaterial(TexturePaths& texturePaths) {
+	Material* createMaterial(const TexturePaths& texturePaths) {
 		return materials.createMaterial(texturePaths);
 	}
 
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+//	PRIVATE METHODS
 private:
 
-	// Instance objects
+	// INSTANCE OBJECTS
+
 	Window window;
-	// Resize handled manually
-	int windowResizedEvent = -1;
-
+	int windowResizedEvent = -1;	// Resize handled manually
 	VulkanInstance instance;
-
 	// TODO: check if could be in Window class (VkInstance is necessary to create it)
-	// Surface
 	VkSurfaceKHR surface;
 
+	// DEVICE
 	Device device;
 	CommandManager commandManager;
 
-	// Swap chain stuff
+	// SWAP CHAIN
 	SwapChain swapChain;
 
+	// SCENE
+	// the scene should be created in user program, the library does not create it
 	Scene* scene;
 
-	// Geometry
+	// GEOMETRY AND MATERIALS
 	MeshManager meshes;
 	MaterialManager materials;
 	Material* postProcessingQuadMaterial;
 	Entity postProcessingQuad;
 
-	// Descriptor pool and sets
+	// DESCRIPTOR POOL
 	VkDescriptorPool descriptorPool;
 
-	// FIRST PASS OBJECTS
+	// RENDER PASS OBJECTS
+
+	// first pass
 	Pipeline3D firstPassPipeline;
 	FramebufferResources firstPassFramebuffer;
 	VkDescriptorSet firstPassDescriptorSet;
 	ModelUboManager modelUniforms;
 	LightUboManager lightUniforms;
 
-	// SECOND PASS OBJECTS
+	// second pass
+	// it supports rendering for more than one frame at once
+	// it does not need UBO manager because only uses a quad with its texture
 	Pipeline2D secondPassPipeline;
 	std::vector<FramebufferResources> secondPassFramebuffers;
 	std::vector<VkDescriptorSet> secondPassDescriptorSets;
 
-	// Sync objects
+	// SYNC OBJECTS
 	std::vector<VkSemaphore> imageAvailableSemaphores;
 	std::vector<VkSemaphore> renderFinishedSemaphores;
 	std::vector<VkFence> inFlightFences;
 
-	// Frame tracking
+	// FRAME TRACKING
 	uint32_t currentFrame = 0;
 
 
@@ -146,8 +158,10 @@ private:
 
 	void initWindow(VulkanAppParams params) {
 
+		// INITIALIZE SDL LIBRARY
 		SDL_Init(SDL_INIT_VIDEO);
 
+		// WINDOW CREATION AND SUBSCRIBE TO RESIZE EVENTS
 		window.create(params.applicationName.c_str(), params.width, params.height);
 		addEventSubscriber(SDL_EVENT_WINDOW_RESIZED, [this](SDL_Event e) {
 			windowResizedEvent = e.type;
@@ -167,6 +181,12 @@ private:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	// Create:
+	// - instance
+	// - surface
+	// - devices and command manager
+	// - swap chain
+	// - meshes and material managers
 	void initVulkan(VulkanAppParams params) {
 
 		instance.create(params.applicationName.c_str());
@@ -418,6 +438,7 @@ private:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	// TODO: remove the loop from the library, just externalize simple render operations
 	void mainLoop(uint32_t fps, uint32_t updateRate) {
 		if (fps <= 0 || updateRate <= 0)
 			throw std::runtime_error("invalid fps or update rate, they must be grater than 0");

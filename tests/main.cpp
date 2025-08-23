@@ -17,9 +17,9 @@ void createWorldObjects(VulkanAppParams& params, VulkanApplication& app) {
 	Scene& scene = *params.scene;
 
 	// LOAD MESHES
-	Mesh* mesh = app.createMesh(params.modelPath);
+	Mesh* mesh = app.createMesh(MODEL_PATH);
 	// LOAD TEXTURES
-	Material* material = app.createMaterial(params.texturePaths[0]);
+	Material* material = app.createMaterial({TEXTURE_PATH, TEXTURE2_PATH});
 
 	// MODEL
 	Entity* modelEntity = scene.addEntity();
@@ -36,7 +36,8 @@ void createWorldObjects(VulkanAppParams& params, VulkanApplication& app) {
 	Entity* cameraEntity = scene.addEntity();
 	cameraEntity->transform.lookAt = -Transform::Y;
 	cameraEntity->transform.right = -Transform::X;
-	cameraEntity->transform.position.y = 2;
+	cameraEntity->transform.position.y = 5;
+	cameraEntity->transform.position.z = 0.5;
 	Camera* camera = cameraEntity->addModule<Camera>();
 	scene.activeCamera = camera;
 }
@@ -44,7 +45,6 @@ void createWorldObjects(VulkanAppParams& params, VulkanApplication& app) {
 int main() {
 	Scene scene;
 
-	VulkanApplication app;
 	VulkanAppParams params = {};
 	params.applicationName = "VULKAN TEST";
 	params.scene = &scene;
@@ -53,14 +53,9 @@ int main() {
 	params.firstRenderPassFragShaderPath = FIRST_PASS_FRAG_SHADER_PATH;
 	params.secondRenderPassVertShaderPath = SECOND_PASS_VERT_SHADER_PATH;
 	params.secondRenderPassFragShaderPath = SECOND_PASS_FRAG_SHADER_PATH;
-	params.modelPath = MODEL_PATH;
-	std::vector<TexturePaths> textures(1);
-	textures[0].albedoPath = TEXTURE_PATH;
-	textures[0].normalPath = TEXTURE2_PATH;
-	params.texturePaths = textures;
 
 	try {
-		app.init(params);
+		VulkanApplication app(params);
 		createWorldObjects(params, app);
 		app.run(params);
 	}

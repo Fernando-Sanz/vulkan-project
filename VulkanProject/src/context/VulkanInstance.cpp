@@ -52,6 +52,7 @@ namespace {
 	}
 
 	std::vector<const char*> getRequiredExtensions() {
+		// SDL gives the needed extensions
 		uint32_t sdlExtensionCount = 0;
 		const char* const* sdlExtensions;
 		sdlExtensions = SDL_Vulkan_GetInstanceExtensions(&sdlExtensionCount);
@@ -130,6 +131,7 @@ void VulkanInstance::create(const char* applicationName) {
 
 void VulkanInstance::createInstance(const char* applicationName) {
 
+	// VALIDATION LAYERS
 	if (enableValidationLayers && !checkValidationLayerSupport()) {
 		throw std::runtime_error("validation layers requested, but no available");
 	}

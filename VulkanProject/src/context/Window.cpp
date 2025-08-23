@@ -9,8 +9,7 @@
 
 
 void Window::create(const char* title, int width, int height) {
-	window = SDL_CreateWindow(title,
-		width, height, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+	window = SDL_CreateWindow(title, width, height, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 
 	// Subscribe to close window event
 	addEventSubscriber(SDL_EVENT_WINDOW_CLOSE_REQUESTED, [this](SDL_Event e) {closeRequested = true; });

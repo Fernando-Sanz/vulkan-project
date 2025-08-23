@@ -8,12 +8,12 @@ void MeshManager::init(Device device, CommandManager commandManager) {
 
 Mesh* MeshManager::createMesh(std::string modelPath) {
 
-	auto [iterator, inserted] = meshes.insert(
+	auto [insertedPair, inserted] = meshes.insert(
 		{ nextId, std::make_unique<Mesh>(nextId, device, commandManager, modelPath) }
 	);
 	nextId++;
 
-	return iterator->second.get();
+	return insertedPair->second.get();
 }
 
 
